@@ -6,8 +6,8 @@ services:
     ports:
       - "8501:8501"
     volumes:
-      - ./app:/app/app          # live reload during dev
-      - ./data:/app/data        # SQLite db persists outside container
+      - .:/project                        # ← mount whole project root
+      - ./data:/project/data              # ← db persists here
     environment:
-      - DATABASE_URL=sqlite:////app/data/vcamon.db
+      - DATABASE_URL=sqlite:////project/data/vcamon.db
     restart: unless-stopped

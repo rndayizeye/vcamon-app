@@ -12,3 +12,10 @@ pythonpath = ["."]
 line-length = 88
 select = ["E", "F", "I"]
 exclude = ["__pycache__"]
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.backends.legacy:build"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]

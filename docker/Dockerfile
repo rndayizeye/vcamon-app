@@ -1,11 +1,11 @@
 FROM python:3.11-slim
 
-WORKDIR /app
+WORKDIR /project                          # ← was /app
 
 COPY requirements/base.txt requirements/base.txt
 RUN pip install --no-cache-dir -r requirements/base.txt
 
-COPY app/ ./app/
+COPY . .                                  # ← copy the whole project root
 
 EXPOSE 8501
 
