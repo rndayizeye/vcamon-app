@@ -1,0 +1,14 @@
+[project]
+name = "vcamon-app"
+version = "0.1.0"
+description = "VCA contact tracing and case management tool"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "I"]
+exclude = ["__pycache__"]
