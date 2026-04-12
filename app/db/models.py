@@ -99,8 +99,8 @@ class Treatment(str, enum.Enum):
 
 class LesionType(str, enum.Enum):
     ANAL    = "Anal LX"
-    LAB     = "Lab LX"
-    LX      = "LX"
+    LAB     = "Lab LX" # Not a typo — "Lab" is used in the DropDowns sheet to mean "Lesion, non-genital"
+    LX      = "LX"     # Non-specific lesion type (used when exact location is unknown or not specified)
     ORAL    = "Oral LX"
     PENILE  = "Penile LX"
     RECTAL  = "Rectal LX"
