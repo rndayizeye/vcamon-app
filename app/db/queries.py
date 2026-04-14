@@ -232,3 +232,48 @@ def delete_ghosting(db: Session, ghosting_id: int) -> bool:
     db.delete(g)
     db.commit()
     return True
+
+# ---------------------------------------------------------------------------
+# Timeline event queries  (used by 06_timeline.py and 08_vca_chart.py)
+# ---------------------------------------------------------------------------
+
+def get_timeline_events(db: Session, case_id: int):
+    from app.db.models import TimelineEvent
+    return (
+        db.query(TimelineEvent)
+        .filter(TimelineEvent.case_id == case_id)
+        .order_by(TimelineEvent.event_date)
+        .all()
+    )
+
+
+def create_timeline_event(
+    db: Session,
+    case_id: int,
+    event_date,
+    event_type: str,
+    notes: str | None = None,
+    partner_id: int | None = None,
+):
+    from app.db.models import TimelineEvent
+    evt = TimelineEvent(
+        case_id=case_id,
+        event_date=event_date,
+        event_type=event_type,
+        notes=notes,
+        partner_id=partner_id,
+    )
+    db.add(evt)
+    db.commit()
+    db.refresh(evt)
+    return evt
+
+
+def delete_timeline_event(db: Session, event_id: int) -> bool:
+    from app.db.models import TimelineEvent
+    evt = db.query(TimelineEvent).filter(TimelineEvent.id == event_id).first()
+    if not evt:
+        return False
+    db.delete(evt)
+    db.commit()
+    return True
