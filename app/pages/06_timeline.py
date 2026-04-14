@@ -34,47 +34,17 @@ init_session_state()
 
 
 # ---------------------------------------------------------------------------
-# Timeline event DB helpers
+# Import Timeline event DB helpers
 # ---------------------------------------------------------------------------
 
-def get_timeline_events(db, case_id: int) -> list[TimelineEvent]:
-    return (
-        db.query(TimelineEvent)
-        .filter(TimelineEvent.case_id == case_id)
-        .order_by(TimelineEvent.event_date)
-        .all()
-    )
-
-
-def create_timeline_event(
-    db,
-    case_id: int,
-    event_date: date,
-    event_type: str,
-    notes: str | None = None,
-    partner_id: int | None = None,
-) -> TimelineEvent:
-    evt = TimelineEvent(
-        case_id=case_id,
-        event_date=event_date,
-        event_type=event_type,
-        notes=notes,
-        partner_id=partner_id,
-    )
-    db.add(evt)
-    db.commit()
-    db.refresh(evt)
-    return evt
-
-
-def delete_timeline_event(db, event_id: int) -> bool:
-    evt = db.query(TimelineEvent).filter(TimelineEvent.id == event_id).first()
-    if not evt:
-        return False
-    db.delete(evt)
-    db.commit()
-    return True
-
+from app.db.queries import (
+    get_case_by_id,
+    get_partners_for_case,
+    get_partner_by_id,
+    get_timeline_events,
+    create_timeline_event,
+    delete_timeline_event,
+)
 
 EVENT_TYPES = [
     "Treatment",
