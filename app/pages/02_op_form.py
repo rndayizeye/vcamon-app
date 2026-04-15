@@ -105,7 +105,7 @@ with st.form("op_form", border=True):
         )
     with col2:
         lot = st.selectbox(
-            "Lot",
+            "Diagnosis", #changed label from "Lot" to "Diagnosis", need to update DB field name in future
             options=["", "700", "710", "720", "730"],
             index=["", "700", "710", "720", "730"].index(case.lot or "") if case else 0,
         )
