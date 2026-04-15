@@ -42,7 +42,7 @@ from app.db.queries import (
 )
 from app.utils.session_state import init_session_state, get_active_case_id
 from app.utils.clinical import (
-    Symptom, avg_inoculation_date, calculate_inoculation_points,
+    Symptom, avg_inoculation_date,
     PRIMARY, INCUBATION,
 )
 
