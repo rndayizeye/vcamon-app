@@ -1,482 +1,528 @@
 """
-app/pages/06_timeline.py
+app/pages/09_quick_ghost.py
 
-Timeline — monthly calendar view of partner activity dates.
-Corresponds to the Chart / AddPartner2 sheets in the Excel file.
+Quick Ghosting Analysis — run the VCA ghosting engine without
+needing an active case or navigating the full workflow.
 
-Displays a heatmap-style calendar grid showing when each partner
-had treatment dates, lab work, or other recorded events.
-Also shows a summary chart of activity by month.
+Use this when:
+  - You want a fast calculation during an interview
+  - You're working from paper notes and want to check dates
+  - You want to verify a scenario before committing it to a case
+
+No database reads or writes happen unless you explicitly save.
+If a case is active in session state, a save option appears at the end.
 """
 
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
-import plotly.express as px
 from datetime import date, timedelta
-from calendar import month_abbr
 
-from app.db.database import SessionLocal
-from app.db.queries import (
-    get_case_by_id,
-    get_partners_for_case,
-    get_partner_by_id,
+from app.utils.session_state import init_session_state, get_active_case_id
+from app.utils.clinical import (
+    Symptom,
+    Exposure,
+    run_ghosting_analysis,
+    INCUBATION, PRIMARY, LATENCY, SECONDARY,
+    INTERVIEW_PERIOD_PRIMARY_DAYS,
+    INTERVIEW_PERIOD_SECONDARY_DAYS,
 )
-from app.db.models import TimelineEvent
-from app.utils.session_state import (
-    init_session_state,
-    get_active_case_id,
-    set_active_partner_id,
-)
+from app.utils.ghosting_plot import build_scenario_figure
 
-st.set_page_config(page_title="Timeline — VCA Monitor", layout="wide")
+st.set_page_config(page_title="Quick Ghost — VCA Monitor", layout="wide")
 init_session_state()
 
-
 # ---------------------------------------------------------------------------
-# Timeline event DB helpers
-# ---------------------------------------------------------------------------
-
-def get_timeline_events(db, case_id: int) -> list[TimelineEvent]:
-    return (
-        db.query(TimelineEvent)
-        .filter(TimelineEvent.case_id == case_id)
-        .order_by(TimelineEvent.event_date)
-        .all()
-    )
-
-
-def create_timeline_event(
-    db,
-    case_id: int,
-    event_date: date,
-    event_type: str,
-    notes: str | None = None,
-    partner_id: int | None = None,
-) -> TimelineEvent:
-    evt = TimelineEvent(
-        case_id=case_id,
-        event_date=event_date,
-        event_type=event_type,
-        notes=notes,
-        partner_id=partner_id,
-    )
-    db.add(evt)
-    db.commit()
-    db.refresh(evt)
-    return evt
-
-
-def delete_timeline_event(db, event_id: int) -> bool:
-    evt = db.query(TimelineEvent).filter(TimelineEvent.id == event_id).first()
-    if not evt:
-        return False
-    db.delete(evt)
-    db.commit()
-    return True
-
-
-EVENT_TYPES = [
-    "Treatment",
-    "Lab work",
-    "Interview",
-    "Re-interview",
-    "Field visit",
-    "Phone contact",
-    "Other",
-]
-
-# Color map for event types
-EVENT_COLORS = {
-    "Treatment":     "#1D9E75",
-    "Lab work":      "#378ADD",
-    "Interview":     "#534AB7",
-    "Re-interview":  "#7F77DD",
-    "Field visit":   "#D85A30",
-    "Phone contact": "#BA7517",
-    "Other":         "#888780",
-}
-
-
-# ---------------------------------------------------------------------------
-# Sidebar
+# Sidebar — minimal, just navigation back
 # ---------------------------------------------------------------------------
 
 with st.sidebar:
-    st.header("Active case")
-
-    case_id = get_active_case_id()
-
-    if not case_id:
-        st.warning("No case selected.")
-        if st.button("← Dashboard", use_container_width=True):
-            st.switch_page("pages/01_dashboard.py")
-        st.stop()
-
-    with SessionLocal() as db:
-        case = get_case_by_id(db, case_id)
-        partners = get_partners_for_case(db, case_id)
-
-    if not case:
-        st.error("Case not found.")
-        st.stop()
-
-    st.write(f"**#{case.id} — {case.patient_name}**")
-    st.caption(f"Lot: {case.lot or '—'}  |  Manager: {case.case_manager or '—'}")
+    st.header("Quick ghosting")
+    st.caption(
+        "Run the VCA ghosting engine without opening a case. "
+        "Enter dates directly and get an immediate result."
+    )
     st.divider()
 
-    if st.button("← Network graph", use_container_width=True):
-        st.switch_page("pages/05_network_graph.py")
     if st.button("← Dashboard", use_container_width=True):
         st.switch_page("pages/01_dashboard.py")
+    if st.button("Full ghosting analysis →", use_container_width=True):
+        st.switch_page("pages/07_ghosting_analysis.py")
 
+    st.divider()
+    st.caption("**Clinical reference**")
 
-# ---------------------------------------------------------------------------
-# Load all data
-# ---------------------------------------------------------------------------
-
-with SessionLocal() as db:
-    events = get_timeline_events(db, case_id)
-
-# Build partner lookup
-partner_map: dict[int, str] = {0: f"OP — {case.patient_name}"}
-partner_map.update({
-    p.id: f"Partner {p.partner_number} — {p.name or 'Unnamed'}"
-    for p in partners
-})
-
-# Auto-seed treatment dates from OP + partners if no events yet
-def seed_treatment_dates():
-    """Populate timeline events from existing treatment dates on first visit."""
-    seeded = []
-    with SessionLocal() as db:
-        existing = get_timeline_events(db, case_id)
-        existing_keys = {(e.event_date, e.partner_id) for e in existing}
-
-        # OP treatment date
-        if case.treatment_date:
-            key = (case.treatment_date, None)
-            if key not in existing_keys:
-                create_timeline_event(
-                    db, case_id,
-                    event_date=case.treatment_date,
-                    event_type="Treatment",
-                    notes="Auto-seeded from OP form",
-                    partner_id=None,
-                )
-                seeded.append("OP")
-
-        # Partner treatment dates
-        for p in partners:
-            if p.treatment_date:
-                key = (p.treatment_date, p.id)
-                if key not in existing_keys:
-                    create_timeline_event(
-                        db, case_id,
-                        event_date=p.treatment_date,
-                        event_type="Treatment",
-                        notes=f"Auto-seeded from partner {p.partner_number}",
-                        partner_id=p.id,
-                    )
-                    seeded.append(f"Partner {p.partner_number}")
-
-    return seeded
-
-
-# Seed on first load (idempotent)
-if not events:
-    seeded = seed_treatment_dates()
-    if seeded:
-        with SessionLocal() as db:
-            events = get_timeline_events(db, case_id)
-        st.info(f"Auto-loaded treatment dates for: {', '.join(seeded)}")
+    ref_rows = [
+        ("Incubation",  INCUBATION["min"],  INCUBATION["avg"],  INCUBATION["max"]),
+        ("Primary",     PRIMARY["min"],      PRIMARY["avg"],      PRIMARY["max"]),
+        ("Latency",     LATENCY["min"],      LATENCY["avg"],      LATENCY["max"]),
+        ("Secondary",   SECONDARY["min"],    SECONDARY["avg"],    SECONDARY["max"]),
+    ]
+    for label, mn, avg, mx in ref_rows:
+        st.markdown(
+            f"<small>**{label}:** {mn}–{avg}–{mx}d</small>",
+            unsafe_allow_html=True,
+        )
+    st.caption(
+        f"Interview periods: "
+        f"Primary = {INTERVIEW_PERIOD_PRIMARY_DAYS}d, "
+        f"Secondary = {INTERVIEW_PERIOD_SECONDARY_DAYS}d"
+    )
 
 
 # ---------------------------------------------------------------------------
 # Page header
 # ---------------------------------------------------------------------------
 
-st.title("Case Timeline")
+st.title("⚡ Quick Ghosting Analysis")
 st.caption(
-    f"Case #{case.id} — {case.patient_name}  |  "
-    f"{len(events)} event{'s' if len(events) != 1 else ''} recorded"
+    "Enter two people's symptom and exposure data below — no case required. "
+    "Results appear immediately after clicking **Run**."
 )
 
-# ---------------------------------------------------------------------------
-# Summary metrics
-# ---------------------------------------------------------------------------
+# Interview period helper banner
+with st.expander("Which dates do I need?", expanded=False):
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown(
+            f"""
+**If the presenting symptom is Primary:**
+- Chancre onset date
+- Exposure window (first + last contact with partner)
+- Sex type(s) reported
+- Treatment date
 
-if events:
-    dates = [e.event_date for e in events]
-    earliest = min(dates)
-    latest   = max(dates)
-    span_days = (latest - earliest).days
+Interview period reaches back **{INTERVIEW_PERIOD_PRIMARY_DAYS} days** before chancre onset.
+"""
+        )
+    with c2:
+        st.markdown(
+            f"""
+**If the presenting symptom is Secondary:**
+- Secondary symptom onset date
+- Exposure window (first + last contact)
+- Sex type(s) reported
+- Treatment date
 
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Total events",  len(events))
-    m2.metric("Earliest",      str(earliest))
-    m3.metric("Latest",        str(latest))
-    m4.metric("Span (days)",   span_days)
+Interview period reaches back **{INTERVIEW_PERIOD_SECONDARY_DAYS} days** before secondary onset.
+"""
+        )
 
 st.divider()
 
 # ---------------------------------------------------------------------------
-# Main content: chart + add event form
+# Input form — two columns, Person A and Person B
 # ---------------------------------------------------------------------------
 
-col_main, col_form = st.columns([3, 1])
+SYM_TYPES = [
+    "Primary Chancre",
+    "Historical Primary",
+    "Ghosted Primary",
+    "Secondary Rash/Lesions",
+    "None",
+]
 
-with col_main:
-
-    if not events:
-        st.info(
-            "No timeline events yet. Add treatment dates on the OP and Partner "
-            "forms, or use the **Add event** panel to record additional activity."
-        )
-    else:
-        # --- Build DataFrame ---
-        rows = []
-        for e in events:
-            subject = partner_map.get(e.partner_id or 0, "OP")
-            rows.append({
-                "id":          e.id,
-                "Date":        e.event_date,
-                "Subject":     subject,
-                "Event type":  e.event_type or "Other",
-                "Notes":       e.notes or "",
-                "Year":        e.event_date.year,
-                "Month":       e.event_date.month,
-                "Month name":  month_abbr[e.event_date.month],
-                "Day":         e.event_date.day,
-            })
-        df = pd.DataFrame(rows)
-
-        # ── Tab 1: Gantt-style scatter timeline ──────────────────────────
-        tab1, tab2, tab3 = st.tabs(["Timeline view", "Monthly heatmap", "Event table"])
-
-        with tab1:
-            st.caption("Each dot is a recorded event. Hover for details.")
-
-            fig = px.scatter(
-                df,
-                x="Date",
-                y="Subject",
-                color="Event type",
-                color_discrete_map=EVENT_COLORS,
-                hover_data=["Notes", "Event type"],
-                size_max=14,
-                height=max(300, len(partner_map) * 60 + 100),
-            )
-            fig.update_traces(marker=dict(size=12, opacity=0.85))
-            fig.update_layout(
-                xaxis_title="",
-                yaxis_title="",
-                legend_title="Event type",
-                plot_bgcolor="rgba(0,0,0,0)",
-                paper_bgcolor="rgba(0,0,0,0)",
-                font=dict(size=12),
-                margin=dict(l=10, r=10, t=10, b=10),
-            )
-            fig.update_xaxes(showgrid=True, gridcolor="rgba(0,0,0,0.06)")
-            fig.update_yaxes(showgrid=True, gridcolor="rgba(0,0,0,0.06)")
-            st.plotly_chart(fig, use_container_width=True)
-
-        # ── Tab 2: Monthly activity heatmap ──────────────────────────────
-        with tab2:
-            st.caption("Total events per subject per month.")
-
-            # Pivot: subjects × months
-            df["YearMonth"] = df["Date"].apply(
-                lambda d: f"{d.year}-{str(d.month).zfill(2)}"
-            )
-            pivot = (
-                df.groupby(["Subject", "YearMonth"])
-                .size()
-                .reset_index(name="Count")
-            )
-
-            if not pivot.empty:
-                all_months = sorted(pivot["YearMonth"].unique())
-                all_subjects = sorted(pivot["Subject"].unique())
-
-                heat_data = []
-                for subj in all_subjects:
-                    row_vals = []
-                    for ym in all_months:
-                        val = pivot.loc[
-                            (pivot["Subject"] == subj) & (pivot["YearMonth"] == ym),
-                            "Count"
-                        ]
-                        row_vals.append(int(val.iloc[0]) if not val.empty else 0)
-                    heat_data.append(row_vals)
-
-                fig2 = go.Figure(data=go.Heatmap(
-                    z=heat_data,
-                    x=all_months,
-                    y=all_subjects,
-                    colorscale=[
-                        [0.0, "#F1EFE8"],
-                        [0.5, "#5DCAA5"],
-                        [1.0, "#085041"],
-                    ],
-                    showscale=True,
-                    hoverongaps=False,
-                ))
-                fig2.update_layout(
-                    height=max(250, len(all_subjects) * 50 + 100),
-                    xaxis_title="Month",
-                    yaxis_title="",
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    margin=dict(l=10, r=10, t=10, b=10),
-                    font=dict(size=12),
-                )
-                st.plotly_chart(fig2, use_container_width=True)
-
-        # ── Tab 3: Raw event table ────────────────────────────────────────
-        with tab3:
-            display_df = df[["Date", "Subject", "Event type", "Notes"]].copy()
-            display_df["Date"] = display_df["Date"].astype(str)
-
-            st.dataframe(
-                display_df,
-                use_container_width=True,
-                hide_index=True,
-                column_config={
-                    "Date": st.column_config.TextColumn("Date", width="small"),
-                    "Event type": st.column_config.TextColumn("Event type", width="medium"),
-                },
-            )
-
-            # Delete an event
-            st.divider()
-            st.caption("Remove an event:")
-            event_options = {
-                e.id: f"{e.event_date}  |  {partner_map.get(e.partner_id or 0, 'OP')}  |  {e.event_type}"
-                for e in events
-            }
-            del_col1, del_col2 = st.columns([3, 1])
-            with del_col1:
-                del_id = st.selectbox(
-                    "Select event",
-                    options=list(event_options.keys()),
-                    format_func=lambda k: event_options[k],
-                    label_visibility="collapsed",
-                )
-            with del_col2:
-                if st.button("✕  Remove", use_container_width=True):
-                    with SessionLocal() as db:
-                        delete_timeline_event(db, del_id)
-                    st.success("Event removed.")
-                    st.rerun()
+# Display labels without "LX" — map back to full values for the engine
+SEX_DISPLAY = ["Anal", "Oral", "Vaginal", "Penile", "Rectal"]
+SEX_VALUE   = ["Anal LX", "Oral LX", "Vaginal LX", "Penile LX", "Rectal LX"]
+_display_to_value = dict(zip(SEX_DISPLAY, SEX_VALUE))
 
 
-# ---------------------------------------------------------------------------
-# Add event form (right column)
-# ---------------------------------------------------------------------------
+def _sex_display_to_values(selected_labels: list[str]) -> list[str]:
+    """Convert display labels back to full engine values."""
+    return [_display_to_value[s] for s in selected_labels if s in _display_to_value]
 
-with col_form:
-    st.subheader("Add event")
 
-    subject_options = list(partner_map.items())  # [(id, label), ...]
+col_a, col_b = st.columns(2)
 
-    with st.form("add_event_form"):
-        event_date = st.date_input(
-            "Date",
-            value=date.today(),
-            min_value=date(2000, 1, 1),
-            max_value=date.today() + timedelta(days=365),
+with col_a:
+    st.subheader("Person A (OP)")
+    a_name = st.text_input("Name / identifier", value="OP", key="a_name")
+    a_sym_type = st.selectbox("Symptom type", SYM_TYPES, index=4, key="a_sym_type")
+
+    # Only show onset/duration when A has a symptom selected
+    if a_sym_type != "None":
+        a_sym_onset = st.date_input(
+            "Symptom onset date",
+            value=date.today() - timedelta(days=21),
+            key="a_sym_onset",
             format="MM/DD/YYYY",
         )
-        subject_id = st.selectbox(
-            "Subject",
-            options=[k for k, _ in subject_options],
-            format_func=lambda k: partner_map[k],
+        a_sym_dur = st.number_input(
+            "Symptom duration (days, 0 = use average)",
+            min_value=0, max_value=90, value=0, key="a_sym_dur",
         )
-        event_type = st.selectbox("Event type", options=EVENT_TYPES)
-        notes = st.text_area(
-            "Notes",
-            height=80,
-            placeholder="Optional details...",
-        )
-        add_btn = st.form_submit_button(
-            "➕  Add event",
-            type="primary",
-            use_container_width=True,
-        )
+    else:
+        a_sym_onset = date.today()   # unused downstream
+        a_sym_dur   = 0
 
-    if add_btn:
-        partner_id_val = subject_id if subject_id != 0 else None
-        with SessionLocal() as db:
-            create_timeline_event(
-                db,
-                case_id=case_id,
-                event_date=event_date,
-                event_type=event_type,
-                notes=notes or None,
-                partner_id=partner_id_val,
-            )
-        st.success(
-            f"Added: {event_type} on {event_date} "
-            f"for {partner_map[subject_id]}"
-        )
-        st.rerun()
+    st.caption("Exposure window (A's account of contact with B)")
+    a_exp_first = st.date_input(
+        "First exposure", value=None, key="a_exp_first", format="MM/DD/YYYY"
+    )
+    a_exp_last = st.date_input(
+        "Last exposure", value=None, key="a_exp_last", format="MM/DD/YYYY"
+    )
+    a_sex_display = st.multiselect("Sex type(s) — A's report", SEX_DISPLAY, key="a_sex")
+    a_sex = _sex_display_to_values(a_sex_display)
+    a_treatment = st.date_input(
+        "Treatment date", value=None, key="a_treat", format="MM/DD/YYYY"
+    )
 
-    # Legend
-    st.divider()
-    st.caption("Event types")
-    for etype, color in EVENT_COLORS.items():
-        st.markdown(
-            f'<span style="background:{color};color:#fff;padding:2px 8px;'
-            f'border-radius:4px;font-size:11px;display:inline-block;'
-            f'margin:2px 0">{etype}</span>',
-            unsafe_allow_html=True,
+with col_b:
+    st.subheader("Person B (Partner)")
+    b_name = st.text_input("Name / identifier", value="Partner", key="b_name")
+    b_sym_type = st.selectbox("Symptom type", SYM_TYPES, index=4, key="b_sym_type")
+
+    # Only show onset fields when B has a symptom — hide when "None"
+    if b_sym_type != "None":
+        b_sym_onset = st.date_input(
+            "Symptom onset date",
+            value=date.today() - timedelta(days=45),
+            key="b_sym_onset",
+            format="MM/DD/YYYY",
         )
+        b_sym_dur = st.number_input(
+            "Symptom duration (days, 0 = use average)",
+            min_value=0, max_value=90, value=0, key="b_sym_dur",
+        )
+    else:
+        b_sym_onset = date.today()   # unused but keeps downstream code clean
+        b_sym_dur   = 0
+
+    st.caption("Exposure window (B's account of contact with A)")
+    b_exp_first = st.date_input(
+        "First exposure", value=None, key="b_exp_first", format="MM/DD/YYYY"
+    )
+    b_exp_last = st.date_input(
+        "Last exposure", value=None, key="b_exp_last", format="MM/DD/YYYY"
+    )
+    b_sex_display = st.multiselect("Sex type(s) — B's report", SEX_DISPLAY, key="b_sex")
+    b_sex = _sex_display_to_values(b_sex_display)
+    b_treatment = st.date_input(
+        "Treatment date", value=None, key="b_treat", format="MM/DD/YYYY"
+    )
 
 # ---------------------------------------------------------------------------
-# Partner treatment status summary
+# Run button + validation
 # ---------------------------------------------------------------------------
 
 st.divider()
-st.subheader("Partner treatment status")
 
-if not partners:
-    st.info("No partners on file for this case.")
+run_col, clear_col, _ = st.columns([1, 1, 5])
+
+with run_col:
+    run_btn = st.button("▶  Run analysis", type="primary", use_container_width=True)
+
+with clear_col:
+    if st.button("✕  Clear results", use_container_width=True):
+        st.session_state.pop("qg_result", None)
+        st.session_state.pop("qg_inputs", None)
+        st.rerun()
+
+if run_btn:
+    # Build symptom lists
+    a_symptoms = (
+        [Symptom(type=a_sym_type, onset=a_sym_onset, duration_days=int(a_sym_dur))]
+        if a_sym_type != "None" else []
+    )
+    b_symptoms = (
+        [Symptom(type=b_sym_type, onset=b_sym_onset, duration_days=int(b_sym_dur))]
+        if b_sym_type != "None" else []
+    )
+
+    if not a_symptoms and not b_symptoms:
+        st.error("At least one person must have a symptom type selected.")
+        st.stop()
+
+    a_exposure = (
+        Exposure(first=a_exp_first, last=a_exp_last, sex_types=a_sex)
+        if a_exp_first and a_exp_last else None
+    )
+    b_exposure = (
+        Exposure(first=b_exp_first, last=b_exp_last, sex_types=b_sex)
+        if b_exp_first and b_exp_last else None
+    )
+
+    try:
+        result = run_ghosting_analysis(
+            op_name=a_name.strip() or "Person A",
+            op_symptoms=a_symptoms,
+            op_exposure=a_exposure,
+            op_treatment_date=a_treatment,
+            partner_name=b_name.strip() or "Person B",
+            partner_symptoms=b_symptoms,
+            partner_exposure=b_exposure,
+            partner_treatment_date=b_treatment,
+        )
+        st.session_state["qg_result"] = result
+        st.session_state["qg_inputs"] = {
+            "a_symptoms": a_symptoms,
+            "b_symptoms": b_symptoms,
+            "a_exposure": a_exposure,
+            "b_exposure": b_exposure,
+            "a_treatment": a_treatment,
+            "b_treatment": b_treatment,
+            "a_name": a_name,
+            "b_name": b_name,
+        }
+    except ValueError as e:
+        st.error(f"Cannot run analysis: {e}")
+        st.stop()
+
+
+# ---------------------------------------------------------------------------
+# Results
+# ---------------------------------------------------------------------------
+
+if "qg_result" not in st.session_state:
+    st.stop()
+
+result = st.session_state["qg_result"]
+inp = st.session_state["qg_inputs"]
+
+st.divider()
+st.subheader("Results")
+
+# Verdict banner
+verdict = result.verdict
+if "SOURCE" in verdict and "UNRELATED" not in verdict and "AMBIGUOUS" not in verdict:
+    st.success(f"**Verdict:** {verdict}")
+elif "SPREAD" in verdict and "UNRELATED" not in verdict:
+    st.info(f"**Verdict:** {verdict}")
+elif "AMBIGUOUS" in verdict:
+    st.warning(f"**Verdict:** {verdict}")
 else:
-    status_rows = []
-    for p in partners:
-        status_rows.append({
-            "Partner #":       p.partner_number,
-            "Name":            p.name or "—",
-            "Treatment date":  str(p.treatment_date) if p.treatment_date else "Pending",
-            "Lab 1":           p.lab_1 or "—",
-            "Treatment":       p.treatment or "—",
-            "Status":          "Treated" if p.treatment_date else "Pending",
+    st.error(f"**Verdict:** {verdict}")
+
+# Ghosted date metrics
+m1, m2, m3, m4 = st.columns(4)
+m1.metric("Ghosted source onset", str(result.ghosted_source.onset))
+m2.metric("Ghosted source end",   str(result.ghosted_source.end))
+m3.metric("Ghosted spread onset", str(result.ghosted_spread.onset))
+m4.metric("Ghosted spread end",   str(result.ghosted_spread.end))
+
+# ---------------------------------------------------------------------------
+# Scenario diagrams
+# ---------------------------------------------------------------------------
+
+st.divider()
+st.subheader("Scenario visualisations")
+
+p1_is_a    = result.p1_name == (inp["a_name"].strip() or "Person A")
+p1_syms    = inp["a_symptoms"] if p1_is_a else inp["b_symptoms"]
+p2_syms    = inp["b_symptoms"] if p1_is_a else inp["a_symptoms"]
+p2_exp     = inp["b_exposure"] if p1_is_a else inp["a_exposure"]
+
+p1_symptom = p1_syms[0] if p1_syms else None
+
+# Fixed 12-month window: anchor on the earliest treatment date entered,
+# fall back to P1 symptom onset. 9 months before → 3 months after.
+_anchor = inp["a_treatment"] or inp["b_treatment"] or (p1_symptom.onset if p1_symptom else date.today())
+_graph_min = _anchor - timedelta(days=274)   # ~9 months
+_graph_max = _anchor + timedelta(days=91)    # ~3 months
+_graph_range = (_graph_min, _graph_max)
+
+if p1_symptom:
+    col_src, col_spr = st.columns(2)
+
+    with col_src:
+        st.markdown("**Source scenario**")
+        st.caption(
+            f"If {result.p2_name} infected {result.p1_name} — "
+            f"ghosted chancre {result.ghosted_source.onset} → {result.ghosted_source.end}"
+        )
+        try:
+            fig_src = build_scenario_figure(
+                result=result,
+                scenario="source",
+                p1_name=result.p1_name,
+                p2_name=result.p2_name,
+                p1_symptom=p1_symptom,
+                p2_symptoms=p2_syms,
+                p2_exposure=p2_exp,
+                criteria=result.criteria["source"],
+                x_range=_graph_range,
+            )
+            st.plotly_chart(fig_src, use_container_width=True)
+        except Exception as e:
+            st.warning(f"Could not render source diagram: {e}")
+
+    with col_spr:
+        st.markdown("**Spread scenario**")
+        st.caption(
+            f"If {result.p1_name} infected {result.p2_name} — "
+            f"ghosted chancre {result.ghosted_spread.onset} → {result.ghosted_spread.end}"
+        )
+        try:
+            fig_spr = build_scenario_figure(
+                result=result,
+                scenario="spread",
+                p1_name=result.p1_name,
+                p2_name=result.p2_name,
+                p1_symptom=p1_symptom,
+                p2_symptoms=p2_syms,
+                p2_exposure=p2_exp,
+                criteria=result.criteria["spread"],
+                x_range=_graph_range,
+            )
+            st.plotly_chart(fig_spr, use_container_width=True)
+        except Exception as e:
+            st.warning(f"Could not render spread diagram: {e}")
+else:
+    st.info("No P1 symptom data — diagrams cannot be rendered.")
+
+# ---------------------------------------------------------------------------
+# Criteria tables
+# ---------------------------------------------------------------------------
+
+st.divider()
+st.subheader("Criteria evaluation")
+
+
+def _render_criteria(criteria: dict):
+    rows = []
+    for k, v in criteria.items():
+        icon = {
+            "pass": "✓ Pass", "fail": "✗ Fail",
+            "warn": "⚠ Warn", "na":   "— N/A",
+        }.get(v["status"], "?")
+        rows.append({
+            "Criterion": k.replace("_", " ").title(),
+            "Result": icon,
+            "Detail": v["detail"],
         })
-
-    status_df = pd.DataFrame(status_rows)
-
-    def color_status(val):
-        if val == "Treated":
-            return "color: #0F6E56; font-weight: 500"
-        elif val == "Pending":
-            return "color: #854F0B; font-weight: 500"
-        return ""
-
     st.dataframe(
-        status_df.style.applymap(color_status, subset=["Status"]),
+        pd.DataFrame(rows),
         use_container_width=True,
         hide_index=True,
         column_config={
-            "Partner #": st.column_config.NumberColumn("Partner #", width="small"),
+            "Criterion": st.column_config.TextColumn(width="medium"),
+            "Result":    st.column_config.TextColumn(width="small"),
+            "Detail":    st.column_config.TextColumn(width="large"),
         },
     )
 
-    treated = sum(1 for p in partners if p.treatment_date)
-    pending = len(partners) - treated
-    if pending:
-        st.warning(
-            f"{pending} partner{'s' if pending > 1 else ''} still pending treatment."
-        )
+
+tab_src, tab_spr = st.tabs(["Source scenario", "Spread scenario"])
+with tab_src:
+    _render_criteria(result.criteria["source"])
+with tab_spr:
+    _render_criteria(result.criteria["spread"])
+
+with st.expander("Step-by-step log", expanded=False):
+    st.code("\n".join(result.log), language=None)
+
+# ---------------------------------------------------------------------------
+# Calculated interview periods (bonus output)
+# ---------------------------------------------------------------------------
+
+st.divider()
+st.subheader("Interview periods")
+st.caption("How far back to elicit contacts, based on the anchor symptom.")
+
+if p1_symptom:
+    if p1_symptom.type in ("Primary Chancre", "Historical Primary", "Ghosted Primary"):
+        interview_start = p1_symptom.onset - timedelta(days=INTERVIEW_PERIOD_PRIMARY_DAYS)
+        period_label = f"{INTERVIEW_PERIOD_PRIMARY_DAYS} days (primary)"
     else:
-        st.success("All partners have been treated.")
+        interview_start = p1_symptom.onset - timedelta(days=INTERVIEW_PERIOD_SECONDARY_DAYS)
+        period_label = f"{INTERVIEW_PERIOD_SECONDARY_DAYS} days (secondary)"
+
+    ip1, ip2, ip3 = st.columns(3)
+    ip1.metric("Anchor symptom onset",  str(p1_symptom.onset))
+    ip2.metric("Interview period start", str(interview_start))
+    ip3.metric("Period length",          period_label)
+else:
+    st.info("No P1 symptom — interview period cannot be calculated.")
+
+# ---------------------------------------------------------------------------
+# Optional save to active case
+# ---------------------------------------------------------------------------
+
+active_case_id = get_active_case_id()
+
+if active_case_id:
+    st.divider()
+    st.subheader("Save to active case")
+    st.caption(
+        f"Case #{active_case_id} is active in your session. "
+        "You can save these ghosted lesion records without leaving this page."
+    )
+
+    save_source = st.checkbox(
+        f"Save ghosted SOURCE lesion "
+        f"({result.ghosted_source.onset} → {result.ghosted_source.end})",
+        value=True,
+        key="qg_save_source",
+    )
+    save_spread = st.checkbox(
+        f"Save ghosted SPREAD lesion "
+        f"({result.ghosted_spread.onset} → {result.ghosted_spread.end})",
+        value=True,
+        key="qg_save_spread",
+    )
+
+    partner_ref_input = st.text_input(
+        "Partner reference (number, or leave blank for OP)",
+        value="",
+        placeholder="e.g. 1  or  2",
+        key="qg_partner_ref",
+        help="Enter the partner number to attach these records to, or leave blank to attach to OP.",
+    )
+
+    if st.button("💾  Save to case", type="primary"):
+        from app.db.database import SessionLocal
+        from app.db.queries import create_ghosting
+        from app.db.models import GhostingType
+
+        p_ref = partner_ref_input.strip() or None
+        from_ref = "OP" if result.p1_name == (inp["a_name"].strip() or "Person A") else (p_ref or "1")
+        to_ref   = (p_ref or "1") if result.p1_name == (inp["a_name"].strip() or "Person A") else "OP"
+
+        saved = []
+        with SessionLocal() as db:
+            if save_source:
+                create_ghosting(
+                    db,
+                    case_id=active_case_id,
+                    ghosting_type=GhostingType.SOURCE.value,
+                    from_ref=from_ref,
+                    to_ref=to_ref,
+                    notes=(
+                        f"[Quick analysis] Ghosted source: "
+                        f"{result.ghosted_source.onset} → {result.ghosted_source.end}. "
+                        f"Derived from: {result.ghosted_source.derived_from_symptom}. "
+                        f"Verdict: {result.verdict}"
+                    ),
+                )
+                saved.append("ghosted source")
+
+            if save_spread:
+                create_ghosting(
+                    db,
+                    case_id=active_case_id,
+                    ghosting_type=GhostingType.SPREAD.value,
+                    from_ref=from_ref,
+                    to_ref=to_ref,
+                    notes=(
+                        f"[Quick analysis] Ghosted spread: "
+                        f"{result.ghosted_spread.onset} → {result.ghosted_spread.end}. "
+                        f"Derived from: {result.ghosted_spread.derived_from_symptom}. "
+                        f"Verdict: {result.verdict}"
+                    ),
+                )
+                saved.append("ghosted spread")
+
+        if saved:
+            st.success(
+                f"Saved {', '.join(saved)} to case #{active_case_id}. "
+                "Records will appear in the network graph and VCA chart."
+            )
+        else:
+            st.warning("Nothing selected to save.")
+else:
+    st.divider()
+    st.caption(
+        "💡 To save these results to a case, open a case from the dashboard first — "
+        "a save option will appear here automatically."
+    )
