@@ -2,8 +2,8 @@
 app/utils/ghosting_plot.py
 
 Plotly figure builder for ghosting scenario visualisations.
-Used by 07_ghosting_analysis.py to show source and spread
-scenarios side-by-side alongside the criteria text.
+Used by 07_ghosting_analysis.py and 09_quick_ghost.py to show source
+and spread scenarios side-by-side alongside the criteria text.
 
 Each scenario diagram shows:
   - P1's anchor symptom bar
@@ -12,6 +12,11 @@ Each scenario diagram shows:
   - P2's own symptoms (if any)
   - The exposure window (if recorded)
   - Pass/fail/warn criterion bands shaded behind the timeline
+
+Change log:
+  - build_scenario_figure now accepts an optional x_range parameter
+    so callers can enforce a fixed window (e.g. 9 months before /
+    3 months after treatment) for better readability.
 """
 
 from __future__ import annotations
@@ -124,19 +129,25 @@ def _criterion_band(fig: go.Figure, criterion_status: str,
 
 def build_scenario_figure(
     result: GhostingResult,
-    scenario: str,           # "source" or "spread"
+    scenario: str,                          # "source" or "spread"
     p1_name: str,
     p2_name: str,
     p1_symptom: Symptom,
     p2_symptoms: list[Symptom],
     p2_exposure: Exposure | None,
     criteria: dict,
+    x_range: tuple[date, date] | None = None,  # optional fixed window
 ) -> go.Figure:
     """
     Build a Plotly timeline figure for one ghosting scenario.
 
     scenario = "source" → show ghosted_source lesion
     scenario = "spread" → show ghosted_spread lesion
+
+    x_range: if supplied, overrides the auto-calculated date range so the
+    caller can enforce a consistent window across figures (e.g. 9 months
+    before treatment → 3 months after). Dates outside this window will
+    still be drawn but clipped by the axis range.
     """
     lesion: GhostedLesion = (
         result.ghosted_source if scenario == "source" else result.ghosted_spread
@@ -148,28 +159,25 @@ def build_scenario_figure(
         else f"Spread scenario — if {p1_name} infected {p2_name}"
     )
 
-    # --- Collect dates for range ---
-    collected_dates = [
-        p1_symptom.onset,
-        lesion.onset, lesion.end,
-    ]
-    if p2_exposure:
-        collected_dates += [p2_exposure.first, p2_exposure.last]
-    for s in p2_symptoms:
-        collected_dates.append(s.onset)
-    x0, x1 = _date_range(collected_dates)
+    # --- Determine x axis range ---
+    if x_range is not None:
+        x0, x1 = x_range
+    else:
+        collected_dates = [p1_symptom.onset, lesion.onset, lesion.end]
+        if p2_exposure:
+            collected_dates += [p2_exposure.first, p2_exposure.last]
+        for s in p2_symptoms:
+            collected_dates.append(s.onset)
+        x0, x1 = _date_range(collected_dates)
 
     fig = go.Figure()
     fig.update_layout(_base_layout(title, (x0, x1), p1_name, p2_name))
     _grid_lines(fig, x0, x1)
 
     # --- Criterion bands ---
-    # Shade the ghosted lesion window with exposure pass/fail colour
     exp_status = criteria.get("exposure", {}).get("status", "na")
     _criterion_band(fig, exp_status, lesion.onset, lesion.end, "exposure")
 
-    # Shade latency window with latency pass/fail colour
-    # (between ghosted lesion end and next secondary onset of P2)
     secondary = [s for s in p2_symptoms if s.type == "Secondary Rash/Lesions"]
     if secondary:
         earliest_sec = min(s.onset for s in secondary)
@@ -202,7 +210,6 @@ def build_scenario_figure(
             f"Ghosted lesion<br>{lesion.onset} → {lesion.end}<extra></extra>"
         ),
     ))
-    # Diamond markers at onset and end
     fig.add_trace(go.Scatter(
         x=[lesion.onset, lesion.end],
         y=[_Y_GHOST, _Y_GHOST],
@@ -220,13 +227,12 @@ def build_scenario_figure(
         y=[_Y_P1, _Y_P1],
         mode="lines",
         line=dict(color=_C["p1_symptom"], width=_BAR_W, dash="solid"),
-        name=f"P1 {p1_symptom.type}",
+        name=f"{p1_name} — {p1_symptom.type}",
         hovertemplate=(
             f"{p1_name}<br>{p1_symptom.type}<br>"
             f"{p1_symptom.onset} → {p1_end}<extra></extra>"
         ),
     ))
-    # Onset marker
     fig.add_trace(go.Scatter(
         x=[p1_symptom.onset], y=[_Y_P1],
         mode="markers",
@@ -252,7 +258,6 @@ def build_scenario_figure(
             name=d_label,
             hovertemplate=f"{d_label}: {d_point}<extra></extra>",
         ))
-        # Vertical reference line at D point
         fig.add_shape(
             type="line",
             x0=d_point, x1=d_point,
@@ -270,7 +275,7 @@ def build_scenario_figure(
             x=[s.onset, s_end], y=[_Y_P2, _Y_P2],
             mode="lines",
             line=dict(color=_C["p2_symptom"], width=5, dash="solid"),
-            name=f"P2 {s.type}",
+            name=f"{p2_name} — {s.type}",
             hovertemplate=(
                 f"{p2_name}<br>{s.type}<br>"
                 f"{s.onset} → {s_end}<extra></extra>"
