@@ -15,6 +15,7 @@ from app.db.queries import (
     create_case,
     update_case,
     get_all_cases,
+    
 )
 from app.db.models import (
     ReasonForExam,
@@ -28,12 +29,14 @@ from app.utils.session_state import (
     init_session_state,
     get_active_case_id,
     set_active_case_id,
+    require_password,
 )
 from app.utils.validators import validate_op_form
 from app.components.dropdowns import enum_options, val_or_none
 
 st.set_page_config(page_title="OP Form — VCA Monitor", layout="wide")
 init_session_state()
+require_password()
 
 # ---------------------------------------------------------------------------
 # Sidebar — case selector

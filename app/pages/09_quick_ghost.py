@@ -17,7 +17,7 @@ import streamlit as st
 import pandas as pd
 from datetime import date, timedelta
 
-from app.utils.session_state import init_session_state, get_active_case_id
+from app.utils.session_state import init_session_state, get_active_case_id, require_password
 from app.utils.clinical import (
     Symptom,
     Exposure,
@@ -30,6 +30,7 @@ from app.utils.ghosting_plot import build_scenario_figure
 
 st.set_page_config(page_title="Quick Ghost — VCA Monitor", layout="wide")
 init_session_state()
+require_password()
 
 # ---------------------------------------------------------------------------
 # Sidebar — minimal, just navigation back

@@ -40,7 +40,7 @@ from app.db.queries import (
     get_ghostings,
     get_timeline_events,
 )
-from app.utils.session_state import init_session_state, get_active_case_id
+from app.utils.session_state import init_session_state, get_active_case_id, require_password
 from app.utils.clinical import (
     Symptom, avg_inoculation_date,
     PRIMARY, INCUBATION,
@@ -48,7 +48,7 @@ from app.utils.clinical import (
 
 st.set_page_config(page_title="VCA Chart — VCA Monitor", layout="wide")
 init_session_state()
-
+require_password()
 
 # ---------------------------------------------------------------------------
 # Clinical helper — inoculation points (min / avg / max)

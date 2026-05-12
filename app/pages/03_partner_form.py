@@ -34,12 +34,14 @@ from app.utils.session_state import (
     set_active_case_id,
     get_active_partner_id,
     set_active_partner_id,
+    require_password,
 )
 from app.utils.validators import validate_partner_form
 from app.components.dropdowns import enum_options, val_or_none
 
 st.set_page_config(page_title="Partners — VCA Monitor", layout="wide")
 init_session_state()
+require_password()
 
 # ---------------------------------------------------------------------------
 # Sidebar — case context + partner switcher

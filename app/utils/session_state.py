@@ -2,6 +2,13 @@
 
 import streamlit as st
 
+def require_password():
+    """Call at the top of every page to enforce the beta password gate."""
+    if st.session_state.get("authenticated"):
+        return
+    st.warning("Please log in from the main page.")
+    st.stop()
+
 # Central registry of all session state keys used in the app.
 # Import these constants instead of using raw strings.
 

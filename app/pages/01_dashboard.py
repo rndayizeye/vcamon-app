@@ -17,6 +17,7 @@ from app.utils.session_state import (
     set_active_case_id,
     set_active_partner_id,
     get_active_case_id,
+    require_password,
 )
 
 st.set_page_config(
@@ -26,7 +27,7 @@ st.set_page_config(
 )
 
 init_session_state()
-
+require_password()
 # ---------------------------------------------------------------------------
 # Load data
 # ---------------------------------------------------------------------------

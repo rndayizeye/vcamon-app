@@ -28,10 +28,12 @@ from app.utils.session_state import (
     set_active_case_id,
     get_active_partner_id,
     set_active_partner_id,
+    require_password,   
 )
 
 st.set_page_config(page_title="MAP Sheet — VCA Monitor", layout="wide")
 init_session_state()
+require_password()
 
 # ---------------------------------------------------------------------------
 # Sidebar — case + subject selector

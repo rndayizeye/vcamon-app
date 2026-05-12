@@ -27,10 +27,12 @@ from app.utils.session_state import (
     init_session_state,
     get_active_case_id,
     set_active_partner_id,
+    require_password,
 )
 
 st.set_page_config(page_title="Timeline — VCA Monitor", layout="wide")
 init_session_state()
+require_password()
 
 
 # ---------------------------------------------------------------------------
