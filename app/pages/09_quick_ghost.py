@@ -120,25 +120,40 @@ SYM_TYPES = [
     "Secondary Rash/Lesions",
     "None",
 ]
-SEX_OPTIONS = ["Anal LX", "Oral LX", "Vaginal LX", "Penile LX", "Rectal LX"]
+
+# Display labels without "LX" — map back to full values for the engine
+SEX_DISPLAY = ["Anal", "Oral", "Vaginal", "Penile", "Rectal"]
+SEX_VALUE   = ["Anal LX", "Oral LX", "Vaginal LX", "Penile LX", "Rectal LX"]
+_display_to_value = dict(zip(SEX_DISPLAY, SEX_VALUE))
+
+
+def _sex_display_to_values(selected_labels: list[str]) -> list[str]:
+    """Convert display labels back to full engine values."""
+    return [_display_to_value[s] for s in selected_labels if s in _display_to_value]
+
 
 col_a, col_b = st.columns(2)
 
 with col_a:
     st.subheader("Person A (OP)")
     a_name = st.text_input("Name / identifier", value="OP", key="a_name")
-    a_sym_type = st.selectbox("Symptom type", SYM_TYPES, key="a_sym_type")
+    a_sym_type = st.selectbox("Symptom type", SYM_TYPES, index=4, key="a_sym_type")
 
-    a_sym_onset = st.date_input(
-        "Symptom onset date",
-        value=date.today() - timedelta(days=21),
-        key="a_sym_onset",
-        format="MM/DD/YYYY",
-    )
-    a_sym_dur = st.number_input(
-        "Symptom duration (days, 0 = use average)",
-        min_value=0, max_value=90, value=0, key="a_sym_dur",
-    )
+    # Only show onset/duration when A has a symptom selected
+    if a_sym_type != "None":
+        a_sym_onset = st.date_input(
+            "Symptom onset date",
+            value=date.today() - timedelta(days=21),
+            key="a_sym_onset",
+            format="MM/DD/YYYY",
+        )
+        a_sym_dur = st.number_input(
+            "Symptom duration (days, 0 = use average)",
+            min_value=0, max_value=90, value=0, key="a_sym_dur",
+        )
+    else:
+        a_sym_onset = date.today()   # unused downstream
+        a_sym_dur   = 0
 
     st.caption("Exposure window (A's account of contact with B)")
     a_exp_first = st.date_input(
@@ -147,7 +162,8 @@ with col_a:
     a_exp_last = st.date_input(
         "Last exposure", value=None, key="a_exp_last", format="MM/DD/YYYY"
     )
-    a_sex = st.multiselect("Sex type(s) — A's report", SEX_OPTIONS, key="a_sex")
+    a_sex_display = st.multiselect("Sex type(s) — A's report", SEX_DISPLAY, key="a_sex")
+    a_sex = _sex_display_to_values(a_sex_display)
     a_treatment = st.date_input(
         "Treatment date", value=None, key="a_treat", format="MM/DD/YYYY"
     )
@@ -157,16 +173,21 @@ with col_b:
     b_name = st.text_input("Name / identifier", value="Partner", key="b_name")
     b_sym_type = st.selectbox("Symptom type", SYM_TYPES, index=4, key="b_sym_type")
 
-    b_sym_onset = st.date_input(
-        "Symptom onset date",
-        value=date.today() - timedelta(days=45),
-        key="b_sym_onset",
-        format="MM/DD/YYYY",
-    )
-    b_sym_dur = st.number_input(
-        "Symptom duration (days, 0 = use average)",
-        min_value=0, max_value=90, value=0, key="b_sym_dur",
-    )
+    # Only show onset fields when B has a symptom — hide when "None"
+    if b_sym_type != "None":
+        b_sym_onset = st.date_input(
+            "Symptom onset date",
+            value=date.today() - timedelta(days=45),
+            key="b_sym_onset",
+            format="MM/DD/YYYY",
+        )
+        b_sym_dur = st.number_input(
+            "Symptom duration (days, 0 = use average)",
+            min_value=0, max_value=90, value=0, key="b_sym_dur",
+        )
+    else:
+        b_sym_onset = date.today()   # unused but keeps downstream code clean
+        b_sym_dur   = 0
 
     st.caption("Exposure window (B's account of contact with A)")
     b_exp_first = st.date_input(
@@ -175,7 +196,8 @@ with col_b:
     b_exp_last = st.date_input(
         "Last exposure", value=None, key="b_exp_last", format="MM/DD/YYYY"
     )
-    b_sex = st.multiselect("Sex type(s) — B's report", SEX_OPTIONS, key="b_sex")
+    b_sex_display = st.multiselect("Sex type(s) — B's report", SEX_DISPLAY, key="b_sex")
+    b_sex = _sex_display_to_values(b_sex_display)
     b_treatment = st.date_input(
         "Treatment date", value=None, key="b_treat", format="MM/DD/YYYY"
     )
@@ -293,6 +315,13 @@ p2_exp     = inp["b_exposure"] if p1_is_a else inp["a_exposure"]
 
 p1_symptom = p1_syms[0] if p1_syms else None
 
+# Fixed 12-month window: anchor on the earliest treatment date entered,
+# fall back to P1 symptom onset. 9 months before → 3 months after.
+_anchor = inp["a_treatment"] or inp["b_treatment"] or (p1_symptom.onset if p1_symptom else date.today())
+_graph_min = _anchor - timedelta(days=274)   # ~9 months
+_graph_max = _anchor + timedelta(days=91)    # ~3 months
+_graph_range = (_graph_min, _graph_max)
+
 if p1_symptom:
     col_src, col_spr = st.columns(2)
 
@@ -312,6 +341,7 @@ if p1_symptom:
                 p2_symptoms=p2_syms,
                 p2_exposure=p2_exp,
                 criteria=result.criteria["source"],
+                x_range=_graph_range,
             )
             st.plotly_chart(fig_src, use_container_width=True)
         except Exception as e:
@@ -333,6 +363,7 @@ if p1_symptom:
                 p2_symptoms=p2_syms,
                 p2_exposure=p2_exp,
                 criteria=result.criteria["spread"],
+                x_range=_graph_range,
             )
             st.plotly_chart(fig_spr, use_container_width=True)
         except Exception as e:
