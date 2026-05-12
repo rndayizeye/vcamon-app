@@ -1,6 +1,8 @@
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import streamlit as st
 from app.db.database import init_db, SessionLocal
-from app.db.queries import get_all_cases
 
 init_db()
 
