@@ -7,6 +7,18 @@ SQLAlchemy, and SQLite — designed for a planned full-stack migration to FastAP
 
 ---
 
+## 🔗 Live app
+
+**Beta:** [https://visualcaseanalysis.streamlit.app](https://visualcaseanalysis.streamlit.app)
+
+> Beta access is password-protected. Contact the project maintainer for credentials.
+> Data entered during the beta is synthetic and resets on redeploy.
+
+Quick ghosting analysis (no login required to preview):
+[https://visualcaseanalysis.streamlit.app/quick_ghost](https://visualcaseanalysis.streamlit.app/quick_ghost)
+
+---
+
 ## What it does
 
 Case workers use this app to manage syphilis contact tracing cases end-to-end:
@@ -17,6 +29,7 @@ Case workers use this app to manage syphilis contact tracing cases end-to-end:
 - Run automated ghosting analysis to determine source/spread relationships between the OP and partners
 - Visualize transmission networks as interactive directed graphs
 - Track case activity on a date timeline with auto-seeded treatment events
+- Run quick ghosting calculations without opening a case
 
 ---
 
@@ -25,7 +38,7 @@ Case workers use this app to manage syphilis contact tracing cases end-to-end:
 ```
 vcamon-app/
 ├── app/
-│   ├── main.py                    # Streamlit entry point
+│   ├── main.py                    # Streamlit entry point + password gate
 │   ├── pages/
 │   │   ├── 01_dashboard.py        # Case list, search, navigation
 │   │   ├── 02_op_form.py          # Original patient form
@@ -33,7 +46,9 @@ vcamon-app/
 │   │   ├── 04_map_sheet.py        # 46-item MAP assessment
 │   │   ├── 05_network_graph.py    # Transmission network + ghosting records
 │   │   ├── 06_timeline.py         # Activity timeline and calendar
-│   │   └── 07_ghosting_analysis.py # VCA ghosting engine UI
+│   │   ├── 07_ghosting_analysis.py # VCA ghosting engine UI (full workflow)
+│   │   ├── 08_vca_chart.py        # VCA timeline chart
+│   │   └── 09_quick_ghost.py      # Quick ghosting — no case required
 │   ├── db/
 │   │   ├── database.py            # SQLAlchemy engine and session
 │   │   ├── models.py              # ORM models + MAP_ITEMS reference data
@@ -42,9 +57,10 @@ vcamon-app/
 │   │   ├── dropdowns.py           # Shared enum selectboxes
 │   │   └── sidebar_case_selector.py
 │   └── utils/
-│       ├── session_state.py       # Centralized st.session_state helpers
+│       ├── session_state.py       # Centralized st.session_state helpers + auth
 │       ├── validators.py          # Form validation — pure Python, no Streamlit
-│       └── clinical.py            # VCA ghosting analysis engine — pure Python
+│       ├── clinical.py            # VCA ghosting analysis engine — pure Python
+│       └── ghosting_plot.py       # Plotly scenario diagram builder
 ├── docker/
 │   ├── Dockerfile
 │   └── .dockerignore
@@ -95,6 +111,14 @@ mkdir -p data
 streamlit run app/main.py
 ```
 
+### Local secrets (password gate)
+
+Create `.streamlit/secrets.toml` at the project root (already git-ignored):
+
+```toml
+BETA_PASSWORD = "yourpassword"
+```
+
 ---
 
 ## Environment variables
@@ -109,6 +133,10 @@ Copy `.env.example` to `.env` and set values before running:
 
 The SQLite database is created automatically on first run. The `data/` directory
 is mounted as a Docker volume so it persists across container restarts.
+
+> **Streamlit Cloud note:** SQLite is stored in `/tmp` on Streamlit Cloud and
+> resets on container restart. A demo case is auto-seeded on each cold start.
+> Production deployment should use PostgreSQL via the `DATABASE_URL` env var.
 
 ---
 
@@ -174,7 +202,7 @@ Case list with search, summary metrics (total cases, treated vs pending),
 and one-click navigation to any page for any case.
 
 ### 02 OP form
-Creates or edits the original patient record. Fields: patient name, lot,
+Creates or edits the original patient record. Fields: patient name, diagnosis / syphilis stage,
 case manager, reason for exam, treatment date, treatment given, lesion type,
 symptom, medical info, and three lab result slots (RPR/VDRL, treponemal
 confirmatory, free text). Navigation buttons route directly to Partners or MAP.
@@ -210,6 +238,18 @@ Implements the full VCA ghosting methodology. The worker selects a partner,
 confirms symptom data, runs the engine, reviews a step-by-step criteria log,
 and saves ghosted lesion records back to the database. See the
 **Epidemiological methodology** section below for a full explanation of the logic.
+
+### 08 VCA chart
+Full Plotly timeline showing exposure windows, symptom onset markers, duration
+bars, lab results, treatment events, critical period, inoculation points
+(min/avg/max), and ghosted lesion windows — all on a shared date axis.
+Sidebar toggles control which layers are shown.
+
+### 09 Quick ghosting
+Run the VCA ghosting engine without opening a case. Enter two people's symptom
+and exposure data directly and get an immediate verdict, scenario diagrams, and
+criteria evaluation. Optionally save results to an active case. Useful during
+interviews or for verifying scenarios before committing them to a record.
 
 ---
 
@@ -248,45 +288,46 @@ ranks them by clinical precision, from most to least reliable:
 
 ### The seven-step pipeline
 
-**Step 1 — Select P1.** The person with the highest-ranking symptom in the
-hierarchy becomes P1. Their symptom timeline anchors all subsequent date
-calculations. The other person becomes P2. If both have symptoms of equal
-rank, the OP is assigned P1.
+**Step 1 — Select Case1.** The person with the highest-ranking symptom in the
+hierarchy becomes Case1. Their symptom timeline anchors all subsequent date
+calculations. The other person becomes Case2. If both have symptoms of equal
+rank, the OP is assigned Case1.
 
-**Step 2 — Calculate D1.** Working backwards from P1's symptom onset using
-average durations, D1 is the estimated date P1 was exposed to infectious
+**Step 2 — Calculate Date1.** Working backwards from Case1's symptom onset using
+average durations, Date1 is the estimated date Case1 was exposed to infectious
 syphilis.
 
-- Primary chancre: `D1 = onset − 21 days`
-- Secondary symptoms: `D1 = onset − 21 days incubation − 21 days primary − 28 days latency`
+- Primary chancre: `Date1 = onset − 21 days`
+- Secondary symptoms: `Date1 = onset − 21 days incubation − 21 days primary − 28 days latency`
 
-**Step 3 — Ghosted source lesion for P2.** If P2 was the source of P1's
-infection, P2 must have had an active chancre when P1 was exposed. D1 is
+**Step 3 — Ghosted source lesion for Case2.** If Case2 was the source of Case1's
+infection, Case2 must have had an active chancre when Case1 was exposed. Date1 is
 placed at the midpoint of that ghosted window:
 
 ```
-ghosted source onset = D1 − 10 days
-ghosted source end   = D1 + 10 days
+ghosted source onset = Date1 − 10 days
+ghosted source end   = Date1 + 10 days
 ```
 
-**Step 4 — D2 and ghosted spread lesion for P2.** D2 is the midpoint of P1's
-own primary chancre — the point at which P1 was most infectious. If P1
-infected P2, P2 would have developed a chancre starting one average primary
-duration after that midpoint:
+**Step 4 — Date2 and ghosted spread lesion for Case2.** Date2 is the midpoint of Case1's
+own primary chancre — the point at which Case1 was most infectious. If Case1
+infected Case2, Case2 would have developed a chancre starting one average
+incubation duration after that midpoint:
 
-- Primary or historical chancre: `D2 = chancre onset + (duration ÷ 2)`
-- Secondary only: `D2 = secondary onset − 28 days latency − 10.5 days`
+- Primary or historical chancre: `Date2 = chancre onset + (duration ÷ 2)`
+- Secondary only: `Date2 = secondary onset − 28 days latency − 10.5 days`
 
 ```
-ghosted spread onset = D2 + 21 days
-ghosted spread end   = D2 + 42 days
+ghosted spread onset = Date2 + 21 days
+ghosted spread end   = Date2 + 42 days
 ```
 
 **Step 5 — Evaluate four criteria for each scenario.**
 
 | Criterion | What is checked | Fail condition |
 |---|---|---|
-| Exposure overlap | Ghosted lesion onset falls within the reported sexual exposure window | Onset outside all reported exposure dates |
+| Exposure overlap source scenario| Date1 (likely inoculation date) must fall within the longest reported sexual exposure window | Fail if Date1 falls outside the exposure period; Warn if outside but within half the average incubation period (10 days) of the exposure boundary |
+| Exposure overlap spread scenario| Date2 (likely spread date) must fall within the longest reported sexual exposure window | Fail if Date2 falls outside the exposure period; Warn if outside but within half the average incubation period (10 days) of the exposure boundary |
 | Anatomical compatibility | Symptom location is consistent with the type of sex reported | Rectal chancre with no anal sex reported, etc. |
 | Latency to secondary | At least five weeks between ghosted lesion end and any secondary symptom onset | Gap less than 35 days |
 | Natural order | Ghosted lesion precedes secondary symptoms and treatment date | Lesion onset on or after secondary onset or treatment |
@@ -300,15 +341,15 @@ the worker to review.
 
 | Source passes | Spread passes | Conclusion |
 |---|---|---|
-| Yes | No | P2 is the source — P1 acquired infection from P2 |
-| No | Yes | P1 is the source — P2 acquired infection from P1 |
+| Yes | No | Case2 is the source — Case1 acquired infection from Case2 |
+| No | Yes | Case1 is the source — Case2 acquired infection from Case1 |
 | Yes | Yes | Ambiguous — both directions fit; manual review required |
 | No | No | Unrelated infections — no supported transmission link |
 
 **Step 7 — Save and iterate.** The worker confirms which ghosted lesion(s) to
 save. Saved lesions are stored in the `ghostings` table and appear in the
 network graph and timeline. Importantly, a saved ghosted primary chancre can
-be used as P1's starting symptom in a future analysis — allowing the engine
+be used as Case1's starting symptom in a future analysis — allowing the engine
 to progressively build out a transmission chain across a full cluster.
 
 ### Interview periods
@@ -331,8 +372,6 @@ This is the Streamlit v1. The planned v2 migration:
 - **Frontend:** React + Tailwind CSS
 - **Auth:** Supabase Auth with role-based access (case worker vs supervisor)
 - **Analytics:** NetworkX cluster analysis, Plotly epidemiological dashboards
-- **VCA plot:** Port the interactive Plotly timeline from `vca_app_v5` — labs,
-  symptoms, exposure windows, and inoculation points on a shared date axis
 - **Export:** ReportLab / WeasyPrint PDF case summaries with ghosting narrative
 - **Deployment:** Docker + GitHub Actions CI/CD to Render or Railway
 
@@ -351,6 +390,19 @@ git push origin feat/your-feature-name
 ```
 
 All pull requests run the CI pipeline (lint + tests) before merge.
+
+---
+
+## Acknowledgements
+
+This project was developed with assistance from Claude (Anthropic)
+for code scaffolding, architecture guidance, and documentation.
+
+Clinical methodology is based on:
+
+> Fussell, E. (2022). *Visual Case Analysis.*
+> NCSDDC / Marion County Public Health Department.
+> https://www.ncsddc.org/wp-content/uploads/2022/07/VCA-Training-7.2022.pdf
 
 ---
 
