@@ -201,29 +201,29 @@ class TestCalcGhostedSpread:
 # ---------------------------------------------------------------------------
 # Exposure criterion — scenario-specific Date1 / Date2 checks
 # ---------------------------------------------------------------------------
-
 class TestExposureCriterion:
 
-    def _run_source_exposure(self, check_date, exposure):
-        """Helper: run just the exposure criterion for source scenario."""
-        symptom = Symptom("Primary Chancre", check_date + timedelta(days=21), 0)
+    def _run_source_exposure(self, infectious_start, infectious_end, exposure):
+        """Helper: run exposure criterion for source scenario with period."""
+        symptom = Symptom("Primary Chancre", infectious_end + timedelta(days=21), 0)
         result = evaluate_criteria(
             scenario="source",
-            lesion=calc_ghosted_source(check_date, "partner", symptom.type),
+            lesion=calc_ghosted_source(infectious_start, "partner", symptom.type),
             case1_symptom=symptom,
             case2_symptoms=[],
             case2_exposure=exposure,
             op_exposure=None,
             case2_treatment_date=None,
-            date1=check_date,
+            date1=infectious_start,
             date2=None,
         )
         return result["exposure"]
 
-    def _run_spread_exposure(self, check_date, exposure):
-        """Helper: run just the exposure criterion for spread scenario."""
-        symptom = Symptom("Primary Chancre", check_date - timedelta(days=10), 0)
-        gs = calc_ghosted_source(check_date, "partner", symptom.type)
+    def _run_spread_exposure(self, infectious_start, infectious_end, exposure):
+        """Helper: run exposure criterion for spread scenario with period."""
+        symptom = Symptom("Primary Chancre", infectious_start, 
+                         (infectious_end - infectious_start).days)
+        gs = calc_ghosted_source(infectious_start, "partner", symptom.type)
         result = evaluate_criteria(
             scenario="spread",
             lesion=gs,
@@ -233,85 +233,96 @@ class TestExposureCriterion:
             op_exposure=None,
             case2_treatment_date=None,
             date1=None,
-            date2=check_date,
+            date2=infectious_start,
         )
         return result["exposure"]
 
-    # Source scenario — Date1 tests
+    # Source scenario tests
     def test_source_pass_date1_inside_window(self):
         window = Exposure(date(2020, 1, 1), date(2020, 3, 1), [])
-        result = self._run_source_exposure(date(2020, 2, 1), window)
+        # Infectious period completely within window
+        result = self._run_source_exposure(date(2020, 2, 1), date(2020, 2, 10), window)
         assert result["status"] == "pass"
 
     def test_source_fail_date1_far_outside_window(self):
         window = Exposure(date(2020, 1, 1), date(2020, 2, 1), [])
-        # date1 is 30 days after window ends — beyond warn margin
-        result = self._run_source_exposure(date(2020, 3, 2), window)
+        # Infectious period completely after window (gap > 10 days)
+        result = self._run_source_exposure(date(2020, 3, 1), date(2020, 3, 20), window)
         assert result["status"] == "fail"
 
     def test_source_warn_date1_just_outside_window(self):
         window = Exposure(date(2020, 1, 1), date(2020, 2, 1), [])
-        # date1 is 5 days after window — within 10-day warn margin
-        result = self._run_source_exposure(date(2020, 2, 6), window)
+        # Infectious period starts 5 days after window ends
+        result = self._run_source_exposure(date(2020, 2, 6), date(2020, 2, 15), window)
         assert result["status"] == "warn"
 
     def test_source_warn_exactly_at_margin(self):
         window = Exposure(date(2020, 1, 1), date(2020, 2, 1), [])
-        # date1 is exactly EXPOSURE_WARN_MARGIN_DAYS after window
+        # Infectious period starts exactly at warn margin
         result = self._run_source_exposure(
-            date(2020, 2, 1) + timedelta(days=EXPOSURE_WARN_MARGIN_DAYS), window
+            date(2020, 2, 1) + timedelta(days=EXPOSURE_WARN_MARGIN_DAYS),
+            date(2020, 2, 1) + timedelta(days=EXPOSURE_WARN_MARGIN_DAYS + 5),
+            window
         )
         assert result["status"] == "warn"
 
     def test_source_fail_one_day_beyond_margin(self):
         window = Exposure(date(2020, 1, 1), date(2020, 2, 1), [])
+        # Infectious period starts beyond warn margin
         result = self._run_source_exposure(
-            date(2020, 2, 1) + timedelta(days=EXPOSURE_WARN_MARGIN_DAYS + 1), window
+            date(2020, 2, 1) + timedelta(days=EXPOSURE_WARN_MARGIN_DAYS + 1),
+            date(2020, 2, 1) + timedelta(days=EXPOSURE_WARN_MARGIN_DAYS + 10),
+            window
         )
         assert result["status"] == "fail"
 
     def test_source_warn_when_no_exposure_dates(self):
-        result = self._run_source_exposure(date(2020, 2, 1), None)
+        result = self._run_source_exposure(date(2020, 2, 1), date(2020, 2, 10), None)
         assert result["status"] == "warn"
 
-    # Spread scenario — Date2 tests
+    # Spread scenario tests
     def test_spread_pass_date2_inside_window(self):
         window = Exposure(date(2020, 1, 1), date(2020, 3, 1), [])
-        result = self._run_spread_exposure(date(2020, 2, 1), window)
+        result = self._run_spread_exposure(date(2020, 2, 1), date(2020, 2, 10), window)
         assert result["status"] == "pass"
 
     def test_spread_fail_date2_far_outside_window(self):
         window = Exposure(date(2020, 1, 1), date(2020, 2, 1), [])
-        result = self._run_spread_exposure(date(2020, 3, 15), window)
+        result = self._run_spread_exposure(date(2020, 3, 15), date(2020, 3, 25), window)
         assert result["status"] == "fail"
 
     def test_spread_warn_date2_just_outside_window(self):
         window = Exposure(date(2020, 1, 1), date(2020, 2, 1), [])
-        result = self._run_spread_exposure(date(2020, 2, 5), window)
+        result = self._run_spread_exposure(date(2020, 2, 5), date(2020, 2, 15), window)
         assert result["status"] == "warn"
 
-    def test_source_and_spread_use_different_dates(self, johnny_chancre, samuel_chancre):
-        """
-        Source checks Date1, spread checks Date2 — they should produce
-        different exposure results when the window is narrow.
-        """
-        date1 = calc_date1(samuel_chancre)   # Samuel is Case1
+    def test_source_and_spread_use_different_periods(self, johnny_chancre, samuel_chancre):
+        """Verify source and spread check different infectious periods."""
+        # Build periods manually
+        date1 = calc_date1(samuel_chancre)
+        source_period = calc_ghosted_source(date1, "partner", samuel_chancre.type)
+        
         date2 = calc_date2(samuel_chancre)
-
-        # Window tight around date1 only
+        
+        # Window around source period only
         window = Exposure(
-            date1 - timedelta(days=3),
-            date1 + timedelta(days=3),
+            source_period.onset - timedelta(days=3),
+            source_period.end + timedelta(days=3),
             ["Rectal LX"],
         )
 
-        source_result = self._run_source_exposure(date1, window)
-        spread_result = self._run_spread_exposure(date2, window)
+        source_result = self._run_source_exposure(
+            source_period.onset, source_period.end, window
+        )
+        spread_result = self._run_spread_exposure(
+            samuel_chancre.onset,
+            samuel_chancre.onset + timedelta(days=7),
+            window
+        )
 
         assert source_result["status"] == "pass"
-        # date2 is weeks after date1 so it should be outside this narrow window
+        # Spread period is weeks later, should be outside
         assert spread_result["status"] in ("warn", "fail")
-
 
 # ---------------------------------------------------------------------------
 # Full pipeline — slide 17 scenario
