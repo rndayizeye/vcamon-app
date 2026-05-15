@@ -95,11 +95,13 @@ class Treatment(str, enum.Enum):
     RX_BIC_2_4           = "Rx Bic 2.4"
     RX_BIX_2_4_X3        = "Rx Bix 2.4 x3"
     DOXY_100_14          = "Doxy 100 2x/Day 14 days"
+    DOXY_100_28          = "Doxy 100 2x/Day 28 days"
+    OTHER                = "Other"
 
 
 class LesionType(str, enum.Enum):
     ANAL    = "Anal LX"
-    LAB     = "Lab LX" # Not a typo — "Lab" is used in the DropDowns sheet to mean "Lesion, non-genital"
+    LAB     = "Non-genital LX" # Not a typo — "Lab" is used in the DropDowns sheet to mean "Lesion, non-genital"
     LX      = "LX"     # Non-specific lesion type (used when exact location is unknown or not specified)
     ORAL    = "Oral LX"
     PENILE  = "Penile LX"
@@ -156,6 +158,18 @@ class Case(Base):
     lesion_type: Mapped[str | None] = mapped_column(Enum(LesionType, name="lesion_enum"))
     symptom: Mapped[str | None] = mapped_column(Enum(Symptom, name="symptom_enum"))
 
+    # Clinical details for VCA analysis
+    symptom_onset_date: Mapped[date | None] = mapped_column(Date)
+    symptom_duration_days: Mapped[int | None] = mapped_column(Integer)
+    exposure_first_date: Mapped[date | None] = mapped_column(Date)
+    exposure_last_date: Mapped[date | None] = mapped_column(Date)
+    sex_types: Mapped[str | None] = mapped_column(String(200))  # JSON array
+
+    # Lab dates
+    lab_1_date: Mapped[date | None] = mapped_column(Date)
+    lab_2_date: Mapped[date | None] = mapped_column(Date)
+    lab_3_date: Mapped[date | None] = mapped_column(Date)
+    
     # Audit
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -223,7 +237,17 @@ class Partner(Base):
     symptom: Mapped[str | None] = mapped_column(
         Enum(Symptom, name="partner_symptom_enum")
     )
+    # Clinical details for VCA analysis
+    symptom_onset_date: Mapped[date | None] = mapped_column(Date)
+    symptom_duration_days: Mapped[int | None] = mapped_column(Integer)
+    exposure_first_date: Mapped[date | None] = mapped_column(Date)
+    exposure_last_date: Mapped[date | None] = mapped_column(Date)
+    sex_types: Mapped[str | None] = mapped_column(String(200))  # JSON array
 
+    # Lab dates
+    lab_1_date: Mapped[date | None] = mapped_column(Date)
+    lab_2_date: Mapped[date | None] = mapped_column(Date)
+    lab_3_date: Mapped[date | None] = mapped_column(Date)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     # Relationships
