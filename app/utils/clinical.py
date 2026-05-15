@@ -156,9 +156,8 @@ def select_case1(
 ) -> tuple[str, Symptom, str, list[Symptom]]:
     """
     Compare OP and partner symptoms using the ghosting hierarchy.
+    If ranks are equal, earlier onset becomes Case1.
     Returns (case1_role, case1_symptom, case2_role, case2_symptoms).
-    case1_role is 'OP' or 'partner'.
-    Raises ValueError if neither party has usable symptoms.
     """
     def best(symptoms: list[Symptom]) -> Optional[Symptom]:
         usable = [s for s in symptoms if s.type in SYMPTOM_RANK]
@@ -175,7 +174,19 @@ def select_case1(
     if partner_best is None:
         return "OP", op_best, "partner", partner_symptoms
 
-    if symptom_rank(op_best.type) <= symptom_rank(partner_best.type):
+    op_rank = symptom_rank(op_best.type)
+    partner_rank = symptom_rank(partner_best.type)
+
+    # If ranks are equal, use onset date as tiebreaker
+    if op_rank == partner_rank:
+        # Earlier onset wins (higher priority)
+        if partner_best.onset < op_best.onset:
+            return "partner", partner_best, "OP", op_symptoms
+        else:
+            return "OP", op_best, "partner", partner_symptoms
+    
+    # Different ranks - lower rank number wins
+    if op_rank < partner_rank:
         return "OP", op_best, "partner", partner_symptoms
     else:
         return "partner", partner_best, "OP", op_symptoms
