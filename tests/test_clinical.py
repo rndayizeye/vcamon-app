@@ -411,7 +411,7 @@ class TestFullPipeline:
         assert "Date2" in full_log
 
     def test_source_criteria_checks_date1(self, johnny_chancre, samuel_chancre,
-                                       samuel_exposure):
+                                        samuel_exposure):
         result = run_ghosting_analysis(
             op_name="Johnny",
             op_symptoms=[johnny_chancre],
@@ -423,24 +423,24 @@ class TestFullPipeline:
             partner_treatment_date=date(2020, 2, 17),
         )
         source_exp_detail = result.criteria["source"]["exposure"]["detail"]
-        # Changed: Check for infectious period message instead of Date1
+        # Check for new message format
         assert "Infectious period" in source_exp_detail or "overlap" in source_exp_detail.lower()
 
-def test_spread_criteria_checks_date2(self, johnny_chancre, samuel_chancre,
-                                       samuel_exposure):
-    result = run_ghosting_analysis(
-        op_name="Johnny",
-        op_symptoms=[johnny_chancre],
-        op_exposure=None,
-        op_treatment_date=date(2020, 3, 10),
-        partner_name="Samuel",
-        partner_symptoms=[samuel_chancre],
-        partner_exposure=samuel_exposure,
-        partner_treatment_date=date(2020, 2, 17),
-    )
-    spread_exp_detail = result.criteria["spread"]["exposure"]["detail"]
-    # Changed: Check for infectious period message instead of Date2
-    assert "Infectious period" in spread_exp_detail or "overlap" in spread_exp_detail.lower()
+    def test_spread_criteria_checks_date2(self, johnny_chancre, samuel_chancre,
+                                        samuel_exposure):
+        result = run_ghosting_analysis(
+            op_name="Johnny",
+            op_symptoms=[johnny_chancre],
+            op_exposure=None,
+            op_treatment_date=date(2020, 3, 10),
+            partner_name="Samuel",
+            partner_symptoms=[samuel_chancre],
+            partner_exposure=samuel_exposure,
+            partner_treatment_date=date(2020, 2, 17),
+        )
+        spread_exp_detail = result.criteria["spread"]["exposure"]["detail"]
+        # Check for new message format
+        assert "Infectious period" in spread_exp_detail or "overlap" in spread_exp_detail.lower()
 
     def test_no_symptoms_raises(self):
         with pytest.raises(ValueError):
