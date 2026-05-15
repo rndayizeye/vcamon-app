@@ -461,21 +461,23 @@ def evaluate_criteria(
     """
     exposure = case2_exposure or op_exposure
 
-    # Select which date and label to test for this scenario
+    # Exposure overlap check - use period intersection
     if scenario == "source":
-        check_date  = date1
-        date_label  = "Date1 (likely inoculation date)"
-    else:
-        check_date  = date2
-        date_label  = "Date2 (likely spread date)"
-
-    if check_date is None:
-        exp_status, exp_detail = "warn", f"{date_label} could not be calculated."
-    else:
-        exp_status, exp_detail = _check_exposure(check_date, exposure, scenario, date_label)
+        # Case2 must be infectious during Case1's exposure
+        infectious_start = lesion.onset
+        infectious_end = lesion.end
+    else:  # spread
+        # Case1 must be infectious during Case2's exposure
+        dur = case1_symptom.duration_days if case1_symptom.duration_days > 0 else PRIMARY["avg"]
+        infectious_start = case1_symptom.onset
+        infectious_end = case1_symptom.onset + timedelta(days=dur)
+    
+    exp_status, exp_detail = _check_exposure(
+        infectious_start, infectious_end, exposure, scenario
+    )
 
     sex_status, sex_detail = _sex_type_compatible(
-        case1_symptom.type, exposure.sex_types if exposure else []
+        case1_symptom, exposure.sex_types if exposure else []
     )
     lat_status, lat_detail = _latency_to_secondary(lesion.end, case2_symptoms)
     ord_status, ord_detail = _natural_order(lesion, case2_symptoms, case2_treatment_date)
