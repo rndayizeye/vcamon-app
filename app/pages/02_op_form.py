@@ -7,6 +7,7 @@ the shared sidebar case selector.
 """
 
 import streamlit as st
+import json
 from datetime import date
 
 from app.db.database import SessionLocal
@@ -143,12 +144,12 @@ with st.form("op_form", border=True):
 
     with col5:
         lesion_type = st.selectbox(
-            "Lesion type",
+            "Primary Lesion type",
             options=enum_options(LesionType),
             index=enum_options(LesionType).index(case.lesion_type or "") if case else 0,
         )
         symptom = st.selectbox(
-            "Symptom",
+            "Secondary Symptom",
             options=enum_options(Symptom),
             index=enum_options(Symptom).index(case.symptom or "") if case else 0,
         )
@@ -186,6 +187,81 @@ with st.form("op_form", border=True):
 
     st.divider()
     col_btn1, col_btn2, col_btn3, _ = st.columns([1, 1, 1, 3])
+
+    st.divider()
+    with st.expander("🔬 Clinical Details (Optional - for VCA analysis)", expanded=False):
+        st.caption("Complete these fields to streamline ghosting analysis")
+        
+        col_sym, col_exp = st.columns(2)
+        
+        with col_sym:
+            st.subheader("Symptom Details")
+            symptom_onset = st.date_input(
+                "Symptom onset date",
+                value=case.symptom_onset_date if case else None,
+                help="When did this symptom first appear?",
+                format="MM/DD/YYYY",
+            )
+            symptom_duration = st.number_input(
+                "Symptom duration (days, 0=unknown)",
+                min_value=0, max_value=90,
+                value=case.symptom_duration_days or 0 if case else 0,
+            )
+        
+        with col_exp:
+            st.subheader("Exposure Window")
+            exposure_first = st.date_input(
+                "First exposure to partner",
+                value=case.exposure_first_date if case else None,
+                format="MM/DD/YYYY",
+            )
+            exposure_last = st.date_input(
+                "Last exposure to partner",
+                value=case.exposure_last_date if case else None,
+                format="MM/DD/YYYY",
+            )
+        
+        sex_types_display = ["Anal", "Oral", "Vaginal", "Penile", "Rectal"]
+        sex_types_value = ["Anal LX", "Oral LX", "Vaginal LX", "Penile LX", "Rectal LX"]
+        
+        import json
+        current_sex = []
+        if case and case.sex_types:
+            try:
+                stored = json.loads(case.sex_types)
+                current_sex = [sex_types_display[sex_types_value.index(s)] 
+                              for s in stored if s in sex_types_value]
+            except:
+                pass
+        
+        sex_types_selected = st.multiselect(
+            "Sex type(s) reported",
+            options=sex_types_display,
+            default=current_sex,
+        )
+        
+        st.divider()
+        st.subheader("Lab Dates")
+        col_l1, col_l2, col_l3 = st.columns(3)
+        
+        with col_l1:
+            lab_1_date = st.date_input(
+                "Lab 1 date",
+                value=case.lab_1_date if case else None,
+                format="MM/DD/YYYY",
+            )
+        with col_l2:
+            lab_2_date = st.date_input(
+                "Lab 2 date",
+                value=case.lab_2_date if case else None,
+                format="MM/DD/YYYY",
+            )
+        with col_l3:
+            lab_3_date = st.date_input(
+                "Lab 3 date",
+                value=case.lab_3_date if case else None,
+                format="MM/DD/YYYY",
+            )
 
     with col_btn1:
         submitted = st.form_submit_button(
@@ -231,6 +307,15 @@ if submitted or go_partners or go_map:
             lab_1=val_or_none(lab_1),
             lab_2=val_or_none(lab_2),
             lab_3=val_or_none(lab_3),
+            symptom_onset_date=symptom_onset if symptom_onset else None,
+            symptom_duration_days=symptom_duration if symptom_duration > 0 else None,
+            exposure_first_date=exposure_first if exposure_first else None,
+            exposure_last_date=exposure_last if exposure_last else None,
+            sex_types=json.dumps([sex_types_value[sex_types_display.index(s)] 
+                                 for s in sex_types_selected]) if sex_types_selected else None,
+            lab_1_date=lab_1_date if lab_1_date else None,
+            lab_2_date=lab_2_date if lab_2_date else None,
+            lab_3_date=lab_3_date if lab_3_date else None,
         )
 
         with SessionLocal() as db:
