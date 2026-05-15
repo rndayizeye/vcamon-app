@@ -21,7 +21,6 @@ Exposure criterion rules:
 """
 
 from unittest import result
-
 import pytest
 from datetime import date, timedelta
 from app.utils.clinical import (
@@ -37,8 +36,8 @@ from app.utils.clinical import (
     INCUBATION, PRIMARY, LATENCY,
     EXPOSURE_WARN_MARGIN_DAYS,
     _scenario_passes,
+    GhostedLesion,  
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures — slide 17 scenario
