@@ -57,7 +57,31 @@ EXPOSURE_WARN_MARGIN_DAYS = INCUBATION["avg"] // 2   # 10
 # Minimum latency between ghosted lesion end and secondary symptom onset
 MIN_LATENCY_TO_SECONDARY_DAYS = 35   # 5 weeks
 
+# ---------------------------------------------------------------------------
+# Interview period — calculate earliest relevant date for case investigation based on symptoms and previous negative tests
+# ---------------------------------------------------------------------------
 
+def calc_interview_period_start(
+    symptom_onset: date,
+    symptom_type: str,
+    last_negative_date: Optional[date] = None,
+) -> date:
+    """
+    Calculate interview period start date.
+    
+    Standard: 125 days (primary) or 237 days (secondary) from onset
+    With previous negative: Cannot go before (negative_date - 90 days)
+    """
+    if symptom_type in ("Primary Chancre", "Historical Primary", "Ghosted Primary"):
+        standard_start = symptom_onset - timedelta(days=INTERVIEW_PERIOD_PRIMARY_DAYS)
+    else:
+        standard_start = symptom_onset - timedelta(days=INTERVIEW_PERIOD_SECONDARY_DAYS)
+    
+    if last_negative_date:
+        floor = last_negative_date - timedelta(days=INCUBATION["max"])
+        return max(standard_start, floor)
+    
+    return standard_start
 # ---------------------------------------------------------------------------
 # Symptom ranking — ghosting hierarchy
 # ---------------------------------------------------------------------------
@@ -82,7 +106,8 @@ def symptom_rank(symptom_type: str) -> int:
 class Symptom:
     type: str
     onset: date
-    duration_days: int   # 0 = unknown; engine uses avg for that type
+    duration_days: int
+    location: str | None = None  # "Anal LX", "Penile LX", etc.
 
 
 @dataclass
@@ -264,33 +289,48 @@ def calc_ghosted_spread(date2: date, assigned_to: str, derived_from: str) -> Gho
 # ---------------------------------------------------------------------------
 
 def _check_exposure(
-    check_date: date,
+    infectious_start: date,
+    infectious_end: date,
     exposure: Optional[Exposure],
     scenario: str,
-    date_label: str,
 ) -> tuple[str, str]:
     """
-    Check whether check_date falls within the reported exposure window.
-
-    Source scenario  → check_date is Date1 (Case1's inoculation date)
-    Spread scenario  → check_date is Date2 (Case1's peak infectious date)
-
-    Pass:  check_date is within [exposure.first, exposure.last]
-    Warn:  check_date is outside but within EXPOSURE_WARN_MARGIN_DAYS of the boundary
-    Fail:  check_date is beyond the warn margin outside the window
-    N/A:   no exposure dates recorded
+    Check if infectious period overlaps with exposure window.
+    Any intersection = transmission possible.
     """
     if exposure is None or exposure.first is None or exposure.last is None:
-        return "warn", (
-            f"Cannot check — exposure dates not recorded. "
-            f"{date_label} = {check_date}."
-        )
-
-    if exposure.first <= check_date <= exposure.last:
+        return "warn", "Exposure dates not recorded — cannot verify overlap."
+    
+    # Check period intersection
+    overlaps = (infectious_start <= exposure.last and 
+                exposure.first <= infectious_end)
+    
+    if overlaps:
+        overlap_days = (min(infectious_end, exposure.last) - 
+                       max(infectious_start, exposure.first)).days + 1
         return "pass", (
-            f"{date_label} ({check_date}) falls within the reported exposure window "
-            f"({exposure.first} to {exposure.last})."
+            f"Infectious period ({infectious_start} → {infectious_end}) "
+            f"overlaps exposure ({exposure.first} → {exposure.last}) "
+            f"by {overlap_days} day(s)."
         )
+        # Calculate gap
+    if infectious_end < exposure.first:
+        gap = (exposure.first - infectious_end).days
+        direction = "before"
+    else:
+        gap = (infectious_start - exposure.last).days
+        direction = "after"
+    
+    if gap <= EXPOSURE_WARN_MARGIN_DAYS:
+        return "warn", (
+            f"Infectious period ends {gap} day(s) {direction} exposure window "
+            f"(within {EXPOSURE_WARN_MARGIN_DAYS}-day warn margin)."
+        )
+    
+    return "fail", (
+        f"No overlap: infectious period is {gap} day(s) {direction} "
+        f"exposure window (exceeds warn margin)."
+    )
 
     # Outside window — check warn margin
     days_before = (exposure.first - check_date).days   # positive if before window
@@ -317,33 +357,37 @@ def _check_exposure(
 
 
 def _sex_type_compatible(
-    lesion_type_symptom: str,
+    symptom: Symptom,
     sex_types: list[str],
 ) -> tuple[str, str]:
     if not sex_types:
         return "warn", "Sex types not recorded — cannot check anatomical compatibility."
-
-    loc_lower = lesion_type_symptom.lower()
+    
+    # Use location if available, fall back to type
+    check_string = (symptom.location or symptom.type).lower()
     sex_lower = [s.lower() for s in sex_types]
-
+    
     compatible = False
-    if "anal" in loc_lower:
+    if "anal" in check_string or "rectal" in check_string:
         compatible = any("anal" in s for s in sex_lower)
-    elif "penile" in loc_lower or "vaginal" in loc_lower:
+    elif "penile" in check_string or "vaginal" in check_string:
         compatible = any(k in s for s in sex_lower for k in ("vaginal", "anal"))
-    elif "oral" in loc_lower:
+    elif "oral" in check_string:
         compatible = any("oral" in s for s in sex_lower)
     else:
-        compatible = True   # Lab LX or unknown — benefit of the doubt
-
+        # No location data or unknown type
+        if symptom.location is None:
+            return "warn", "Lesion location not recorded — cannot verify compatibility."
+        compatible = True  # Lab LX or other non-specific
+    
     if compatible:
         return "pass", (
-            f"Symptom location ({lesion_type_symptom}) is consistent with "
-            f"reported sex types ({', '.join(sex_types)})."
+            f"Lesion location ({symptom.location or symptom.type}) is consistent "
+            f"with reported sex types ({', '.join(sex_types)})."
         )
     return "fail", (
-        f"Symptom location ({lesion_type_symptom}) may NOT be consistent with "
-        f"reported sex types ({', '.join(sex_types)}). Manual verification needed."
+        f"Lesion location ({symptom.location or symptom.type}) may NOT be consistent "
+        f"with reported sex types ({', '.join(sex_types)}). Manual verification needed."
     )
 
 
