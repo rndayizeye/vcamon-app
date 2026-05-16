@@ -44,6 +44,7 @@ from app.db.queries import (
 from app.utils.clinical import (
     INCUBATION,
     PRIMARY,
+    symptom_rank,
 )
 from app.utils.session_state import (
     get_active_case_id,
@@ -606,8 +607,14 @@ with st.expander("Chart legend", expanded=False):
 # ---------------------------------------------------------------------------
 
 missing = []
-if not case.treatment_date and not case.lesion_type:
-    missing.append("OP has no treatment date or lesion type — symptom timeline cannot be plotted")
+if not case.treatment_date:
+    # We now check for primary symptoms in the DB
+    with SessionLocal() as db:
+        from app.db.queries import get_symptoms_for_case
+        symptoms = get_symptoms_for_case(db, case.id)
+        if not symptoms:
+            missing.append("OP has no treatment date or symptoms — symptom timeline cannot be plotted")
+
 for p in partners:
     with SessionLocal() as db:
         rel = get_case_partner_relationship(db, case_id, p.id)
