@@ -230,6 +230,9 @@ class Case(Base):
     lab_results: Mapped[list["LabResultEntry"]] = relationship(
         "LabResultEntry", back_populates="case", cascade="all, delete-orphan"
     )
+    symptoms: Mapped[list["SymptomEntry"]] = relationship(
+        "SymptomEntry", back_populates="case", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<Case id={self.id} patient={self.patient_name!r}>"
