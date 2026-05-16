@@ -118,6 +118,16 @@ class Symptom(str, enum.Enum):
     ALOPECIA = "Alopecia"
 
 
+class SymptomClassification(str, enum.Enum):
+    PRIMARY   = "Primary"
+    SECONDARY = "Secondary"
+
+
+class TestCategory(str, enum.Enum):
+    NON_TREPONEMAL = "Non-treponemal"
+    TREPONEMAL     = "Treponemal"
+
+
 class GhostingType(str, enum.Enum):
     SOURCE       = "Ghosting a Source"
     SPREAD_GHOST = "Ghosting a Spread Ghost"
@@ -141,6 +151,7 @@ class Case(Base):
     patient_name: Mapped[str] = mapped_column(String(200), nullable=False)
     lot: Mapped[str | None] = mapped_column(String(10))        # 700, 710, 720, 730
     case_manager: Mapped[str | None] = mapped_column(String(200))
+    initial_contact_date: Mapped[date | None] = mapped_column(Date)
 
     # OP form fields
     reason_for_exam: Mapped[str | None] = mapped_column(
@@ -149,7 +160,7 @@ class Case(Base):
     treatment_date: Mapped[date | None] = mapped_column(Date)
     medical_info: Mapped[str | None] = mapped_column(Text)
 
-    # Lab results (3 slots matching Excel Lab 1 / Lab 2 / Lab 3)
+    # Lab results (Legacy 3 slots - keeping for compatibility but will prefer LabResultEntry)
     lab_1: Mapped[str | None] = mapped_column(Enum(LabResult, name="lab_result_1_enum"))
     lab_2: Mapped[str | None] = mapped_column(Enum(TreponemalResult, name="trep_result_enum"))
     lab_3: Mapped[str | None] = mapped_column(String(100))    # free-text / "Drfd N/A" logic
@@ -160,10 +171,17 @@ class Case(Base):
     symptom: Mapped[str | None] = mapped_column(Enum(Symptom, name="symptom_enum"))
 
     # Clinical details for VCA analysis
+    symptom_classification: Mapped[str | None] = mapped_column(
+        Enum(SymptomClassification, name="symptom_class_enum")
+    )
     symptom_onset_date: Mapped[date | None] = mapped_column(Date)
     symptom_duration_days: Mapped[int | None] = mapped_column(Integer)
+    symptom_ongoing: Mapped[bool] = mapped_column(Boolean, default=False)
+    
+    historical_primary_chancre: Mapped[bool | None] = mapped_column(Boolean)
+    historical_primary_date: Mapped[date | None] = mapped_column(Date)
 
-    # Lab dates
+    # Lab dates (Legacy)
     lab_1_date: Mapped[date | None] = mapped_column(Date)
     lab_2_date: Mapped[date | None] = mapped_column(Date)
     lab_3_date: Mapped[date | None] = mapped_column(Date)
@@ -192,6 +210,9 @@ class Case(Base):
     )
     timeline_events: Mapped[list["TimelineEvent"]] = relationship(
         "TimelineEvent", back_populates="case", cascade="all, delete-orphan"
+    )
+    lab_results: Mapped[list["LabResultEntry"]] = relationship(
+        "LabResultEntry", back_populates="case", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:
@@ -239,8 +260,15 @@ class Partner(Base):
         Enum(Symptom, name="partner_symptom_enum")
     )
     # Clinical details for VCA analysis
+    symptom_classification: Mapped[str | None] = mapped_column(
+        Enum(SymptomClassification, name="p_symptom_class_enum")
+    )
     symptom_onset_date: Mapped[date | None] = mapped_column(Date)
     symptom_duration_days: Mapped[int | None] = mapped_column(Integer)
+    symptom_ongoing: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    historical_primary_chancre: Mapped[bool | None] = mapped_column(Boolean)
+    historical_primary_date: Mapped[date | None] = mapped_column(Date)
 
     # Lab dates
     lab_1_date: Mapped[date | None] = mapped_column(Date)
@@ -259,9 +287,42 @@ class Partner(Base):
     timeline_events: Mapped[list["TimelineEvent"]] = relationship(
         "TimelineEvent", back_populates="partner", cascade="all, delete-orphan"
     )
+    lab_results: Mapped[list["LabResultEntry"]] = relationship(
+        "LabResultEntry", back_populates="partner", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<Partner id={self.id} #{self.partner_number} case={self.case_id}>"
+
+
+# ---------------------------------------------------------------------------
+# LabResultEntry (New — for repeatable lab history)
+# ---------------------------------------------------------------------------
+
+class LabResultEntry(Base):
+    """
+    A single laboratory result (RPR, VDRL, or Treponemal).
+    Allows multiple historical labs per Case or Partner.
+    """
+    __tablename__ = "lab_results"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    case_id: Mapped[int | None] = mapped_column(ForeignKey("cases.id"))
+    partner_id: Mapped[int | None] = mapped_column(ForeignKey("partners.id"))
+
+    test_category: Mapped[str] = mapped_column(
+        Enum(TestCategory, name="test_category_enum"), nullable=False
+    )
+    test_type: Mapped[str] = mapped_column(String(100), nullable=False) # e.g. "RPR", "TP-PA"
+    titer: Mapped[str | None] = mapped_column(String(100))  # for Non-treponemal
+    result: Mapped[str | None] = mapped_column(String(100)) # for Treponemal
+    collection_date: Mapped[date] = mapped_column(Date, nullable=False)
+
+    case: Mapped["Case | None"] = relationship("Case", back_populates="lab_results")
+    partner: Mapped["Partner | None"] = relationship("Partner", back_populates="lab_results")
+
+    def __repr__(self) -> str:
+        return f"<LabResultEntry id={self.id} cat={self.test_category} date={self.collection_date}>"
 
 
 # ---------------------------------------------------------------------------
