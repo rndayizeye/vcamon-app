@@ -7,6 +7,7 @@ as new pages are built rather than all upfront.
 """
 
 from datetime import date
+from typing import Optional
 
 from sqlalchemy.orm import Session
 
