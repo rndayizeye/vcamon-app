@@ -74,9 +74,9 @@ def _inoculation_points(symptom_type: str, onset: date, duration_days: int):
         max_d = onset - timedelta(days=INCUBATION["max"])
     elif symptom_type == "Secondary Rash/Lesions":
         from app.utils.clinical import LATENCY
-        avg_d = onset - timedelta(days=INCUBATION["avg"] + PRIMARY["avg"] + LATENCY["avg"])
-        min_d = onset - timedelta(days=INCUBATION["min"] + PRIMARY["min"] + LATENCY["min"])
-        max_d = onset - timedelta(days=INCUBATION["max"] + PRIMARY["max"] + LATENCY["max"])
+        avg_d = onset - timedelta(days=INCUBATION["avg"] + dur + LATENCY["avg"])
+        min_d = onset - timedelta(days=INCUBATION["min"] + dur + LATENCY["min"])
+        max_d = onset - timedelta(days=INCUBATION["max"] + dur + LATENCY["max"])
     else:
         return None, None, None
 
