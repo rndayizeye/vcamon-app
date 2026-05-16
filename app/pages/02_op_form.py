@@ -153,6 +153,20 @@ with st.form("op_form", border=True):
             options=enum_options(Symptom),
             index=enum_options(Symptom).index(case.symptom or "") if case else 0,
         )
+        
+        st.markdown("---")
+        st.caption("Symptom Details")
+        symptom_onset = st.date_input(
+            "Symptom onset date",
+            value=case.symptom_onset_date if case else None,
+            help="When did this symptom first appear?",
+            format="MM/DD/YYYY",
+        )
+        symptom_duration = st.number_input(
+            "Symptom duration (days, 0=unknown)",
+            min_value=0, max_value=90,
+            value=case.symptom_duration_days or 0 if case else 0,
+        )
 
     medical_info = st.text_area(
         "Medical info on date treated",
@@ -192,55 +206,6 @@ with st.form("op_form", border=True):
     with st.expander("🔬 Clinical Details (Optional - for VCA analysis)", expanded=False):
         st.caption("Complete these fields to streamline ghosting analysis")
         
-        col_sym, col_exp = st.columns(2)
-        
-        with col_sym:
-            st.subheader("Symptom Details")
-            symptom_onset = st.date_input(
-                "Symptom onset date",
-                value=case.symptom_onset_date if case else None,
-                help="When did this symptom first appear?",
-                format="MM/DD/YYYY",
-            )
-            symptom_duration = st.number_input(
-                "Symptom duration (days, 0=unknown)",
-                min_value=0, max_value=90,
-                value=case.symptom_duration_days or 0 if case else 0,
-            )
-        
-        with col_exp:
-            st.subheader("Exposure Window")
-            exposure_first = st.date_input(
-                "First exposure to partner",
-                value=case.exposure_first_date if case else None,
-                format="MM/DD/YYYY",
-            )
-            exposure_last = st.date_input(
-                "Last exposure to partner",
-                value=case.exposure_last_date if case else None,
-                format="MM/DD/YYYY",
-            )
-        
-        sex_types_display = ["Anal", "Oral", "Vaginal", "Penile", "Rectal"]
-        sex_types_value = ["Anal LX", "Oral LX", "Vaginal LX", "Penile LX", "Rectal LX"]
-        
-        import json
-        current_sex = []
-        if case and case.sex_types:
-            try:
-                stored = json.loads(case.sex_types)
-                current_sex = [sex_types_display[sex_types_value.index(s)] 
-                              for s in stored if s in sex_types_value]
-            except:
-                pass
-        
-        sex_types_selected = st.multiselect(
-            "Sex type(s) reported",
-            options=sex_types_display,
-            default=current_sex,
-        )
-        
-        st.divider()
         st.subheader("Lab Dates")
         col_l1, col_l2, col_l3 = st.columns(3)
         
@@ -309,10 +274,6 @@ if submitted or go_partners or go_map:
             lab_3=val_or_none(lab_3),
             symptom_onset_date=symptom_onset if symptom_onset else None,
             symptom_duration_days=symptom_duration if symptom_duration > 0 else None,
-            exposure_first_date=exposure_first if exposure_first else None,
-            exposure_last_date=exposure_last if exposure_last else None,
-            sex_types=json.dumps([sex_types_value[sex_types_display.index(s)] 
-                                 for s in sex_types_selected]) if sex_types_selected else None,
             lab_1_date=lab_1_date if lab_1_date else None,
             lab_2_date=lab_2_date if lab_2_date else None,
             lab_3_date=lab_3_date if lab_3_date else None,
