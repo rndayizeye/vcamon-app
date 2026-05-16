@@ -8,7 +8,7 @@ as new pages are built rather than all upfront.
 
 from sqlalchemy.orm import Session
 from datetime import date
-from app.db.models import Case, Partner, MAPEntry, ArrowLink, Ghosting, CasePartnerRelationship, TimelineEvent
+from app.db.models import Case, Partner, MAPEntry, ArrowLink, Ghosting, CasePartnerRelationship, TimelineEvent, LabResultEntry, SymptomClassification, TestCategory
 
 
 
@@ -70,6 +70,64 @@ def delete_case_partner_relationship(db: Session, relationship_id: int) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# LabResultEntry queries
+# ---------------------------------------------------------------------------
+
+def get_lab_results_for_case(db: Session, case_id: int) -> list[LabResultEntry]:
+    """Retrieve all lab results for a given case."""
+    return db.query(LabResultEntry).filter(LabResultEntry.case_id == case_id).order_by(LabResultEntry.collection_date).all()
+
+def get_lab_results_for_partner(db: Session, partner_id: int) -> list[LabResultEntry]:
+    """Retrieve all lab results for a given partner."""
+    return db.query(LabResultEntry).filter(LabResultEntry.partner_id == partner_id).order_by(LabResultEntry.collection_date).all()
+
+def create_lab_result_entry(
+    db: Session,
+    test_category: str,
+    test_type: str,
+    collection_date: date,
+    case_id: int | None = None,
+    partner_id: int | None = None,
+    titer: str | None = None,
+    result: str | None = None,
+) -> LabResultEntry:
+    """Create a new lab result entry."""
+    lab_entry = LabResultEntry(
+        case_id=case_id,
+        partner_id=partner_id,
+        test_category=test_category,
+        test_type=test_type,
+        collection_date=collection_date,
+        titer=titer,
+        result=result,
+    )
+    db.add(lab_entry)
+    db.commit()
+    db.refresh(lab_entry)
+    return lab_entry
+
+def update_lab_result_entry(db: Session, entry_id: int, **kwargs) -> LabResultEntry | None:
+    """Update an existing lab result entry."""
+    lab_entry = db.query(LabResultEntry).filter(LabResultEntry.id == entry_id).first()
+    if not lab_entry:
+        return None
+    for field, value in kwargs.items():
+        setattr(lab_entry, field, value)
+    db.commit()
+    db.refresh(lab_entry)
+    return lab_entry
+
+def delete_lab_result_entry(db: Session, entry_id: int) -> bool:
+    """Delete a lab result entry."""
+    lab_entry = db.query(LabResultEntry).filter(LabResultEntry.id == entry_id).first()
+    if not lab_entry:
+        return False
+    db.delete(lab_entry)
+    db.commit()
+    return True
+
+
+# ---------------------------------------------------------------------------
 # Case queries
 # ---------------------------------------------------------------------------
 
@@ -82,8 +140,8 @@ def get_case_by_id(db: Session, case_id: int) -> Case | None:
     return db.query(Case).filter(Case.id == case_id).first()
 
 
-def create_case(db: Session, patient_name: str, **kwargs) -> Case:
-    case = Case(patient_name=patient_name, **kwargs)
+def create_case(db: Session, patient_name: str, initial_contact_date: date | None = None, **kwargs) -> Case:
+    case = Case(patient_name=patient_name, initial_contact_date=initial_contact_date, **kwargs)
     db.add(case)
     db.commit()
     db.refresh(case)
@@ -95,8 +153,6 @@ def update_case(db: Session, case_id: int, **kwargs) -> Case | None:
     if not case:
         return None
     for field, value in kwargs.items():
-        if field in ("exposure_first_date", "exposure_last_date", "sex_types"):
-            continue # Skip deprecated fields
         setattr(case, field, value)
     db.commit()
     db.refresh(case)
@@ -138,8 +194,25 @@ def get_partner_by_id(db: Session, partner_id: int) -> Partner | None:
     return db.query(Partner).filter(Partner.id == partner_id).first()
 
 
-def create_partner(db: Session, case_id: int, partner_number: int, **kwargs) -> Partner:
-    partner = Partner(case_id=case_id, partner_number=partner_number, **kwargs)
+def create_partner(
+    db: Session, 
+    case_id: int, 
+    partner_number: int, 
+    symptom_classification: str | None = None,
+    symptom_ongoing: bool = False,
+    historical_primary_chancre: bool | None = None,
+    historical_primary_date: date | None = None,
+    **kwargs
+) -> Partner:
+    partner = Partner(
+        case_id=case_id,
+        partner_number=partner_number,
+        symptom_classification=symptom_classification,
+        symptom_ongoing=symptom_ongoing,
+        historical_primary_chancre=historical_primary_chancre,
+        historical_primary_date=historical_primary_date,
+        **kwargs
+    )
     db.add(partner)
     db.commit()
     db.refresh(partner)
@@ -151,8 +224,6 @@ def update_partner(db: Session, partner_id: int, **kwargs) -> Partner | None:
     if not partner:
         return None
     for field, value in kwargs.items():
-        if field in ("exposure_first_date", "exposure_last_date", "sex_types"):
-            continue # Skip deprecated fields
         setattr(partner, field, value)
     db.commit()
     db.refresh(partner)
