@@ -155,6 +155,16 @@ def build_graph(case, partners, links):
         ref = str(p.partner_number)
         treated = p.treatment_date is not None
         color = "#1D9E75" if treated else "#EF9F27"
+        
+        # Fetch latest lab result for the partner
+        latest_lab_val = "—"
+        with SessionLocal() as db:
+            from app.db.queries import get_lab_results_for_partner
+            labs = get_lab_results_for_partner(db, p.id)
+            if labs:
+                latest = labs[-1]
+                latest_lab_val = f"{latest.test_type}: {latest.titer or latest.result or 'N/A'}"
+        
         nodes.append(Node(
             id=ref,
             label=f"P{p.partner_number}\n{p.name or 'Unnamed'}",
@@ -164,7 +174,7 @@ def build_graph(case, partners, links):
             title=(
                 f"Partner {p.partner_number}: {p.name or 'Unnamed'}\n"
                 f"Treatment: {p.treatment_date or 'Pending'}\n"
-                f"Lab 1: {p.lab_1 or '—'}"
+                f"Latest Lab: {latest_lab_val}"
             ),
         ))
 
