@@ -347,7 +347,10 @@ class LabResultEntry(Base):
     )
 
     def __repr__(self) -> str:
-
+        return (
+            f"<LabResultEntry id={self.id} "
+            f"cat={self.test_category} date={self.collection_date}>"
+        )
 
 
 class SymptomEntry(Base):
