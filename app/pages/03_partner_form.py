@@ -10,6 +10,7 @@ Navigation flow:
 """
 
 import streamlit as st
+import json
 from datetime import date
 
 from app.db.database import SessionLocal
@@ -109,6 +110,11 @@ with SessionLocal() as db:
     partners = get_partners_for_case(db, case_id)
     active_pid = get_active_partner_id()
     partner = get_partner_by_id(db, active_pid) if active_pid else None
+    
+    # Fetch relationship data if an active partner exists
+    relationship = None
+    if partner:
+        relationship = get_case_partner_relationship(db, case_id, partner.id)
 
 # Next partner number for new records
 next_number = (max((p.partner_number for p in partners), default=0) + 1)
@@ -270,34 +276,40 @@ with st.form("partner_form", border=True):
             st.subheader("Exposure Window")
             exposure_first = st.date_input(
                 "First exposure to OP",
-                value=partner.exposure_first_date if partner else None,
+                value=relationship.exposure_first_date if relationship else partner.exposure_first_date if partner else None,
                 format="MM/DD/YYYY",
             )
             exposure_last = st.date_input(
                 "Last exposure to OP",
-                value=partner.exposure_last_date if partner else None,
+                value=relationship.exposure_last_date if relationship else partner.exposure_last_date if partner else None,
                 format="MM/DD/YYYY",
             )
 
-        sex_types_display = ["Anal", "Oral", "Vaginal", "Penile", "Rectal"]
-        sex_types_value = ["Anal LX", "Oral LX", "Vaginal LX", "Penile LX", "Rectal LX"]
+            sex_types_display = ["Anal", "Oral", "Vaginal", "Penile", "Rectal"]
+            sex_types_value = ["Anal LX", "Oral LX", "Vaginal LX", "Penile LX", "Rectal LX"]
 
-        import json
-        current_sex = []
-        if partner and partner.sex_types:
+            import json
+            current_sex = []
+            if relationship and relationship.sex_types:
+            try:
+                stored = json.loads(relationship.sex_types)
+                current_sex = [sex_types_display[sex_types_value.index(s)] 
+                              for s in stored if s in sex_types_value]
+            except:
+                pass
+            elif partner and partner.sex_types: # Fallback to partner's old data if no relationship yet
             try:
                 stored = json.loads(partner.sex_types)
-                current_sex = [sex_types_display[sex_types_value.index(s)]
+                current_sex = [sex_types_display[sex_types_value.index(s)] 
                               for s in stored if s in sex_types_value]
             except:
                 pass
 
-        sex_types_selected = st.multiselect(
+            sex_types_selected = st.multiselect(
             "Sex type(s) reported",
             options=sex_types_display,
             default=current_sex,
-        )
-
+            )
         st.divider()
         st.subheader("Lab Dates")
         col_l1, col_l2, col_l3 = st.columns(3)
@@ -365,10 +377,6 @@ if submitted or add_another or go_map:
             lab_3=val_or_none(lab_3),
             symptom_onset_date=symptom_onset if symptom_onset else None,
             symptom_duration_days=symptom_duration if symptom_duration > 0 else None,
-            exposure_first_date=exposure_first if exposure_first else None,
-            exposure_last_date=exposure_last if exposure_last else None,
-            sex_types=json.dumps([sex_types_value[sex_types_display.index(s)]
-                                 for s in sex_types_selected]) if sex_types_selected else None,
             lab_1_date=lab_1_date if lab_1_date else None,
             lab_2_date=lab_2_date if lab_2_date else None,
             lab_3_date=lab_3_date if lab_3_date else None,
@@ -380,6 +388,23 @@ if submitted or add_another or go_map:
                 st.success(
                     f"Partner {saved.partner_number} updated — {saved.name}"
                 )
+                # Update or create the relationship record
+                sex_types_json = json.dumps([sex_types_value[sex_types_display.index(s)] 
+                                             for s in sex_types_selected]) if sex_types_selected else None
+                if relationship:
+                    update_case_partner_relationship(
+                        db, relationship.id,
+                        exposure_first_date=exposure_first,
+                        exposure_last_date=exposure_last,
+                        sex_types=sex_types_json
+                    )
+                else:
+                    create_case_partner_relationship(
+                        db, case_id, partner.id,
+                        exposure_first_date=exposure_first,
+                        exposure_last_date=exposure_last,
+                        sex_types=sex_types_json
+                    )
             else:
                 saved = create_partner(
                     db,
@@ -391,6 +416,15 @@ if submitted or add_another or go_map:
                     f"Partner {saved.partner_number} added — {saved.name}"
                 )
                 set_active_partner_id(saved.id)
+                # Create the relationship record for the new partner
+                sex_types_json = json.dumps([sex_types_value[sex_types_display.index(s)] 
+                                             for s in sex_types_selected]) if sex_types_selected else None
+                create_case_partner_relationship(
+                    db, case_id, saved.id,
+                    exposure_first_date=exposure_first,
+                    exposure_last_date=exposure_last,
+                    sex_types=sex_types_json
+                )
 
         if go_map:
             st.switch_page("pages/04_map_sheet.py")
