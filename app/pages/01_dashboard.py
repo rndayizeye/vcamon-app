@@ -192,7 +192,17 @@ else:
                 q1.metric("Lot",            selected_case.lot or "—")
                 q2.metric("Case manager",   selected_case.case_manager or "—")
                 q3.metric("Reason",         selected_case.reason_for_exam or "—")
-                q4.metric("Lab 1",          selected_case.lab_1 or "—")
+                
+                # Sync the summary view with the latest lab result
+                with SessionLocal() as db:
+                    from app.db.queries import get_lab_results_for_case
+                    latest_labs = get_lab_results_for_case(db, selected_case.id)
+                    lab_display = "—"
+                    if latest_labs:
+                        latest = latest_labs[-1]
+                        lab_display = f"{latest.test_type}: {latest.titer or latest.result or 'N/A'}"
+                
+                q4.metric("Latest Lab",      lab_display)
                 q5.metric("Partners",       partner_counts.get(selected_id, 0))
 
                 if selected_case.medical_info:
