@@ -39,6 +39,7 @@ from app.db.queries import (
     get_partners_for_case,
     get_ghostings,
     get_timeline_events,
+    get_case_partner_relationship,
 )
 from app.utils.session_state import init_session_state, get_active_case_id, require_password
 from app.utils.clinical import (
@@ -202,11 +203,14 @@ op_entry = {
 people.append(op_entry)
 
 for p in partners:
-    sex_raw = getattr(p, "sex_types", None)
+    # Load relationship data from the new association table
+    with SessionLocal() as db:
+        relationship = get_case_partner_relationship(db, case_id, p.id)
+    
     sex_list = []
-    if sex_raw:
+    if relationship and relationship.sex_types:
         try:
-            sex_list = json.loads(sex_raw) if isinstance(sex_raw, str) else list(sex_raw)
+            sex_list = json.loads(relationship.sex_types)
         except Exception:
             sex_list = []
 
@@ -219,8 +223,8 @@ for p in partners:
         "lab_1":          p.lab_1,
         "lab_2":          p.lab_2,
         "lot":            p.lot,
-        "first_exposure": getattr(p, "first_exposure", None),
-        "last_exposure":  getattr(p, "last_exposure",  None),
+        "first_exposure": relationship.exposure_first_date if relationship else None,
+        "last_exposure":  relationship.exposure_last_date if relationship else None,
         "sex_types":      sex_list,
         "is_op":          False,
     })
@@ -594,7 +598,9 @@ missing = []
 if not case.treatment_date and not case.lesion_type:
     missing.append("OP has no treatment date or lesion type — symptom timeline cannot be plotted")
 for p in partners:
-    if not getattr(p, "first_exposure", None):
+    with SessionLocal() as db:
+        rel = get_case_partner_relationship(db, case_id, p.id)
+    if not rel or not rel.exposure_first_date:
         missing.append(f"Partner {p.partner_number} ({p.name or 'Unnamed'}) has no exposure dates")
 
 if missing:
