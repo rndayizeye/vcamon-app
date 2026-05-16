@@ -23,6 +23,10 @@ from app.db.queries import (
     get_case_partner_relationship,
     create_case_partner_relationship,
     update_case_partner_relationship,
+    get_reports_for_relationship,
+    create_relationship_report,
+    update_relationship_report,
+    delete_relationship_report,
     get_lab_results_for_partner,
     create_lab_result_entry,
     update_lab_result_entry,
@@ -364,6 +368,42 @@ with st.form("partner_form", border=True):
         )
 
         st.divider()
+        st.subheader("Relationship Evidence")
+        st.caption("Multiple reports from different sources (e.g. OP, Partner) regarding their relationship.")
+        
+        # Load existing reports if relationship exists
+        existing_reports = []
+        if relationship:
+            with SessionLocal() as db:
+                reps = get_reports_for_relationship(db, relationship.id)
+                for r in reps:
+                    existing_reports.append({
+                        "id": r.id,
+                        "Reporter": r.reporter,
+                        "First Exposure": r.exposure_first_date,
+                        "Last Exposure": r.exposure_last_date,
+                        "Sex Types": r.sex_types,
+                    })
+        
+        report_df = st.data_editor(
+            existing_reports,
+            num_rows="dynamic",
+            column_config={
+                "id": st.column_config.Column(disabled=True, hide_index=True),
+                "Reporter": st.column_config.SelectboxColumn(
+                    "Reporter",
+                    options=["OP", "Partner", "Third Party", "Other"],
+                    required=True
+                ),
+                "First Exposure": st.column_config.DateColumn("First Exposure"),
+                "Last Exposure": st.column_config.DateColumn("Last Exposure"),
+                "Sex Types": st.column_config.TextColumn("Sex Types (JSON array)"),
+            },
+            key="relationship_report_editor",
+            use_container_width=True,
+        )
+
+        st.divider()
         st.subheader("Lab Dates")
         st.info("Lab dates are now managed in the 'Lab results' section above.")
 
@@ -431,14 +471,14 @@ if submitted or add_another or go_map:
                 sex_types_json = json.dumps([sex_types_value[sex_types_display.index(s)] 
                                              for s in sex_types_selected]) if sex_types_selected else None
                 if relationship:
-                    update_case_partner_relationship(
+                    relationship = update_case_partner_relationship(
                         db, relationship.id,
                         exposure_first_date=exposure_first,
                         exposure_last_date=exposure_last,
                         sex_types=sex_types_json
                     )
                 else:
-                    create_case_partner_relationship(
+                    relationship = create_case_partner_relationship(
                         db, case_id, partner.id,
                         exposure_first_date=exposure_first,
                         exposure_last_date=exposure_last,
@@ -459,12 +499,40 @@ if submitted or add_another or go_map:
                 # Create the relationship record for the new partner
                 sex_types_json = json.dumps([sex_types_value[sex_types_display.index(s)] 
                                              for s in sex_types_selected]) if sex_types_selected else None
-                create_case_partner_relationship(
+                relationship = create_case_partner_relationship(
                     db, case_id, saved.id,
                     exposure_first_date=exposure_first,
                     exposure_last_date=exposure_last,
                     sex_types=sex_types_json
                 )
+
+            # Sync Relationship Reports
+            if relationship:
+                current_report_ids = [r.id for r in get_reports_for_relationship(db, relationship.id)]
+                editor_report_ids = [row["id"] for row in report_df if "id" in row and row["id"] is not None]
+                
+                for rid in current_report_ids:
+                    if rid not in editor_report_ids:
+                        delete_relationship_report(db, rid)
+                
+                for row in report_df:
+                    if "id" in row and row["id"] is not None:
+                        update_relationship_report(
+                            db, row["id"],
+                            reporter=row["Reporter"],
+                            exposure_first_date=row["First Exposure"],
+                            exposure_last_date=row["Last Exposure"],
+                            sex_types=row["Sex Types"]
+                        )
+                    else:
+                        create_relationship_report(
+                            db,
+                            relationship_id=relationship.id,
+                            reporter=row["Reporter"],
+                            exposure_first_date=row["First Exposure"],
+                            exposure_last_date=row["Last Exposure"],
+                            sex_types=row["Sex Types"]
+                        )
 
             # Sync Lab Results
             current_lab_ids = [l.id for l in get_lab_results_for_partner(db, partner_id)]

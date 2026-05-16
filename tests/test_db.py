@@ -22,6 +22,9 @@ from app.db.queries import (
     create_case_partner_relationship,
     update_case_partner_relationship,
     delete_case_partner_relationship,
+    get_reports_for_relationship,
+    create_relationship_report,
+    delete_relationship_report,
 )
 
 
@@ -197,6 +200,55 @@ class TestRelationshipCRUD:
         rel_id = rel.id
         assert delete_case_partner_relationship(db, rel_id) is True
         assert get_case_partner_relationship(db, sample_case.id, sample_partner.id) is None
+
+
+# ---------------------------------------------------------------------------
+# RelationshipReport CRUD
+# ---------------------------------------------------------------------------
+
+class TestRelationshipReportCRUD:
+
+    def test_create_report_persists(self, db, sample_case, sample_partner):
+        rel = create_case_partner_relationship(db, sample_case.id, sample_partner.id)
+        report = create_relationship_report(
+            db,
+            relationship_id=rel.id,
+            reporter="OP",
+            exposure_first_date=date(2024, 1, 1),
+            exposure_last_date=date(2024, 1, 15),
+            sex_types='["Anal LX"]',
+        )
+        assert report.id is not None
+        assert report.reporter == "OP"
+        assert report.exposure_first_date == date(2024, 1, 1)
+
+    def test_get_reports_for_relationship(self, db, sample_case, sample_partner):
+        rel = create_case_partner_relationship(db, sample_case.id, sample_partner.id)
+        create_relationship_report(db, rel.id, reporter="OP")
+        create_relationship_report(db, rel.id, reporter="Partner")
+        
+        reports = get_reports_for_relationship(db, rel.id)
+        assert len(reports) == 2
+        assert {r.reporter for r in reports} == {"OP", "Partner"}
+
+    def test_delete_report_removes_record(self, db, sample_case, sample_partner):
+        rel = create_case_partner_relationship(db, sample_case.id, sample_partner.id)
+        report = create_relationship_report(db, rel.id, reporter="OP")
+        report_id = report.id
+        
+        assert delete_relationship_report(db, report_id) is True
+        assert len(get_reports_for_relationship(db, rel.id)) == 0
+
+    def test_relationship_delete_cascades_to_reports(self, db, sample_case, sample_partner):
+        rel = create_case_partner_relationship(db, sample_case.id, sample_partner.id)
+        create_relationship_report(db, rel.id, reporter="OP")
+        
+        rel_id = rel.id
+        delete_case_partner_relationship(db, rel_id)
+        
+        # Verify no reports left for this relationship
+        from app.db.models import RelationshipReport
+        assert db.query(RelationshipReport).filter(RelationshipReport.relationship_id == rel_id).count() == 0
 
 
 # ---------------------------------------------------------------------------
