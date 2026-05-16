@@ -332,16 +332,10 @@ if submitted or go_partners or go_map:
             reason_for_exam=val_or_none(reason_for_exam),
             treatment_date=treatment_date if treatment_date else None,
             treatment=val_or_none(treatment),
-            lesion_type=val_or_none(lesion_type),
-            symptom=val_or_none(symptom),
-            symptom_classification=val_or_none(symptom_classification),
-            symptom_onset_date=symptom_onset if symptom_onset else None,
-            symptom_duration_days=symptom_duration if symptom_duration > 0 else None,
-            symptom_ongoing=symptom_ongoing,
             historical_primary_chancre=historical_primary_chancre,
             historical_primary_date=historical_primary_date if historical_primary_date else None,
             medical_info=val_or_none(medical_info),
-            # Keep legacy fields for backward compatibility if needed, otherwise None
+            # Keep legacy fields as None
             lab_1=None,
             lab_2=None,
             lab_3=None,
