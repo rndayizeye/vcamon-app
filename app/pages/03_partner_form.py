@@ -209,23 +209,49 @@ with st.form("partner_form", border=True):
         )
 
     with col4:
-        lesion_type = st.selectbox(
-            "Lesion type",
-            options=enum_options(LesionType),
-            index=enum_options(LesionType).index(
-                partner.lesion_type or "" if partner else ""
-            ),
-        )
-        symptom = st.selectbox(
-            "Symptom",
-            options=enum_options(Symptom),
-            index=enum_options(Symptom).index(
-                partner.symptom or "" if partner else ""
-            ),
+        st.subheader("Symptoms & Lesions")
+        st.caption("Add and manage all symptoms. Click a cell to edit.")
+        
+        # Load existing symptoms for the partner
+        existing_symptoms = []
+        if partner:
+            with SessionLocal() as db:
+                from app.db.queries import get_symptoms_for_partner
+                symptoms = get_symptoms_for_partner(db, partner.id)
+                for s in symptoms:
+                    existing_symptoms.append({
+                        "id": s.id,
+                        "Type": s.symptom_type,
+                        "Classification": s.classification,
+                        "Onset Date": s.onset_date,
+                        "Duration": s.duration_days,
+                        "Ongoing": s.ongoing,
+                    })
+
+        symptom_df = st.data_editor(
+            existing_symptoms,
+            num_rows="dynamic",
+            column_config={
+                "id": st.column_config.Column(disabled=True),
+                "Type": st.column_config.SelectboxColumn(
+                    "Type", 
+                    options=enum_options(LesionType) + enum_options(Symptom),
+                    required=True
+                ),
+                "Classification": st.column_config.SelectboxColumn(
+                    "Classification", 
+                    options=enum_options(SymptomClassification),
+                ),
+                "Onset Date": st.column_config.DateColumn("Onset Date"),
+                "Duration": st.column_config.NumberColumn("Duration (Days)"),
+                "Ongoing": st.column_config.CheckboxColumn("Ongoing"),
+            },
+            key="partner_symptom_editor",
+            use_container_width=True,
         )
 
-        st.markdown("---")
-        st.subheader("History of Primary Chancre")
+    st.markdown("---")
+    st.subheader("History of Primary Chancre")
     historical_primary_chancre = st.radio(
         "Did the partner have a primary chancre?",
         options=[False, True],
