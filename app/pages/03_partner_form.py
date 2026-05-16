@@ -22,7 +22,11 @@ from app.db.queries import (
     update_partner,
     get_case_partner_relationship,
     create_case_partner_relationship,
-    update_case_partner_relationship,   
+    update_case_partner_relationship,
+    get_lab_results_for_partner,
+    create_lab_result_entry,
+    update_lab_result_entry,
+    delete_lab_result_entry,
 )
 from app.db.models import (
     ReasonForExam,
@@ -31,6 +35,8 @@ from app.db.models import (
     Treatment,
     LesionType,
     Symptom,
+    SymptomClassification,
+    TestCategory,
 )
 from app.utils.session_state import (
     init_session_state,
@@ -216,6 +222,41 @@ with st.form("partner_form", border=True):
             ),
         )
 
+        st.markdown("---")
+        st.caption("Symptom Details")
+        symptom_classification = st.selectbox(
+            "Symptom classification",
+            options=enum_options(SymptomClassification),
+            index=enum_options(SymptomClassification).index(partner.symptom_classification or "") if partner else 0,
+            help="Is this a primary symptom or a secondary symptom?"
+        )
+        symptom_ongoing = st.checkbox(
+            "Symptom is ongoing",
+            value=partner.symptom_ongoing if partner else False,
+            help="Check if the symptom is still active."
+        )
+
+    st.markdown("---")
+    st.subheader("History of Primary Chancre")
+    historical_primary_chancre = st.radio(
+        "Did the partner have a primary chancre?",
+        options=[False, True],
+        format_func=lambda x: "Yes" if x else "No",
+        index=[False, True].index(partner.historical_primary_chancre) if partner and partner.historical_primary_chancre is not None else 0,
+        help="Required for secondary syphilis diagnosis."
+    )
+
+    historical_primary_date = None
+    if historical_primary_chancre:
+        historical_primary_date = st.date_input(
+            "Date of primary chancre",
+            value=partner.historical_primary_date if partner else None,
+            min_value=date(2000, 1, 1),
+            max_value=date.today(),
+            format="MM/DD/YYYY",
+            help="When did the primary chancre first appear?"
+        )
+
     medical_info = st.text_area(
         "Medical info on date treated",
         value=partner.medical_info or "" if partner else "",
@@ -224,34 +265,43 @@ with st.form("partner_form", border=True):
     )
 
     st.divider()
-
-    # --- Lab results ---
     st.subheader("Lab results")
-    st.caption("Lab 1 = RPR/VDRL titer · Lab 2 = Treponemal confirmatory · Lab 3 = free text")
-    col5, col6, col7 = st.columns(3)
+    st.caption("Manage all laboratory results. Use the table to add, edit, or remove entries.")
+    
+    # Load existing lab results for the partner
+    existing_labs = []
+    if partner:
+        with SessionLocal() as db:
+            labs = get_lab_results_for_partner(db, partner.id)
+            for l in labs:
+                existing_labs.append({
+                    "id": l.id,
+                    "Category": l.test_category,
+                    "Test Type": l.test_type,
+                    "Titer": l.titer,
+                    "Result": l.result,
+                    "Date": l.collection_date,
+                })
 
-    with col5:
-        lab_1 = st.selectbox(
-            "Lab 1 — RPR / VDRL",
-            options=enum_options(LabResult),
-            index=enum_options(LabResult).index(
-                partner.lab_1 or "" if partner else ""
+    # Data editor for repeatable lab history
+    lab_df = st.data_editor(
+        existing_labs,
+        num_rows="dynamic",
+        column_config={
+            "id": st.column_config.Column(disabled=True, hide_index=True),
+            "Category": st.column_config.SelectboxColumn(
+                "Category", 
+                options=enum_options(TestCategory),
+                required=True
             ),
-        )
-    with col6:
-        lab_2 = st.selectbox(
-            "Lab 2 — Treponemal",
-            options=enum_options(TreponemalResult),
-            index=enum_options(TreponemalResult).index(
-                partner.lab_2 or "" if partner else ""
-            ),
-        )
-    with col7:
-        lab_3 = st.text_input(
-            "Lab 3 — other",
-            value=partner.lab_3 or "" if partner else "",
-            placeholder="Drfd N/A, or free text",
-        )
+            "Test Type": st.column_config.TextColumn("Test Type", required=True),
+            "Titer": st.column_config.TextColumn("Titer (Non-treponemal)"),
+            "Result": st.column_config.TextColumn("Result (Treponemal)"),
+            "Date": st.column_config.DateColumn("Collection Date", required=True),
+        },
+        key="partner_lab_editor",
+        use_container_width=True,
+    )
 
     st.divider()
 
@@ -315,26 +365,7 @@ with st.form("partner_form", border=True):
 
         st.divider()
         st.subheader("Lab Dates")
-        col_l1, col_l2, col_l3 = st.columns(3)
-
-        with col_l1:
-            lab_1_date = st.date_input(
-                "Lab 1 date",
-                value=partner.lab_1_date if partner else None,
-                format="MM/DD/YYYY",
-            )
-        with col_l2:
-            lab_2_date = st.date_input(
-                "Lab 2 date",
-                value=partner.lab_2_date if partner else None,
-                format="MM/DD/YYYY",
-            )
-        with col_l3:
-            lab_3_date = st.date_input(
-                "Lab 3 date",
-                value=partner.lab_3_date if partner else None,
-                format="MM/DD/YYYY",
-            )
+        st.info("Lab dates are now managed in the 'Lab results' section above.")
 
     # --- Buttons ---
     col_b1, col_b2, col_b3, _ = st.columns([1, 1, 1, 3])
@@ -373,20 +404,26 @@ if submitted or add_another or go_map:
             treatment=val_or_none(treatment),
             lesion_type=val_or_none(lesion_type),
             symptom=val_or_none(symptom),
-            medical_info=val_or_none(medical_info),
-            lab_1=val_or_none(lab_1),
-            lab_2=val_or_none(lab_2),
-            lab_3=val_or_none(lab_3),
+            symptom_classification=val_or_none(symptom_classification),
             symptom_onset_date=symptom_onset if symptom_onset else None,
             symptom_duration_days=symptom_duration if symptom_duration > 0 else None,
-            lab_1_date=lab_1_date if lab_1_date else None,
-            lab_2_date=lab_2_date if lab_2_date else None,
-            lab_3_date=lab_3_date if lab_3_date else None,
+            symptom_ongoing=symptom_ongoing,
+            historical_primary_chancre=historical_primary_chancre,
+            historical_primary_date=historical_primary_date if historical_primary_date else None,
+            medical_info=val_or_none(medical_info),
+            # Keep legacy fields as None
+            lab_1=None,
+            lab_2=None,
+            lab_3=None,
+            lab_1_date=None,
+            lab_2_date=None,
+            lab_3_date=None,
         )
 
         with SessionLocal() as db:
             if partner:
                 saved = update_partner(db, partner.id, **payload)
+                partner_id = saved.id
                 st.success(
                     f"Partner {saved.partner_number} updated — {saved.name}"
                 )
@@ -418,6 +455,7 @@ if submitted or add_another or go_map:
                     f"Partner {saved.partner_number} added — {saved.name}"
                 )
                 set_active_partner_id(saved.id)
+                partner_id = saved.id
                 # Create the relationship record for the new partner
                 sex_types_json = json.dumps([sex_types_value[sex_types_display.index(s)] 
                                              for s in sex_types_selected]) if sex_types_selected else None
@@ -427,6 +465,35 @@ if submitted or add_another or go_map:
                     exposure_last_date=exposure_last,
                     sex_types=sex_types_json
                 )
+
+            # Sync Lab Results
+            current_lab_ids = [l.id for l in get_lab_results_for_partner(db, partner_id)]
+            editor_lab_ids = [row["id"] for row in lab_df if "id" in row and row["id"] is not None]
+            
+            for lid in current_lab_ids:
+                if lid not in editor_lab_ids:
+                    delete_lab_result_entry(db, lid)
+            
+            for row in lab_df:
+                if "id" in row and row["id"] is not None:
+                    update_lab_result_entry(
+                        db, row["id"],
+                        test_category=row["Category"],
+                        test_type=row["Test Type"],
+                        titer=row["Titer"],
+                        result=row["Result"],
+                        collection_date=row["Date"]
+                    )
+                else:
+                    create_lab_result_entry(
+                        db,
+                        test_category=row["Category"],
+                        test_type=row["Test Type"],
+                        collection_date=row["Date"],
+                        partner_id=partner_id,
+                        titer=row["Titer"],
+                        result=row["Result"]
+                    )
 
         if go_map:
             st.switch_page("pages/04_map_sheet.py")
