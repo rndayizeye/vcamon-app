@@ -8,7 +8,7 @@ as new pages are built rather than all upfront.
 
 from sqlalchemy.orm import Session
 from datetime import date
-from app.db.models import Case, Partner, MAPEntry, ArrowLink, Ghosting, CasePartnerRelationship
+from app.db.models import Case, Partner, MAPEntry, ArrowLink, Ghosting, CasePartnerRelationship, TimelineEvent
 
 
 
@@ -301,7 +301,6 @@ def delete_ghosting(db: Session, ghosting_id: int) -> bool:
 # ---------------------------------------------------------------------------
 
 def get_timeline_events(db: Session, case_id: int):
-    from app.db.models import TimelineEvent
     return (
         db.query(TimelineEvent)
         .filter(TimelineEvent.case_id == case_id)
@@ -318,7 +317,6 @@ def create_timeline_event(
     notes: str | None = None,
     partner_id: int | None = None,
 ):
-    from app.db.models import TimelineEvent
     evt = TimelineEvent(
         case_id=case_id,
         event_date=event_date,
@@ -333,7 +331,6 @@ def create_timeline_event(
 
 
 def delete_timeline_event(db: Session, event_id: int) -> bool:
-    from app.db.models import TimelineEvent
     evt = db.query(TimelineEvent).filter(TimelineEvent.id == event_id).first()
     if not evt:
         return False
