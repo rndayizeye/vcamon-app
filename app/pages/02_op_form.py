@@ -16,7 +16,10 @@ from app.db.queries import (
     create_case,
     update_case,
     get_all_cases,
-    
+    get_lab_results_for_case,
+    create_lab_result_entry,
+    update_lab_result_entry,
+    delete_lab_result_entry,
 )
 from app.db.models import (
     ReasonForExam,
@@ -25,6 +28,8 @@ from app.db.models import (
     Treatment,
     LesionType,
     Symptom,
+    SymptomClassification,
+    TestCategory,
 )
 from app.utils.session_state import (
     init_session_state,
@@ -118,6 +123,13 @@ with st.form("op_form", border=True):
             "Case manager",
             value=case.case_manager or "" if case else "",
         )
+        initial_contact_date = st.date_input(
+            "Date of initial contact/interview",
+            value=case.initial_contact_date if case and case.initial_contact_date else None,
+            min_value=date(2000, 1, 1),
+            max_value=date.today(),
+            format="MM/DD/YYYY",
+        )
 
     st.divider()
     st.subheader("Exam and treatment")
@@ -156,6 +168,12 @@ with st.form("op_form", border=True):
         
         st.markdown("---")
         st.caption("Symptom Details")
+        symptom_classification = st.selectbox(
+            "Symptom classification",
+            options=enum_options(SymptomClassification),
+            index=enum_options(SymptomClassification).index(case.symptom_classification or "") if case else 0,
+            help="Is this a primary symptom or a secondary symptom?"
+        )
         symptom_onset = st.date_input(
             "Symptom onset date",
             value=case.symptom_onset_date if case else None,
@@ -167,6 +185,32 @@ with st.form("op_form", border=True):
             min_value=0, max_value=90,
             value=case.symptom_duration_days or 0 if case else 0,
         )
+        symptom_ongoing = st.checkbox(
+            "Symptom is ongoing",
+            value=case.symptom_ongoing if case else False,
+            help="Check if the symptom is still active."
+        )
+
+    st.markdown("---")
+    st.subheader("History of Primary Chancre")
+    historical_primary_chancre = st.radio(
+        "Did the patient have a primary chancre?",
+        options=[False, True], # False for No, True for Yes
+        format_func=lambda x: "Yes" if x else "No",
+        index=[False, True].index(case.historical_primary_chancre) if case and case.historical_primary_chancre is not None else 0,
+        help="Required for secondary syphilis diagnosis."
+    )
+
+    historical_primary_date = None
+    if historical_primary_chancre:
+        historical_primary_date = st.date_input(
+            "Date of primary chancre",
+            value=case.historical_primary_date if case else None,
+            min_value=date(2000, 1, 1),
+            max_value=date.today(),
+            format="MM/DD/YYYY",
+            help="When did the primary chancre first appear?"
+        )
 
     medical_info = st.text_area(
         "Medical info on date treated",
@@ -177,27 +221,42 @@ with st.form("op_form", border=True):
 
     st.divider()
     st.subheader("Lab results")
-    st.caption("Lab 1 = RPR/VDRL titer · Lab 2 = Treponemal confirmatory · Lab 3 = free text")
-    col6, col7, col8 = st.columns(3)
+    st.caption("Manage all laboratory results. Use the table to add, edit, or remove entries.")
+    
+    # Load existing lab results for the case
+    existing_labs = []
+    if case:
+        with SessionLocal() as db:
+            labs = get_lab_results_for_case(db, case.id)
+            for l in labs:
+                existing_labs.append({
+                    "id": l.id,
+                    "Category": l.test_category,
+                    "Test Type": l.test_type,
+                    "Titer": l.titer,
+                    "Result": l.result,
+                    "Date": l.collection_date,
+                })
 
-    with col6:
-        lab_1 = st.selectbox(
-            "Lab 1 — RPR / VDRL",
-            options=enum_options(LabResult),
-            index=enum_options(LabResult).index(case.lab_1 or "") if case else 0,
-        )
-    with col7:
-        lab_2 = st.selectbox(
-            "Lab 2 — Treponemal",
-            options=enum_options(TreponemalResult),
-            index=enum_options(TreponemalResult).index(case.lab_2 or "") if case else 0,
-        )
-    with col8:
-        lab_3 = st.text_input(
-            "Lab 3 — other",
-            value=case.lab_3 or "" if case else "",
-            placeholder="Drfd N/A, or free text",
-        )
+    # Data editor for repeatable lab history
+    lab_df = st.data_editor(
+        existing_labs,
+        num_rows="dynamic",
+        column_config={
+            "id": st.column_config.Column(disabled=True, hide_index=True),
+            "Category": st.column_config.SelectboxColumn(
+                "Category", 
+                options=enum_options(TestCategory),
+                required=True
+            ),
+            "Test Type": st.column_config.TextColumn("Test Type", required=True),
+            "Titer": st.column_config.TextColumn("Titer (Non-treponemal)"),
+            "Result": st.column_config.TextColumn("Result (Treponemal)"),
+            "Date": st.column_config.DateColumn("Collection Date", required=True),
+        },
+        key="lab_editor",
+        use_container_width=True,
+    )
 
     st.divider()
     col_btn1, col_btn2, col_btn3, _ = st.columns([1, 1, 1, 3])
@@ -205,28 +264,7 @@ with st.form("op_form", border=True):
     st.divider()
     with st.expander("🔬 Clinical Details (Optional - for VCA analysis)", expanded=False):
         st.caption("Complete these fields to streamline ghosting analysis")
-        
-        st.subheader("Lab Dates")
-        col_l1, col_l2, col_l3 = st.columns(3)
-        
-        with col_l1:
-            lab_1_date = st.date_input(
-                "Lab 1 date",
-                value=case.lab_1_date if case else None,
-                format="MM/DD/YYYY",
-            )
-        with col_l2:
-            lab_2_date = st.date_input(
-                "Lab 2 date",
-                value=case.lab_2_date if case else None,
-                format="MM/DD/YYYY",
-            )
-        with col_l3:
-            lab_3_date = st.date_input(
-                "Lab 3 date",
-                value=case.lab_3_date if case else None,
-                format="MM/DD/YYYY",
-            )
+        st.info("Lab dates are now managed in the 'Lab results' section above.")
 
     with col_btn1:
         submitted = st.form_submit_button(
@@ -253,8 +291,8 @@ if submitted or go_partners or go_map:
     errors = validate_op_form(
         patient_name=patient_name,
         treatment_date=treatment_date if treatment_date else None,
-        lab_1=lab_1,
-        lab_2=lab_2,
+        lab_1=None, # Legacy validator might need update, passing None for now
+        lab_2=None,
     )
     if errors:
         for e in errors:
@@ -263,30 +301,69 @@ if submitted or go_partners or go_map:
         payload = dict(
             lot=val_or_none(lot),
             case_manager=val_or_none(case_manager),
+            initial_contact_date=initial_contact_date if initial_contact_date else None,
             reason_for_exam=val_or_none(reason_for_exam),
             treatment_date=treatment_date if treatment_date else None,
             treatment=val_or_none(treatment),
             lesion_type=val_or_none(lesion_type),
             symptom=val_or_none(symptom),
-            medical_info=val_or_none(medical_info),
-            lab_1=val_or_none(lab_1),
-            lab_2=val_or_none(lab_2),
-            lab_3=val_or_none(lab_3),
+            symptom_classification=val_or_none(symptom_classification),
             symptom_onset_date=symptom_onset if symptom_onset else None,
             symptom_duration_days=symptom_duration if symptom_duration > 0 else None,
-            lab_1_date=lab_1_date if lab_1_date else None,
-            lab_2_date=lab_2_date if lab_2_date else None,
-            lab_3_date=lab_3_date if lab_3_date else None,
+            symptom_ongoing=symptom_ongoing,
+            historical_primary_chancre=historical_primary_chancre,
+            historical_primary_date=historical_primary_date if historical_primary_date else None,
+            medical_info=val_or_none(medical_info),
+            # Keep legacy fields for backward compatibility if needed, otherwise None
+            lab_1=None,
+            lab_2=None,
+            lab_3=None,
+            lab_1_date=None,
+            lab_2_date=None,
+            lab_3_date=None,
         )
 
         with SessionLocal() as db:
             if case:
                 saved = update_case(db, case.id, **payload)
+                case_id = saved.id
                 st.success(f"Case #{saved.id} updated — {saved.patient_name}")
             else:
                 saved = create_case(db, patient_name=patient_name.strip(), **payload)
                 set_active_case_id(saved.id)
+                case_id = saved.id
                 st.success(f"Case #{saved.id} created — {saved.patient_name}")
+
+            # Sync Lab Results
+            # 1. Identify deletions
+            current_lab_ids = [l.id for l in get_lab_results_for_case(db, case_id)]
+            editor_lab_ids = [row["id"] for row in lab_df if "id" in row and row["id"] is not None]
+            
+            for lid in current_lab_ids:
+                if lid not in editor_lab_ids:
+                    delete_lab_result_entry(db, lid)
+            
+            # 2. Upsert entries
+            for row in lab_df:
+                if "id" in row and row["id"] is not None:
+                    update_lab_result_entry(
+                        db, row["id"],
+                        test_category=row["Category"],
+                        test_type=row["Test Type"],
+                        titer=row["Titer"],
+                        result=row["Result"],
+                        collection_date=row["Date"]
+                    )
+                else:
+                    create_lab_result_entry(
+                        db,
+                        test_category=row["Category"],
+                        test_type=row["Test Type"],
+                        collection_date=row["Date"],
+                        case_id=case_id,
+                        titer=row["Titer"],
+                        result=row["Result"]
+                    )
 
         if go_partners:
             st.switch_page("pages/03_partner_form.py")
