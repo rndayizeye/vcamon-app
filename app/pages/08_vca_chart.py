@@ -285,18 +285,24 @@ def _add_legend_once(key: str) -> bool:
 
 
 def _sym_type(person: dict) -> str:
-    """Infer symptom type from ORM fields."""
-    if person["lesion_type"]:
+    """Infer symptom type from SymptomEntry."""
+    sym = person.get("primary_sym")
+    if not sym:
+        return None
+
+    # map internal type to chart label
+    t = sym.symptom_type
+    if any(k in t for k in ["Anal", "Oral", "Vaginal", "Penile", "Rectal", "LX"]):
         return "Primary Chancre"
-    sym = (person["symptom"] or "").lower()
-    if any(k in sym for k in ["rash", "alopecia", "lata"]):
+    if any(k in t for k in ["Rash", "Alopecia", "Lata"]):
         return "Secondary Rash/Lesions"
-    return None
+    return "Other"
 
 
 def _sym_onset(person: dict):
-    """Best proxy for symptom onset — treatment date is closest we have."""
-    return person["treatment_date"]
+    """Symptom onset date from the primary symptom entry."""
+    sym = person.get("primary_sym")
+    return sym.onset_date if sym else None
 
 
 # --- Draw per-person elements ---
@@ -307,7 +313,8 @@ for person in people:
 
     # --- Symptom duration bar ---
     if show_durations and sym_type and sym_onset:
-        dur = PRIMARY["avg"]
+        # Use actual duration from DB if available, else fallback to PRIMARY avg
+        dur = person["primary_sym"].duration_days or PRIMARY["avg"]
         end = sym_onset + timedelta(days=dur)
         fig.add_trace(go.Scatter(
             x=[sym_onset, end], y=[y, y],
@@ -346,7 +353,8 @@ for person in people:
 
     # --- Inoculation points ---
     if show_inoc and sym_type and sym_onset:
-        dur = PRIMARY["avg"]
+        # Use actual duration from DB if available
+        dur = person["primary_sym"].duration_days or PRIMARY["avg"]
         min_d, avg_d, max_d = _inoculation_points(sym_type, sym_onset, dur)
         inoc_dates  = [d for d in [min_d, avg_d, max_d] if d]
         inoc_labels = ["Min inoculation", "Avg inoculation", "Max inoculation"][:len(inoc_dates)]
@@ -355,8 +363,8 @@ for person in people:
                 x=inoc_dates, y=[y] * len(inoc_dates),
                 mode="markers",
                 marker=dict(color=COLORS["inoculation"],
-                            symbol=SYMBOLS["inoculation"],
-                            size=11),
+                        symbol=SYMBOLS["inoculation"],
+                        size=11),
                 name="Inoculation points",
                 legendgroup="inoculation",
                 showlegend=_add_legend_once("inoculation"),
@@ -365,8 +373,9 @@ for person in people:
             ))
 
     # --- Lab result marker ---
-    if person["lab_1"] and sym_onset:
-        lab_date = sym_onset  # best proxy
+    lab = person.get("latest_lab")
+    if lab and sym_onset:
+        lab_date = sym_onset  # Best proxy for current chart logic
         fig.add_trace(go.Scatter(
             x=[lab_date], y=[y],
             mode="markers",
@@ -378,12 +387,10 @@ for person in people:
             showlegend=_add_legend_once("lab"),
             hovertemplate=(
                 f"<b>{y}</b><br>"
-                f"Lab: {person['lab_1']}"
-                + (f" / {person['lab_2']}" if person["lab_2"] else "")
+                f"Lab: {lab.test_type}: {lab.titer or lab.result or 'N/A'}"
                 + f"<br>Lot: {person['lot'] or '—'}<extra></extra>"
             ),
         ))
-
     # --- Treatment marker ---
     if person["treatment_date"]:
         fig.add_trace(go.Scatter(
