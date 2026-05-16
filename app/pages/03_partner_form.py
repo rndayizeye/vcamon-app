@@ -20,6 +20,9 @@ from app.db.queries import (
     get_partner_by_id,
     create_partner,
     update_partner,
+    get_case_partner_relationship,
+    create_case_partner_relationship,
+    update_case_partner_relationship,   
 )
 from app.db.models import (
     ReasonForExam,
@@ -276,40 +279,40 @@ with st.form("partner_form", border=True):
             st.subheader("Exposure Window")
             exposure_first = st.date_input(
                 "First exposure to OP",
-                value=relationship.exposure_first_date if relationship else partner.exposure_first_date if partner else None,
+                value=relationship.exposure_first_date if relationship else None,
                 format="MM/DD/YYYY",
             )
             exposure_last = st.date_input(
                 "Last exposure to OP",
-                value=relationship.exposure_last_date if relationship else partner.exposure_last_date if partner else None,
+                value=relationship.exposure_last_date if relationship else None,
                 format="MM/DD/YYYY",
             )
 
-            sex_types_display = ["Anal", "Oral", "Vaginal", "Penile", "Rectal"]
-            sex_types_value = ["Anal LX", "Oral LX", "Vaginal LX", "Penile LX", "Rectal LX"]
+        sex_types_display = ["Anal", "Oral", "Vaginal", "Penile", "Rectal"]
+        sex_types_value = ["Anal LX", "Oral LX", "Vaginal LX", "Penile LX", "Rectal LX"]
 
-            import json
-            current_sex = []
-            if relationship and relationship.sex_types:
-                try:
-                    stored = json.loads(relationship.sex_types)
-                    current_sex = [sex_types_display[sex_types_value.index(s)] 
-                                for s in stored if s in sex_types_value]
-                except:
-                    pass
-            elif partner and partner.sex_types: # Fallback to partner's old data if no relationship yet
-                try:
-                    stored = json.loads(partner.sex_types)
-                    current_sex = [sex_types_display[sex_types_value.index(s)] 
-                                for s in stored if s in sex_types_value]
-                except:
-                    pass
+        current_sex = []
+        if relationship and relationship.sex_types:
+            try:
+                stored = json.loads(relationship.sex_types)
+                current_sex = [sex_types_display[sex_types_value.index(s)] 
+                              for s in stored if s in sex_types_value]
+            except:
+                pass
+        elif partner and hasattr(partner, 'sex_types') and partner.sex_types: 
+            try:
+                stored = json.loads(partner.sex_types)
+                current_sex = [sex_types_display[sex_types_value.index(s)] 
+                              for s in stored if s in sex_types_value]
+            except:
+                pass
 
-            sex_types_selected = st.multiselect(
+        sex_types_selected = st.multiselect(
             "Sex type(s) reported",
             options=sex_types_display,
             default=current_sex,
-            )
+        )
+
         st.divider()
         st.subheader("Lab Dates")
         col_l1, col_l2, col_l3 = st.columns(3)
@@ -332,7 +335,6 @@ with st.form("partner_form", border=True):
                 value=partner.lab_3_date if partner else None,
                 format="MM/DD/YYYY",
             )
-
 
     # --- Buttons ---
     col_b1, col_b2, col_b3, _ = st.columns([1, 1, 1, 3])
