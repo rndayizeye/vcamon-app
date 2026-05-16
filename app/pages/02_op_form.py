@@ -153,19 +153,49 @@ with st.form("op_form", border=True):
         )
 
     with col5:
-        lesion_type = st.selectbox(
-            "Primary Lesion type",
-            options=enum_options(LesionType),
-            index=enum_options(LesionType).index(case.lesion_type or "") if case else 0,
-        )
-        symptom = st.selectbox(
-            "Secondary Symptom",
-            options=enum_options(Symptom),
-            index=enum_options(Symptom).index(case.symptom or "") if case else 0,
-        )
+        st.subheader("Symptoms & Lesions")
+        st.caption("Add and manage all symptoms. Click a cell to edit.")
         
-        st.markdown("---")
-        st.subheader("History of Primary Chancre")
+        # Load existing symptoms for the case
+        existing_symptoms = []
+        if case:
+            with SessionLocal() as db:
+                from app.db.queries import get_symptoms_for_case
+                symptoms = get_symptoms_for_case(db, case.id)
+                for s in symptoms:
+                    existing_symptoms.append({
+                        "id": s.id,
+                        "Type": s.symptom_type,
+                        "Classification": s.classification,
+                        "Onset Date": s.onset_date,
+                        "Duration": s.duration_days,
+                        "Ongoing": s.ongoing,
+                    })
+
+        symptom_df = st.data_editor(
+            existing_symptoms,
+            num_rows="dynamic",
+            column_config={
+                "id": st.column_config.Column(disabled=True),
+                "Type": st.column_config.SelectboxColumn(
+                    "Type", 
+                    options=enum_options(LesionType) + enum_options(Symptom),
+                    required=True
+                ),
+                "Classification": st.column_config.SelectboxColumn(
+                    "Classification", 
+                    options=enum_options(SymptomClassification),
+                ),
+                "Onset Date": st.column_config.DateColumn("Onset Date"),
+                "Duration": st.column_config.NumberColumn("Duration (Days)"),
+                "Ongoing": st.column_config.CheckboxColumn("Ongoing"),
+            },
+            key="symptom_editor",
+            use_container_width=True,
+        )
+
+    st.markdown("---")
+    st.subheader("History of Primary Chancre")
     historical_primary_chancre = st.radio(
         "Did the patient have a primary chancre?",
         options=[False, True], # False for No, True for Yes
