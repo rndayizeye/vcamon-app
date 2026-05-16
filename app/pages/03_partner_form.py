@@ -291,19 +291,19 @@ with st.form("partner_form", border=True):
             import json
             current_sex = []
             if relationship and relationship.sex_types:
-            try:
-                stored = json.loads(relationship.sex_types)
-                current_sex = [sex_types_display[sex_types_value.index(s)] 
-                              for s in stored if s in sex_types_value]
-            except:
-                pass
+                try:
+                    stored = json.loads(relationship.sex_types)
+                    current_sex = [sex_types_display[sex_types_value.index(s)] 
+                                for s in stored if s in sex_types_value]
+                except:
+                    pass
             elif partner and partner.sex_types: # Fallback to partner's old data if no relationship yet
-            try:
-                stored = json.loads(partner.sex_types)
-                current_sex = [sex_types_display[sex_types_value.index(s)] 
-                              for s in stored if s in sex_types_value]
-            except:
-                pass
+                try:
+                    stored = json.loads(partner.sex_types)
+                    current_sex = [sex_types_display[sex_types_value.index(s)] 
+                                for s in stored if s in sex_types_value]
+                except:
+                    pass
 
             sex_types_selected = st.multiselect(
             "Sex type(s) reported",
