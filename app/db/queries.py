@@ -7,7 +7,66 @@ as new pages are built rather than all upfront.
 """
 
 from sqlalchemy.orm import Session
-from app.db.models import Case, Partner, MAPEntry, ArrowLink, Ghosting
+from datetime import date
+from app.db.models import Case, Partner, MAPEntry, ArrowLink, Ghosting, CasePartnerRelationship
+
+
+
+def get_case_partner_relationship(
+    db: Session, case_id: int, partner_id: int
+) -> CasePartnerRelationship | None:
+    """Retrieve a specific relationship entry."""
+    return (
+        db.query(CasePartnerRelationship)
+        .filter(
+            CasePartnerRelationship.case_id == case_id,
+            CasePartnerRelationship.partner_id == partner_id,
+        )
+        .first()
+    )
+
+def create_case_partner_relationship(
+    db: Session,
+    case_id: int,
+    partner_id: int,
+    exposure_first_date: date | None = None,
+    exposure_last_date: date | None = None,
+    sex_types: str | None = None,
+) -> CasePartnerRelationship:
+    """Create a new relationship entry."""
+    rel = CasePartnerRelationship(
+        case_id=case_id,
+        partner_id=partner_id,
+        exposure_first_date=exposure_first_date,
+        exposure_last_date=exposure_last_date,
+        sex_types=sex_types,
+    )
+    db.add(rel)
+    db.commit()
+    db.refresh(rel)
+    return rel
+
+def update_case_partner_relationship(
+    db: Session, relationship_id: int, **kwargs
+) -> CasePartnerRelationship | None:
+    """Update an existing relationship entry."""
+    rel = db.query(CasePartnerRelationship).filter(CasePartnerRelationship.id == relationship_id).first()
+    if not rel:
+        return None
+    for field, value in kwargs.items():
+        setattr(rel, field, value)
+    db.commit()
+    db.refresh(rel)
+    return rel
+
+def delete_case_partner_relationship(db: Session, relationship_id: int) -> bool:
+    """Delete a relationship entry."""
+    rel = db.query(CasePartnerRelationship).filter(CasePartnerRelationship.id == relationship_id).first()
+    if not rel:
+        return False
+    db.delete(rel)
+    db.commit()
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -36,6 +95,8 @@ def update_case(db: Session, case_id: int, **kwargs) -> Case | None:
     if not case:
         return None
     for field, value in kwargs.items():
+        if field in ("exposure_first_date", "exposure_last_date", "sex_types"):
+            continue # Skip deprecated fields
         setattr(case, field, value)
     db.commit()
     db.refresh(case)
@@ -90,6 +151,8 @@ def update_partner(db: Session, partner_id: int, **kwargs) -> Partner | None:
     if not partner:
         return None
     for field, value in kwargs.items():
+        if field in ("exposure_first_date", "exposure_last_date", "sex_types"):
+            continue # Skip deprecated fields
         setattr(partner, field, value)
     db.commit()
     db.refresh(partner)
