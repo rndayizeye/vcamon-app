@@ -343,29 +343,6 @@ def _check_exposure(
         f"exposure window (exceeds warn margin)."
     )
 
-    # Outside window — check warn margin
-    days_before = (exposure.first - check_date).days   # positive if before window
-    days_after  = (check_date - exposure.last).days    # positive if after window
-    margin = EXPOSURE_WARN_MARGIN_DAYS
-
-    if days_before > 0 and days_before <= margin:
-        return "warn", (
-            f"{date_label} ({check_date}) is {days_before} day(s) before the exposure "
-            f"window ({exposure.first} to {exposure.last}) — within {margin}-day warn margin."
-        )
-    if days_after > 0 and days_after <= margin:
-        return "warn", (
-            f"{date_label} ({check_date}) is {days_after} day(s) after the exposure "
-            f"window ({exposure.first} to {exposure.last}) — within {margin}-day warn margin."
-        )
-
-    # Beyond warn margin
-    miss = max(days_before, days_after)
-    return "fail", (
-        f"{date_label} ({check_date}) is {miss} day(s) outside the exposure window "
-        f"({exposure.first} to {exposure.last}) — exceeds {margin}-day warn margin."
-    )
-
 
 def _sex_type_compatible(
     symptom: Symptom,
