@@ -103,8 +103,10 @@ class Treatment(str, enum.Enum):
 
 class LesionType(str, enum.Enum):
     ANAL    = "Anal LX"
-    LAB     = "Non-genital LX" # Not a typo — "Lab" is used in the DropDowns sheet to mean "Lesion, non-genital"
-    LX      = "LX"     # Non-specific lesion type (used when exact location is unknown or not specified)
+    LAB     = "Non-genital LX"  # Not a typo — "Lab" is used in the DropDowns
+                                # sheet to mean "Lesion, non-genital"
+    LX      = "LX"  # Non-specific lesion type (used when exact location
+                    # is unknown or not specified)
     ORAL    = "Oral LX"
     PENILE  = "Penile LX"
     RECTAL  = "Rectal LX"
@@ -161,15 +163,28 @@ class Case(Base):
     treatment_date: Mapped[date | None] = mapped_column(Date)
     medical_info: Mapped[str | None] = mapped_column(Text)
 
-    # Lab results (Legacy 3 slots - keeping for compatibility but will prefer LabResultEntry)
-    lab_1: Mapped[str | None] = mapped_column(Enum(LabResult, name="lab_result_1_enum"))
-    lab_2: Mapped[str | None] = mapped_column(Enum(TreponemalResult, name="trep_result_enum"))
-    lab_3: Mapped[str | None] = mapped_column(String(100))    # free-text / "Drfd N/A" logic
+    # Lab results (Legacy 3 slots - keeping for compatibility but will 
+    # prefer LabResultEntry)
+    lab_1: Mapped[str | None] = mapped_column(
+        Enum(LabResult, name="lab_result_1_enum")
+    )
+    lab_2: Mapped[str | None] = mapped_column(
+        Enum(TreponemalResult, name="trep_result_enum")
+    )
+    lab_3: Mapped[str | None] = mapped_column(
+        String(100)
+    )    # free-text / "Drfd N/A" logic
 
     # Treatment
-    treatment: Mapped[str | None] = mapped_column(Enum(Treatment, name="treatment_enum"))
-    lesion_type: Mapped[str | None] = mapped_column(Enum(LesionType, name="lesion_enum"))
-    symptom: Mapped[str | None] = mapped_column(Enum(Symptom, name="symptom_enum"))
+    treatment: Mapped[str | None] = mapped_column(
+        Enum(Treatment, name="treatment_enum")
+    )
+    lesion_type: Mapped[str | None] = mapped_column(
+        Enum(LesionType, name="lesion_enum")
+    )
+    symptom: Mapped[str | None] = mapped_column(
+        Enum(Symptom, name="symptom_enum")
+    )
 
     # Clinical details for VCA analysis
     symptom_classification: Mapped[str | None] = mapped_column(
@@ -280,7 +295,9 @@ class Partner(Base):
     # Relationships
     case: Mapped["Case"] = relationship("Case", back_populates="partners")
     relationships: Mapped[list["CasePartnerRelationship"]] = relationship(
-        "CasePartnerRelationship", back_populates="partner", cascade="all, delete-orphan"
+        "CasePartnerRelationship",
+        back_populates="partner",
+        cascade="all, delete-orphan",
     )
     map_entries: Mapped[list["MAPEntry"]] = relationship(
         "MAPEntry", back_populates="partner", cascade="all, delete-orphan"
@@ -314,16 +331,23 @@ class LabResultEntry(Base):
     test_category: Mapped[str] = mapped_column(
         Enum(TestCategory, name="test_category_enum"), nullable=False
     )
-    test_type: Mapped[str] = mapped_column(String(100), nullable=False) # e.g. "RPR", "TP-PA"
+    test_type: Mapped[str] = mapped_column(
+        String(100), nullable=False
+    ) # e.g. "RPR", "TP-PA"
     titer: Mapped[str | None] = mapped_column(String(100))  # for Non-treponemal
     result: Mapped[str | None] = mapped_column(String(100)) # for Treponemal
     collection_date: Mapped[date] = mapped_column(Date, nullable=False)
 
     case: Mapped["Case | None"] = relationship("Case", back_populates="lab_results")
-    partner: Mapped["Partner | None"] = relationship("Partner", back_populates="lab_results")
+    partner: Mapped["Partner | None"] = relationship(
+        "Partner", back_populates="lab_results"
+    )
 
     def __repr__(self) -> str:
-        return f"<LabResultEntry id={self.id} cat={self.test_category} date={self.collection_date}>"
+        return (
+            f"<LabResultEntry id={self.id} "
+            f"cat={self.test_category} date={self.collection_date}>"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -434,7 +458,9 @@ class TimelineEvent(Base):
     partner_id: Mapped[int | None] = mapped_column(ForeignKey("partners.id"))
 
     event_date: Mapped[date] = mapped_column(Date, nullable=False)
-    event_type: Mapped[str | None] = mapped_column(String(100))   # e.g. "Treatment", "Lab"
+    event_type: Mapped[str | None] = mapped_column(
+        String(100)
+    )   # e.g. "Treatment", "Lab"
     notes: Mapped[str | None] = mapped_column(Text)
 
     case: Mapped["Case"] = relationship("Case", back_populates="timeline_events")
@@ -465,36 +491,55 @@ class CasePartnerRelationship(Base):
     case: Mapped["Case"] = relationship("Case", back_populates="relationships")
     partner: Mapped["Partner"] = relationship("Partner", back_populates="relationships")
     reports: Mapped[list["RelationshipReport"]] = relationship(
-        "RelationshipReport", back_populates="relationship", cascade="all, delete-orphan"
+        "RelationshipReport",
+        back_populates="relationship",
+        cascade="all, delete-orphan",
     )
 
-    __table_args__ = (UniqueConstraint("case_id", "partner_id", name="uq_case_partner_relationship"),)
+    __table_args__ = (
+        UniqueConstraint("case_id", "partner_id", name="uq_case_partner_relationship"),
+    )
 
     def __repr__(self) -> str:
-        return f"<CasePartnerRelationship case={self.case_id} partner={self.partner_id}>"
+        return (
+            f"<CasePartnerRelationship case={self.case_id} "
+            f"partner={self.partner_id}>"
+        )
 
 
 class RelationshipReport(Base):
     """
     Stores a specific report of relationship details provided by a reporter.
-    This serves as the 'evidence' for the consensus narrative in CasePartnerRelationship.
+    This serves as the 'evidence' for the consensus narrative in
+    CasePartnerRelationship.
     """
     __tablename__ = "relationship_reports"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    relationship_id: Mapped[int] = mapped_column(ForeignKey("case_partner_relationships.id"), nullable=False)
-    
-    reporter: Mapped[str] = mapped_column(String(100), nullable=False) # e.g. "OP", "Partner 1"
+    relationship_id: Mapped[int] = mapped_column(
+        ForeignKey("case_partner_relationships.id"), nullable=False
+    )
+
+    reporter: Mapped[str] = mapped_column(
+        String(100), nullable=False
+    ) # e.g. "OP", "Partner 1"
     exposure_first_date: Mapped[date | None] = mapped_column(Date)
     exposure_last_date: Mapped[date | None] = mapped_column(Date)
     sex_types: Mapped[str | None] = mapped_column(String(200)) # JSON array
-    
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
-    relationship: Mapped["CasePartnerRelationship"] = relationship("CasePartnerRelationship", back_populates="reports")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+
+    relationship: Mapped["CasePartnerRelationship"] = relationship(
+        "CasePartnerRelationship", back_populates="reports"
+    )
 
     def __repr__(self) -> str:
-        return f"<RelationshipReport rel_id={self.relationship_id} reporter={self.reporter!r}>"
+        return (
+            f"<RelationshipReport rel_id={self.relationship_id} "
+            f"reporter={self.reporter!r}>"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -509,9 +554,11 @@ MAP_ITEMS: dict[int, dict] = {
     2:  {"section": "Social History",    "label": "Time In Area/At Address"},
     3:  {"section": "Social History",    "label": "Ix Period Travel"},
     4:  {"section": "Social History",    "label": "Marital Status/Living With"},
-    5:  {"section": "Social History",    "label": "Life Style (Hangouts/Social Activities)"},
+    5:  {"section": "Social History",    "label": "Life Style (Hangouts/"
+            "Social Activities)"},
     6:  {"section": "Social History",    "label": "E-Mail Address"},
-    7:  {"section": "Social History",    "label": "Internet Activities/Info (Screen names, web sites)"},
+    7:  {"section": "Social History",    "label": "Internet Activities/Info "
+            "(Screen names, web sites)"},
     8:  {"section": "Social History",    "label": ""},
     9:  {"section": "Social History",    "label": ""},
     10: {"section": "Social History",    "label": ""},
@@ -520,19 +567,26 @@ MAP_ITEMS: dict[int, dict] = {
     12: {"section": "Medical History",   "label": "Reason for Exam"},
     13: {"section": "Medical History",   "label": "STD History (GC, CT, Labs, RV)"},
     14: {"section": "Medical History",   "label": "Self Rx"},
-    15: {"section": "Medical History",   "label": "General Medical (Medications, Illnesses, Hospitalizations)"},
-    16: {"section": "Medical History",   "label": "Patient's Understanding of Medical Aspects of Infection"},
-    17: {"section": "Medical History",   "label": "Illogical Aspects (Lesion, Lesion Hx, Lab Results)"},
-    18: {"section": "Medical History",   "label": "Drug Use (Concealed, Unclear, Downplayed)"},
+    15: {"section": "Medical History",   "label": "General Medical "
+            "(Medications, Illnesses, Hospitalizations)"},
+    16: {"section": "Medical History",   "label": "Patient's Understanding of "
+            "Medical Aspects of Infection"},
+    17: {"section": "Medical History",   "label": "Illogical Aspects (Lesion, "
+            "Lesion Hx, Lab Results)"},
+    18: {"section": "Medical History",   "label": "Drug Use (Concealed, Unclear, "
+            "Downplayed)"},
     19: {"section": "Medical History",   "label": ""},
     20: {"section": "Medical History",   "label": ""},
     # --- Disease Intervention: Partners ---
     21: {"section": "Partners",          "label": "Exposure Gap"},
-    22: {"section": "Partners",          "label": "Exposure Inconsistencies (Doesn't match what partners say)"},
+    22: {"section": "Partners",          "label": "Exposure Inconsistencies "
+            "(Doesn't match what partners say)"},
     23: {"section": "Partners",          "label": "No Partners Named During Lesion"},
-    24: {"section": "Partners",          "label": "Unexplained Change in Sexual Activity or Pattern"},
+    24: {"section": "Partners",          "label": "Unexplained Change in Sexual "
+            "Activity or Pattern"},
     25: {"section": "Partners",          "label": "No 'Steady' Partner Named"},
-    26: {"section": "Partners",          "label": "Challenge Claims of Anonymous Partners Only"},
+    26: {"section": "Partners",          "label": "Challenge Claims of Anonymous "
+            "Partners Only"},
     27: {"section": "Partners",          "label": "Partners Met on the Internet"},
     28: {"section": "Partners",          "label": "Source or Source Candidates"},
     29: {"section": "Partners",          "label": "Locating on Open Partners/Suspects"},
@@ -542,7 +596,8 @@ MAP_ITEMS: dict[int, dict] = {
     # --- Disease Intervention: Clusters ---
     33: {"section": "Clusters",          "label": "OP Not Being Named by Partners"},
     34: {"section": "Clusters",          "label": "A2s/SC2s to OP Identified"},
-    35: {"section": "Clusters",          "label": "OP Named by Previously Unnamed Partners"},
+    35: {"section": "Clusters",          "label": "OP Named by Previously "
+            "Unnamed Partners"},
     36: {"section": "Clusters",          "label": "SC2s to Other Cases"},
     37: {"section": "Clusters",          "label": "Were symptoms of OP Observed?"},
     38: {"section": "Clusters",          "label": ""},

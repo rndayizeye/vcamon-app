@@ -9,7 +9,9 @@ _default_url = os.getenv("DATABASE_URL", "sqlite:///./data/vcamon.db")
 if _default_url.startswith("sqlite:///./"):
     # Resolve relative path; fall back to /tmp if ./data isn't writable
     _rel_path = _default_url.replace("sqlite:///./", "")
-    _abs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", _rel_path)
+    _abs_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "..", _rel_path
+    )
     _abs_path = os.path.normpath(_abs_path)
     _data_dir = os.path.dirname(_abs_path)
     try:

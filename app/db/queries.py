@@ -61,7 +61,9 @@ def update_case_partner_relationship(
     db: Session, relationship_id: int, **kwargs
 ) -> CasePartnerRelationship | None:
     """Update an existing relationship entry."""
-    rel = db.query(CasePartnerRelationship).filter(CasePartnerRelationship.id == relationship_id).first()
+    rel = db.query(CasePartnerRelationship).filter(
+        CasePartnerRelationship.id == relationship_id
+    ).first()
     if not rel:
         return None
     for field, value in kwargs.items():
@@ -72,7 +74,9 @@ def update_case_partner_relationship(
 
 def delete_case_partner_relationship(db: Session, relationship_id: int) -> bool:
     """Delete a relationship entry."""
-    rel = db.query(CasePartnerRelationship).filter(CasePartnerRelationship.id == relationship_id).first()
+    rel = db.query(CasePartnerRelationship).filter(
+        CasePartnerRelationship.id == relationship_id
+    ).first()
     if not rel:
         return False
     db.delete(rel)
@@ -84,7 +88,9 @@ def delete_case_partner_relationship(db: Session, relationship_id: int) -> bool:
 # RelationshipReport queries
 # ---------------------------------------------------------------------------
 
-def get_reports_for_relationship(db: Session, relationship_id: int) -> list[RelationshipReport]:
+def get_reports_for_relationship(
+    db: Session, relationship_id: int
+) -> list[RelationshipReport]:
     """Retrieve all reports for a specific relationship."""
     return db.query(RelationshipReport).filter(
         RelationshipReport.relationship_id == relationship_id
@@ -113,16 +119,22 @@ def create_relationship_report(
 
 def delete_relationship_report(db: Session, report_id: int) -> bool:
     """Delete a specific report."""
-    report = db.query(RelationshipReport).filter(RelationshipReport.id == report_id).first()
+    report = db.query(RelationshipReport).filter(
+        RelationshipReport.id == report_id
+    ).first()
     if not report:
         return False
     db.delete(report)
     db.commit()
     return True
 
-def update_relationship_report(db: Session, report_id: int, **kwargs) -> RelationshipReport | None:
+def update_relationship_report(
+    db: Session, report_id: int, **kwargs
+) -> RelationshipReport | None:
     """Update an existing evidence report."""
-    report = db.query(RelationshipReport).filter(RelationshipReport.id == report_id).first()
+    report = db.query(RelationshipReport).filter(
+        RelationshipReport.id == report_id
+    ).first()
     if not report:
         return None
     for field, value in kwargs.items():
@@ -138,11 +150,21 @@ def update_relationship_report(db: Session, report_id: int, **kwargs) -> Relatio
 
 def get_lab_results_for_case(db: Session, case_id: int) -> list[LabResultEntry]:
     """Retrieve all lab results for a given case."""
-    return db.query(LabResultEntry).filter(LabResultEntry.case_id == case_id).order_by(LabResultEntry.collection_date).all()
+    return (
+        db.query(LabResultEntry)
+        .filter(LabResultEntry.case_id == case_id)
+        .order_by(LabResultEntry.collection_date)
+        .all()
+    )
 
 def get_lab_results_for_partner(db: Session, partner_id: int) -> list[LabResultEntry]:
     """Retrieve all lab results for a given partner."""
-    return db.query(LabResultEntry).filter(LabResultEntry.partner_id == partner_id).order_by(LabResultEntry.collection_date).all()
+    return (
+        db.query(LabResultEntry)
+        .filter(LabResultEntry.partner_id == partner_id)
+        .order_by(LabResultEntry.collection_date)
+        .all()
+    )
 
 def create_lab_result_entry(
     db: Session,
@@ -169,7 +191,9 @@ def create_lab_result_entry(
     db.refresh(lab_entry)
     return lab_entry
 
-def update_lab_result_entry(db: Session, entry_id: int, **kwargs) -> LabResultEntry | None:
+def update_lab_result_entry(
+    db: Session, entry_id: int, **kwargs
+) -> LabResultEntry | None:
     """Update an existing lab result entry."""
     lab_entry = db.query(LabResultEntry).filter(LabResultEntry.id == entry_id).first()
     if not lab_entry:
@@ -203,8 +227,14 @@ def get_case_by_id(db: Session, case_id: int) -> Case | None:
     return db.query(Case).filter(Case.id == case_id).first()
 
 
-def create_case(db: Session, patient_name: str, initial_contact_date: date | None = None, **kwargs) -> Case:
-    case = Case(patient_name=patient_name, initial_contact_date=initial_contact_date, **kwargs)
+def create_case(
+    db: Session, patient_name: str, initial_contact_date: date | None = None, **kwargs
+) -> Case:
+    case = Case(
+        patient_name=patient_name,
+        initial_contact_date=initial_contact_date,
+        **kwargs
+    )
     db.add(case)
     db.commit()
     db.refresh(case)
@@ -362,7 +392,9 @@ def get_arrow_links(db: Session, case_id: int) -> list[ArrowLink]:
     )
 
 
-def create_arrow_link(db: Session, case_id: int, from_ref: str, to_ref: str) -> ArrowLink:
+def create_arrow_link(
+    db: Session, case_id: int, from_ref: str, to_ref: str
+) -> ArrowLink:
     link = ArrowLink(case_id=case_id, from_ref=from_ref, to_ref=to_ref)
     db.add(link)
     db.commit()
