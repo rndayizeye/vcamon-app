@@ -456,18 +456,44 @@ class CasePartnerRelationship(Base):
     case_id: Mapped[int] = mapped_column(ForeignKey("cases.id"), nullable=False)
     partner_id: Mapped[int] = mapped_column(ForeignKey("partners.id"), nullable=False)
 
-    # Relationship-specific clinical details
+    # Relationship-specific clinical details (Consensus Narrative)
     exposure_first_date: Mapped[date | None] = mapped_column(Date)
     exposure_last_date: Mapped[date | None] = mapped_column(Date)
     sex_types: Mapped[str | None] = mapped_column(String(200)) # JSON array
 
     case: Mapped["Case"] = relationship("Case", back_populates="relationships")
     partner: Mapped["Partner"] = relationship("Partner", back_populates="relationships")
+    reports: Mapped[list["RelationshipReport"]] = relationship(
+        "RelationshipReport", back_populates="relationship", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (UniqueConstraint("case_id", "partner_id", name="uq_case_partner_relationship"),)
 
     def __repr__(self) -> str:
         return f"<CasePartnerRelationship case={self.case_id} partner={self.partner_id}>"
+
+
+class RelationshipReport(Base):
+    """
+    Stores a specific report of relationship details provided by a reporter.
+    This serves as the 'evidence' for the consensus narrative in CasePartnerRelationship.
+    """
+    __tablename__ = "relationship_reports"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    relationship_id: Mapped[int] = mapped_column(ForeignKey("case_partner_relationships.id"), nullable=False)
+    
+    reporter: Mapped[str] = mapped_column(String(100), nullable=False) # e.g. "OP", "Partner 1"
+    exposure_first_date: Mapped[date | None] = mapped_column(Date)
+    exposure_last_date: Mapped[date | None] = mapped_column(Date)
+    sex_types: Mapped[str | None] = mapped_column(String(200)) # JSON array
+    
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    relationship: Mapped["CasePartnerRelationship"] = relationship("CasePartnerRelationship", back_populates="reports")
+
+    def __repr__(self) -> str:
+        return f"<RelationshipReport rel_id={self.relationship_id} reporter={self.reporter!r}>"
 
 
 # ---------------------------------------------------------------------------
