@@ -6,7 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.db.database import Base
-from app.db.models import Case, Partner, MAPEntry
+from app.db.models import Case, Partner, MAPEntry, CasePartnerRelationship
 from app.db.queries import (
     create_case,
     get_case_by_id,
@@ -18,6 +18,10 @@ from app.db.queries import (
     get_partners_for_case,
     upsert_map_entry,
     get_map_entries,
+    get_case_partner_relationship,
+    create_case_partner_relationship,
+    update_case_partner_relationship,
+    delete_case_partner_relationship,
 )
 
 
@@ -151,6 +155,48 @@ class TestPartnerCRUD:
         partner_id = sample_partner.id
         delete_case(db, sample_case.id)
         assert db.query(Partner).filter(Partner.id == partner_id).first() is None
+
+
+# ---------------------------------------------------------------------------
+# Relationship CRUD
+# ---------------------------------------------------------------------------
+
+class TestRelationshipCRUD:
+
+    def test_create_relationship_persists(self, db, sample_case, sample_partner):
+        rel = create_case_partner_relationship(
+            db,
+            case_id=sample_case.id,
+            partner_id=sample_partner.id,
+            exposure_first_date=date(2024, 1, 1),
+            exposure_last_date=date(2024, 1, 15),
+            sex_types='["Anal LX", "Oral LX"]',
+        )
+        assert rel.id is not None
+        assert rel.exposure_first_date == date(2024, 1, 1)
+        assert rel.sex_types == '["Anal LX", "Oral LX"]'
+
+    def test_get_relationship_returns_correct_record(self, db, sample_case, sample_partner):
+        create_case_partner_relationship(
+            db, sample_case.id, sample_partner.id,
+            exposure_first_date=date(2024, 1, 1),
+        )
+        fetched = get_case_partner_relationship(db, sample_case.id, sample_partner.id)
+        assert fetched is not None
+        assert fetched.exposure_first_date == date(2024, 1, 1)
+
+    def test_update_relationship_changes_fields(self, db, sample_case, sample_partner):
+        rel = create_case_partner_relationship(db, sample_case.id, sample_partner.id)
+        updated = update_case_partner_relationship(
+            db, rel.id, exposure_first_date=date(2024, 2, 1)
+        )
+        assert updated.exposure_first_date == date(2024, 2, 1)
+
+    def test_delete_relationship_removes_record(self, db, sample_case, sample_partner):
+        rel = create_case_partner_relationship(db, sample_case.id, sample_partner.id)
+        rel_id = rel.id
+        assert delete_case_partner_relationship(db, rel_id) is True
+        assert get_case_partner_relationship(db, sample_case.id, sample_partner.id) is None
 
 
 # ---------------------------------------------------------------------------
