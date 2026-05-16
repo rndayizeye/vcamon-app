@@ -341,18 +341,48 @@ class LabResultEntry(Base):
     case: Mapped["Case | None"] = relationship("Case", back_populates="lab_results")
     partner: Mapped["Partner | None"] = relationship(
         "Partner", back_populates="lab_results"
-    )
+    class LabResultEntry(Base):
+    ...
+        def __repr__(self) -> str:
+            return (
+                f"<LabResultEntry id={self.id} "
+                f"cat={self.test_category} date={self.collection_date}>"
+            )
 
-    def __repr__(self) -> str:
-        return (
-            f"<LabResultEntry id={self.id} "
-            f"cat={self.test_category} date={self.collection_date}>"
+
+    class SymptomEntry(Base):
+        """
+        A single symptom or lesion occurrence.
+        Allows multiple symptoms per Case or Partner.
+        """
+        __tablename__ = "symptom_entries"
+
+        id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+        case_id: Mapped[int | None] = mapped_column(ForeignKey("cases.id"))
+        partner_id: Mapped[int | None] = mapped_column(ForeignKey("partners.id"))
+
+        # We use a string for the type to accommodate both LesionType and Symptom enums
+        symptom_type: Mapped[str] = mapped_column(String(100), nullable=False)
+        classification: Mapped[str | None] = mapped_column(
+            Enum(SymptomClassification, name="entry_symptom_class_enum")
+        )
+        onset_date: Mapped[date | None] = mapped_column(Date)
+        duration_days: Mapped[int | None] = mapped_column(Integer)
+        ongoing: Mapped[bool] = mapped_column(Boolean, default=False)
+
+        case: Mapped["Case | None"] = relationship("Case", back_populates="symptoms")
+        partner: Mapped["Partner | None"] = relationship(
+            "Partner", back_populates="symptoms"
         )
 
+        def __repr__(self) -> str:
+            return f"<SymptomEntry id={self.id} type={self.symptom_type}>"
 
-# ---------------------------------------------------------------------------
-# MAPEntry  (MAP / MAPOP / MAP1 sheets — 46-item assessment checklist)
-# ---------------------------------------------------------------------------
+
+    # ---------------------------------------------------------------------------
+    # MAPEntry  (MAP / MAPOP / MAP1 sheets — 46-item assessment checklist)
+    # ---------------------------------------------------------------------------
+
 
 class MAPEntry(Base):
     """
