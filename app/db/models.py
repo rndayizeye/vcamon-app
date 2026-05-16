@@ -23,6 +23,7 @@ from sqlalchemy import (
     String,
     Text,
     func,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.database import Base
@@ -161,9 +162,6 @@ class Case(Base):
     # Clinical details for VCA analysis
     symptom_onset_date: Mapped[date | None] = mapped_column(Date)
     symptom_duration_days: Mapped[int | None] = mapped_column(Integer)
-    exposure_first_date: Mapped[date | None] = mapped_column(Date)
-    exposure_last_date: Mapped[date | None] = mapped_column(Date)
-    sex_types: Mapped[str | None] = mapped_column(String(200))  # JSON array
 
     # Lab dates
     lab_1_date: Mapped[date | None] = mapped_column(Date)
@@ -179,6 +177,9 @@ class Case(Base):
     # Relationships
     partners: Mapped[list["Partner"]] = relationship(
         "Partner", back_populates="case", cascade="all, delete-orphan"
+    )
+    relationships: Mapped[list["CasePartnerRelationship"]] = relationship(
+        "CasePartnerRelationship", back_populates="case", cascade="all, delete-orphan"
     )
     map_entries: Mapped[list["MAPEntry"]] = relationship(
         "MAPEntry", back_populates="case", cascade="all, delete-orphan"
@@ -240,9 +241,6 @@ class Partner(Base):
     # Clinical details for VCA analysis
     symptom_onset_date: Mapped[date | None] = mapped_column(Date)
     symptom_duration_days: Mapped[int | None] = mapped_column(Integer)
-    exposure_first_date: Mapped[date | None] = mapped_column(Date)
-    exposure_last_date: Mapped[date | None] = mapped_column(Date)
-    sex_types: Mapped[str | None] = mapped_column(String(200))  # JSON array
 
     # Lab dates
     lab_1_date: Mapped[date | None] = mapped_column(Date)
@@ -252,6 +250,9 @@ class Partner(Base):
 
     # Relationships
     case: Mapped["Case"] = relationship("Case", back_populates="partners")
+    relationships: Mapped[list["CasePartnerRelationship"]] = relationship(
+        "CasePartnerRelationship", back_populates="partner", cascade="all, delete-orphan"
+    )
     map_entries: Mapped[list["MAPEntry"]] = relationship(
         "MAPEntry", back_populates="partner", cascade="all, delete-orphan"
     )
@@ -381,6 +382,31 @@ class TimelineEvent(Base):
 
     def __repr__(self) -> str:
         return f"<TimelineEvent date={self.event_date} case={self.case_id}>"
+
+
+# ---------------------------------------------------------------------------
+# CasePartnerRelationship (new association table for OP-Partner specific data)
+# ---------------------------------------------------------------------------
+
+class CasePartnerRelationship(Base):
+    __tablename__ = "case_partner_relationships"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    case_id: Mapped[int] = mapped_column(ForeignKey("cases.id"), nullable=False)
+    partner_id: Mapped[int] = mapped_column(ForeignKey("partners.id"), nullable=False)
+
+    # Relationship-specific clinical details
+    exposure_first_date: Mapped[date | None] = mapped_column(Date)
+    exposure_last_date: Mapped[date | None] = mapped_column(Date)
+    sex_types: Mapped[str | None] = mapped_column(String(200)) # JSON array
+
+    case: Mapped["Case"] = relationship("Case", back_populates="relationships")
+    partner: Mapped["Partner"] = relationship("Partner", back_populates="relationships")
+
+    __table_args__ = (UniqueConstraint("case_id", "partner_id", name="uq_case_partner_relationship"),)
+
+    def __repr__(self) -> str:
+        return f"<CasePartnerRelationship case={self.case_id} partner={self.partner_id}>"
 
 
 # ---------------------------------------------------------------------------
