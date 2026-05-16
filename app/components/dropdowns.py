@@ -1,7 +1,16 @@
 # app/components/dropdowns.py
 
-from app.db.models import ReasonForExam, LabResult, TreponemalResult, Treatment, LesionType, Symptom
 import streamlit as st
+
+from app.db.models import (
+    LabResult,
+    LesionType,
+    ReasonForExam,
+    Symptom,
+    Treatment,
+    TreponemalResult,
+)
+
 
 def enum_options(enum_cls) -> list[str]:
     return [""] + [e.value for e in enum_cls]

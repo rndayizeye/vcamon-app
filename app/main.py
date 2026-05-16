@@ -1,4 +1,6 @@
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import streamlit as st
@@ -10,8 +12,8 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-from app.db.database import init_db, SessionLocal
-from app.db.queries import get_all_cases, create_case
+from app.db.database import SessionLocal, init_db
+from app.db.queries import create_case, get_all_cases
 
 init_db()
 

@@ -15,19 +15,18 @@ Node colors:
 """
 
 import streamlit as st
-from streamlit_agraph import agraph, Node, Edge, Config
+from streamlit_agraph import Config, Edge, Node, agraph
 
 from app.db.database import SessionLocal
+from app.db.models import ArrowLink
 from app.db.queries import (
     get_case_by_id,
     get_partners_for_case,
 )
-from app.db.models import ArrowLink
 from app.utils.session_state import (
-    init_session_state,
     get_active_case_id,
-    set_active_partner_id,
-    require_password
+    init_session_state,
+    require_password,
 )
 from app.utils.validators import validate_arrow_link
 
@@ -341,6 +340,7 @@ st.caption(
 )
 
 from app.db.models import Ghosting, GhostingType
+
 
 def get_ghostings(db, case_id):
     return db.query(Ghosting).filter(Ghosting.case_id == case_id).all()

@@ -1,6 +1,7 @@
 import os
+
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 # On Streamlit Cloud the working directory isn't writable — use /tmp instead
 _default_url = os.getenv("DATABASE_URL", "sqlite:///./data/vcamon.db")

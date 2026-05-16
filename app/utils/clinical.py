@@ -31,10 +31,10 @@ Exposure criterion (scenario-specific):
 """
 
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Optional
-
 
 # ---------------------------------------------------------------------------
 # Syphilis natural history constants (days)

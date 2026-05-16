@@ -20,13 +20,18 @@ Change log:
 """
 
 from __future__ import annotations
-from datetime import date, timedelta
-import plotly.graph_objects as go
-from app.utils.clinical import (
-    GhostedLesion, Symptom, Exposure, GhostingResult,
-    PRIMARY, INCUBATION,
-)
 
+from datetime import date, timedelta
+
+import plotly.graph_objects as go
+
+from app.utils.clinical import (
+    PRIMARY,
+    Exposure,
+    GhostedLesion,
+    GhostingResult,
+    Symptom,
+)
 
 # Shared colour palette — matches 08_vca_chart.py
 _C = {

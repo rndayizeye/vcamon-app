@@ -9,49 +9,47 @@ Navigation flow:
   Dashboard → OP Form → [Partner Form] → MAP Sheet
 """
 
-import streamlit as st
 import json
 from datetime import date
 
+import streamlit as st
+
+from app.components.dropdowns import enum_options, val_or_none
 from app.db.database import SessionLocal
-from app.db.queries import (
-    get_case_by_id,
-    get_partners_for_case,
-    get_partner_by_id,
-    create_partner,
-    update_partner,
-    get_case_partner_relationship,
-    create_case_partner_relationship,
-    update_case_partner_relationship,
-    get_reports_for_relationship,
-    create_relationship_report,
-    update_relationship_report,
-    delete_relationship_report,
-    get_lab_results_for_partner,
-    create_lab_result_entry,
-    update_lab_result_entry,
-    delete_lab_result_entry,
-)
 from app.db.models import (
-    ReasonForExam,
-    LabResult,
-    TreponemalResult,
-    Treatment,
     LesionType,
+    ReasonForExam,
     Symptom,
     SymptomClassification,
     TestCategory,
+    Treatment,
+)
+from app.db.queries import (
+    create_case_partner_relationship,
+    create_lab_result_entry,
+    create_partner,
+    create_relationship_report,
+    delete_lab_result_entry,
+    delete_relationship_report,
+    get_case_by_id,
+    get_case_partner_relationship,
+    get_lab_results_for_partner,
+    get_partner_by_id,
+    get_partners_for_case,
+    get_reports_for_relationship,
+    update_case_partner_relationship,
+    update_lab_result_entry,
+    update_partner,
+    update_relationship_report,
 )
 from app.utils.session_state import (
-    init_session_state,
     get_active_case_id,
-    set_active_case_id,
     get_active_partner_id,
-    set_active_partner_id,
+    init_session_state,
     require_password,
+    set_active_partner_id,
 )
 from app.utils.validators import validate_partner_form
-from app.components.dropdowns import enum_options, val_or_none
 
 st.set_page_config(page_title="Partners — VCA Monitor", layout="wide")
 init_session_state()
@@ -349,16 +347,22 @@ with st.form("partner_form", border=True):
         if relationship and relationship.sex_types:
             try:
                 stored = json.loads(relationship.sex_types)
-                current_sex = [sex_types_display[sex_types_value.index(s)] 
-                              for s in stored if s in sex_types_value]
-            except:
+                current_sex = [
+                    sex_types_display[sex_types_value.index(s)]
+                    for s in stored
+                    if s in sex_types_value
+                ]
+            except json.JSONDecodeError:
                 pass
         elif partner and hasattr(partner, 'sex_types') and partner.sex_types: 
             try:
                 stored = json.loads(partner.sex_types)
-                current_sex = [sex_types_display[sex_types_value.index(s)] 
-                              for s in stored if s in sex_types_value]
-            except:
+                current_sex = [
+                    sex_types_display[sex_types_value.index(s)]
+                    for s in stored
+                    if s in sex_types_value
+                ]
+            except json.JSONDecodeError:
                 pass
 
         sex_types_selected = st.multiselect(

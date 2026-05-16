@@ -6,18 +6,17 @@ Displays all cases in a searchable table, shows summary metrics,
 and lets the user open a case (routing to the OP form) or create a new one.
 """
 
-import streamlit as st
+
 import pandas as pd
-from datetime import date
+import streamlit as st
 
 from app.db.database import SessionLocal
-from app.db.queries import get_all_cases, search_cases, get_partners_for_case
+from app.db.queries import get_all_cases, get_partners_for_case, search_cases
 from app.utils.session_state import (
     init_session_state,
+    require_password,
     set_active_case_id,
     set_active_partner_id,
-    get_active_case_id,
-    require_password,
 )
 
 st.set_page_config(

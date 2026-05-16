@@ -28,23 +28,27 @@ Color convention (matching VCA training materials):
   Ghosted spread            : coral   #D85A30  dashdot
 """
 
-import streamlit as st
-import plotly.graph_objects as go
-from datetime import date, timedelta
 import json
+from datetime import date, timedelta
+
+import plotly.graph_objects as go
+import streamlit as st
 
 from app.db.database import SessionLocal
 from app.db.queries import (
     get_case_by_id,
-    get_partners_for_case,
-    get_ghostings,
-    get_timeline_events,
     get_case_partner_relationship,
+    get_ghostings,
+    get_partners_for_case,
 )
-from app.utils.session_state import init_session_state, get_active_case_id, require_password
 from app.utils.clinical import (
-    Symptom, avg_inoculation_date,
-    PRIMARY, INCUBATION,
+    INCUBATION,
+    PRIMARY,
+)
+from app.utils.session_state import (
+    get_active_case_id,
+    init_session_state,
+    require_password,
 )
 
 st.set_page_config(page_title="VCA Chart — VCA Monitor", layout="wide")

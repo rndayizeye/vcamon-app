@@ -6,39 +6,37 @@ Uses session_state helpers, centralized validators, and
 the shared sidebar case selector.
 """
 
-import streamlit as st
-import json
 from datetime import date
 
+import streamlit as st
+
+from app.components.dropdowns import enum_options, val_or_none
 from app.db.database import SessionLocal
-from app.db.queries import (
-    get_case_by_id,
-    create_case,
-    update_case,
-    get_all_cases,
-    get_lab_results_for_case,
-    create_lab_result_entry,
-    update_lab_result_entry,
-    delete_lab_result_entry,
-)
 from app.db.models import (
-    ReasonForExam,
-    LabResult,
-    TreponemalResult,
-    Treatment,
     LesionType,
+    ReasonForExam,
     Symptom,
     SymptomClassification,
     TestCategory,
+    Treatment,
+)
+from app.db.queries import (
+    create_case,
+    create_lab_result_entry,
+    delete_lab_result_entry,
+    get_all_cases,
+    get_case_by_id,
+    get_lab_results_for_case,
+    update_case,
+    update_lab_result_entry,
 )
 from app.utils.session_state import (
-    init_session_state,
     get_active_case_id,
-    set_active_case_id,
+    init_session_state,
     require_password,
+    set_active_case_id,
 )
 from app.utils.validators import validate_op_form
-from app.components.dropdowns import enum_options, val_or_none
 
 st.set_page_config(page_title="OP Form — VCA Monitor", layout="wide")
 init_session_state()

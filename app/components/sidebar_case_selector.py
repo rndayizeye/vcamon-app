@@ -1,8 +1,10 @@
 # app/components/sidebar_case_selector.py
 
 import streamlit as st
+
 from app.db.database import SessionLocal
 from app.db.queries import get_all_cases
+
 
 def render_sidebar() -> int | None:
     """

@@ -10,7 +10,7 @@ test:
 	pytest tests/ -v
 
 lint:
-	ruff check app/
+	python3 -m ruff check app/
 
 shell:
 	docker compose exec app bash

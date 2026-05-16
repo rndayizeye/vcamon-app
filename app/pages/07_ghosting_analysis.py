@@ -11,36 +11,38 @@ After running the analysis the page shows:
   5. Save controls
 """
 
-import streamlit as st
-import pandas as pd
 from datetime import date
 
+import pandas as pd
+import streamlit as st
+
 from app.db.database import SessionLocal
-from app.db.queries import (
-    get_case_by_id,
-    get_partners_for_case,
-    get_partner_by_id,
-    create_ghosting,
-    get_ghostings,
-    delete_ghosting,
-)
 from app.db.models import GhostingType
-from app.utils.session_state import (
-    init_session_state,
-    get_active_case_id,
-    set_active_partner_id,
-    require_password,
+from app.db.queries import (
+    create_ghosting,
+    delete_ghosting,
+    get_case_by_id,
+    get_ghostings,
+    get_partner_by_id,
+    get_partners_for_case,
 )
 from app.utils.clinical import (
-    Symptom,
-    Exposure,
-    run_ghosting_analysis,
-    INCUBATION, PRIMARY, LATENCY, SECONDARY,
+    INCUBATION,
     INTERVIEW_PERIOD_PRIMARY_DAYS,
     INTERVIEW_PERIOD_SECONDARY_DAYS,
-    symptom_rank,
+    LATENCY,
+    PRIMARY,
+    SECONDARY,
+    Exposure,
+    Symptom,
+    run_ghosting_analysis,
 )
 from app.utils.ghosting_plot import build_scenario_figure
+from app.utils.session_state import (
+    get_active_case_id,
+    init_session_state,
+    require_password,
+)
 
 st.set_page_config(page_title="Ghosting Analysis — VCA Monitor", layout="wide")
 init_session_state()

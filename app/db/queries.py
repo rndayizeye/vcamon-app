@@ -6,10 +6,21 @@ Each page imports only what it needs — functions are added here
 as new pages are built rather than all upfront.
 """
 
-from sqlalchemy.orm import Session
 from datetime import date
-from app.db.models import Case, Partner, MAPEntry, ArrowLink, Ghosting, CasePartnerRelationship, TimelineEvent, LabResultEntry, SymptomClassification, TestCategory, RelationshipReport
 
+from sqlalchemy.orm import Session
+
+from app.db.models import (
+    ArrowLink,
+    Case,
+    CasePartnerRelationship,
+    Ghosting,
+    LabResultEntry,
+    MAPEntry,
+    Partner,
+    RelationshipReport,
+    TimelineEvent,
+)
 
 
 def get_case_partner_relationship(

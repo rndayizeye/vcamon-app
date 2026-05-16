@@ -13,20 +13,28 @@ No database reads or writes happen unless you explicitly save.
 If a case is active in session state, a save option appears at the end.
 """
 
-import streamlit as st
-import pandas as pd
 from datetime import date, timedelta
 
-from app.utils.session_state import init_session_state, get_active_case_id, require_password
+import pandas as pd
+import streamlit as st
+
 from app.utils.clinical import (
-    Symptom,
-    Exposure,
-    run_ghosting_analysis,
-    INCUBATION, PRIMARY, LATENCY, SECONDARY,
+    INCUBATION,
     INTERVIEW_PERIOD_PRIMARY_DAYS,
     INTERVIEW_PERIOD_SECONDARY_DAYS,
+    LATENCY,
+    PRIMARY,
+    SECONDARY,
+    Exposure,
+    Symptom,
+    run_ghosting_analysis,
 )
 from app.utils.ghosting_plot import build_scenario_figure
+from app.utils.session_state import (
+    get_active_case_id,
+    init_session_state,
+    require_password,
+)
 
 st.set_page_config(page_title="Quick Ghost — VCA Monitor", layout="wide")
 init_session_state()
@@ -473,8 +481,8 @@ if active_case_id:
 
     if st.button("💾  Save to case", type="primary"):
         from app.db.database import SessionLocal
-        from app.db.queries import create_ghosting
         from app.db.models import GhostingType
+        from app.db.queries import create_ghosting
 
         p_ref = partner_ref_input.strip() or None
         from_ref = "OP" if result.p1_name == (inp["a_name"].strip() or "Person A") else (p_ref or "1")

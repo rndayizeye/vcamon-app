@@ -2,6 +2,7 @@
 
 import streamlit as st
 
+
 def require_password():
     """Call at the top of every page to enforce the beta password gate."""
     if st.session_state.get("authenticated"):

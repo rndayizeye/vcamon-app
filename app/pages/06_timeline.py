@@ -9,24 +9,22 @@ had treatment dates, lab work, or other recorded events.
 Also shows a summary chart of activity by month.
 """
 
-import streamlit as st
-import pandas as pd
-import plotly.graph_objects as go
-import plotly.express as px
-from datetime import date, timedelta
 from calendar import month_abbr
+from datetime import date, timedelta
+
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import streamlit as st
 
 from app.db.database import SessionLocal
 from app.db.queries import (
     get_case_by_id,
     get_partners_for_case,
-    get_partner_by_id,
 )
-from app.db.models import TimelineEvent
 from app.utils.session_state import (
-    init_session_state,
     get_active_case_id,
-    set_active_partner_id,
+    init_session_state,
     require_password,
 )
 
@@ -40,12 +38,9 @@ require_password()
 # ---------------------------------------------------------------------------
 
 from app.db.queries import (
-    get_case_by_id,
-    get_partners_for_case,
-    get_partner_by_id,
-    get_timeline_events,
     create_timeline_event,
     delete_timeline_event,
+    get_timeline_events,
 )
 
 EVENT_TYPES = [

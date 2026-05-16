@@ -10,25 +10,23 @@ The 46 items and their section groupings come from MAP_ITEMS
 in models.py — no item labels are stored in the database.
 """
 
-import streamlit as st
 import pandas as pd
+import streamlit as st
 
 from app.db.database import SessionLocal
+from app.db.models import MAP_ITEMS
 from app.db.queries import (
     get_case_by_id,
-    get_partners_for_case,
-    get_partner_by_id,
     get_map_entries,
+    get_partners_for_case,
     upsert_map_entry,
 )
-from app.db.models import MAP_ITEMS
 from app.utils.session_state import (
-    init_session_state,
     get_active_case_id,
-    set_active_case_id,
     get_active_partner_id,
+    init_session_state,
+    require_password,
     set_active_partner_id,
-    require_password,   
 )
 
 st.set_page_config(page_title="MAP Sheet — VCA Monitor", layout="wide")
