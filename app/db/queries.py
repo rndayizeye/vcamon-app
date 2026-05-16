@@ -264,7 +264,7 @@ def create_symptom_entry(
 
 def update_symptom_entry(
     db: Session, entry_id: int, **kwargs
-) -> "SymptomEntry" | None:
+) -> Optional["SymptomEntry"]:
     """Update an existing symptom entry."""
     from app.db.models import SymptomEntry
     entry = db.query(SymptomEntry).filter(SymptomEntry.id == entry_id).first()
@@ -575,4 +575,5 @@ def delete_timeline_event(db: Session, event_id: int) -> bool:
         return False
     db.delete(evt)
     db.commit()
+    return True.commit()
     return True
