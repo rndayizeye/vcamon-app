@@ -226,7 +226,7 @@ for p in partners:
         "treatment_date": p.treatment_date,
         "lab_1":          p.lab_1,
         "lab_2":          p.lab_2,
-        "lot":            p.lot,
+        "lot":            case.lot,
         "first_exposure": relationship.exposure_first_date if relationship else None,
         "last_exposure":  relationship.exposure_last_date if relationship else None,
         "sex_types":      sex_list,
