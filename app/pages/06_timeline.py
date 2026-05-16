@@ -431,7 +431,7 @@ else:
         return ""
 
     st.dataframe(
-        status_df.style.applymap(color_status, subset=["Status"]),
+        status_df.style.map(color_status, subset=["Status"]),
         use_container_width=True,
         hide_index=True,
         column_config={
