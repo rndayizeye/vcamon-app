@@ -8,7 +8,7 @@ as new pages are built rather than all upfront.
 
 from sqlalchemy.orm import Session
 from datetime import date
-from app.db.models import Case, Partner, MAPEntry, ArrowLink, Ghosting, CasePartnerRelationship, TimelineEvent, LabResultEntry, SymptomClassification, TestCategory
+from app.db.models import Case, Partner, MAPEntry, ArrowLink, Ghosting, CasePartnerRelationship, TimelineEvent, LabResultEntry, SymptomClassification, TestCategory, RelationshipReport
 
 
 
@@ -67,6 +67,58 @@ def delete_case_partner_relationship(db: Session, relationship_id: int) -> bool:
     db.delete(rel)
     db.commit()
     return True
+
+
+# ---------------------------------------------------------------------------
+# RelationshipReport queries
+# ---------------------------------------------------------------------------
+
+def get_reports_for_relationship(db: Session, relationship_id: int) -> list[RelationshipReport]:
+    """Retrieve all reports for a specific relationship."""
+    return db.query(RelationshipReport).filter(
+        RelationshipReport.relationship_id == relationship_id
+    ).order_by(RelationshipReport.created_at.desc()).all()
+
+def create_relationship_report(
+    db: Session,
+    relationship_id: int,
+    reporter: str,
+    exposure_first_date: date | None = None,
+    exposure_last_date: date | None = None,
+    sex_types: str | None = None,
+) -> RelationshipReport:
+    """Create a new evidence report."""
+    report = RelationshipReport(
+        relationship_id=relationship_id,
+        reporter=reporter,
+        exposure_first_date=exposure_first_date,
+        exposure_last_date=exposure_last_date,
+        sex_types=sex_types,
+    )
+    db.add(report)
+    db.commit()
+    db.refresh(report)
+    return report
+
+def delete_relationship_report(db: Session, report_id: int) -> bool:
+    """Delete a specific report."""
+    report = db.query(RelationshipReport).filter(RelationshipReport.id == report_id).first()
+    if not report:
+        return False
+    db.delete(report)
+    db.commit()
+    return True
+
+def update_relationship_report(db: Session, report_id: int, **kwargs) -> RelationshipReport | None:
+    """Update an existing evidence report."""
+    report = db.query(RelationshipReport).filter(RelationshipReport.id == report_id).first()
+    if not report:
+        return None
+    for field, value in kwargs.items():
+        setattr(report, field, value)
+    db.commit()
+    db.refresh(report)
+    return report
 
 
 # ---------------------------------------------------------------------------
