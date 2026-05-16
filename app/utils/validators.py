@@ -6,8 +6,6 @@ from datetime import date
 def validate_op_form(
     patient_name: str,
     treatment_date: date | None,
-    lab_1: str,
-    lab_2: str,
 ) -> list[str]:
     """
     Returns a list of error messages. Empty list = valid.
@@ -20,10 +18,6 @@ def validate_op_form(
 
     if treatment_date and treatment_date > date.today():
         errors.append("Treatment date cannot be in the future.")
-
-    # If a treponemal result is entered, a non-negative RPR should also be present
-    if lab_2 and not lab_1:
-        errors.append("Lab 1 (RPR/VDRL) should be entered when Lab 2 is present.")
 
     return errors
 
