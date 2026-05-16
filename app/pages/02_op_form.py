@@ -165,32 +165,7 @@ with st.form("op_form", border=True):
         )
         
         st.markdown("---")
-        st.caption("Symptom Details")
-        symptom_classification = st.selectbox(
-            "Symptom classification",
-            options=enum_options(SymptomClassification),
-            index=enum_options(SymptomClassification).index(case.symptom_classification or "") if case else 0,
-            help="Is this a primary symptom or a secondary symptom?"
-        )
-        symptom_onset = st.date_input(
-            "Symptom onset date",
-            value=case.symptom_onset_date if case else None,
-            help="When did this symptom first appear?",
-            format="MM/DD/YYYY",
-        )
-        symptom_duration = st.number_input(
-            "Symptom duration (days, 0=unknown)",
-            min_value=0, max_value=90,
-            value=case.symptom_duration_days or 0 if case else 0,
-        )
-        symptom_ongoing = st.checkbox(
-            "Symptom is ongoing",
-            value=case.symptom_ongoing if case else False,
-            help="Check if the symptom is still active."
-        )
-
-    st.markdown("---")
-    st.subheader("History of Primary Chancre")
+        st.subheader("History of Primary Chancre")
     historical_primary_chancre = st.radio(
         "Did the patient have a primary chancre?",
         options=[False, True], # False for No, True for Yes
@@ -262,6 +237,30 @@ with st.form("op_form", border=True):
     st.divider()
     with st.expander("🔬 Clinical Details (Optional - for VCA analysis)", expanded=False):
         st.caption("Complete these fields to streamline ghosting analysis")
+        
+        st.subheader("Symptom Details")
+        symptom_classification = st.selectbox(
+            "Symptom classification",
+            options=enum_options(SymptomClassification),
+            index=enum_options(SymptomClassification).index(case.symptom_classification or "") if case else 0,
+            help="Is this a primary symptom or a secondary symptom?"
+        )
+        symptom_onset = st.date_input(
+            "Symptom onset date",
+            value=case.symptom_onset_date if case else None,
+            help="When did this symptom first appear?",
+            format="MM/DD/YYYY",
+        )
+        symptom_duration = st.number_input(
+            "Symptom duration (days, 0=unknown)",
+            min_value=0, max_value=90,
+            value=case.symptom_duration_days or 0 if case else 0,
+        )
+        symptom_ongoing = st.checkbox(
+            "Symptom is ongoing",
+            value=case.symptom_ongoing if case else False,
+            help="Check if the symptom is still active."
+        )
         st.info("Lab dates are now managed in the 'Lab results' section above.")
 
     with col_btn1:

@@ -225,21 +225,7 @@ with st.form("partner_form", border=True):
         )
 
         st.markdown("---")
-        st.caption("Symptom Details")
-        symptom_classification = st.selectbox(
-            "Symptom classification",
-            options=enum_options(SymptomClassification),
-            index=enum_options(SymptomClassification).index(partner.symptom_classification or "") if partner else 0,
-            help="Is this a primary symptom or a secondary symptom?"
-        )
-        symptom_ongoing = st.checkbox(
-            "Symptom is ongoing",
-            value=partner.symptom_ongoing if partner else False,
-            help="Check if the symptom is still active."
-        )
-
-    st.markdown("---")
-    st.subheader("History of Primary Chancre")
+        st.subheader("History of Primary Chancre")
     historical_primary_chancre = st.radio(
         "Did the partner have a primary chancre?",
         options=[False, True],
@@ -268,7 +254,7 @@ with st.form("partner_form", border=True):
 
     st.divider()
     st.subheader("Lab results")
-    st.caption("Manage all laboratory results. Use the table to add, edit, or remove entries.")
+    st.caption("Manage all laboratory results. The table below is editable—simply click a cell to change its value.")
     
     # Load existing lab results for the partner
     existing_labs = []
