@@ -336,9 +336,9 @@ class LabResultEntry(Base):
     )
     test_type: Mapped[str] = mapped_column(
         String(100), nullable=False
-    ) # e.g. "RPR", "TP-PA"
-    titer: Mapped[str | None] = mapped_column(String(100))  # for Non-treponemal
-    result: Mapped[str | None] = mapped_column(String(100)) # for Treponemal
+    )
+    titer: Mapped[str | None] = mapped_column(String(100))
+    result: Mapped[str | None] = mapped_column(String(100))
     collection_date: Mapped[date] = mapped_column(Date, nullable=False)
 
     case: Mapped["Case | None"] = relationship("Case", back_populates="lab_results")
