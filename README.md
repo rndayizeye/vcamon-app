@@ -26,8 +26,9 @@ Case workers use this app to manage syphilis contact tracing cases end-to-end:
 - Record original patient (OP) demographics, exam reason, lab results, and treatment
 - Add and track contact partners with the same clinical data
 - Complete the 46-item Major Analytical Points (MAP) assessment checklist per interview
-- Run automated ghosting analysis to determine source/spread relationships between the OP and partners
-- Visualize transmission networks as interactive directed graphs
+- Optionally capture clinical details (symptom onset, exposure windows, lab dates) to streamline VCA analysis
+- Run automated ghosting analysis with period intersection logic to determine source/spread relationships
+- Leverage previous negative lab results to intelligently constrain interview periods
 - Track case activity on a date timeline with auto-seeded treatment events
 - Run quick ghosting calculations without opening a case
 
@@ -291,7 +292,7 @@ ranks them by clinical precision, from most to least reliable:
 **Step 1 — Select Case1.** The person with the highest-ranking symptom in the
 hierarchy becomes Case1. Their symptom timeline anchors all subsequent date
 calculations. The other person becomes Case2. If both have symptoms of equal
-rank, the OP is assigned Case1.
+rank, the person with the earlier onset date becomes Case1.
 
 **Step 2 — Calculate Date1.** Working backwards from Case1's symptom onset using
 average durations, Date1 is the estimated date Case1 was exposed to infectious
@@ -304,11 +305,7 @@ syphilis.
 infection, Case2 must have had an active chancre when Case1 was exposed. Date1 is
 placed at the midpoint of that ghosted window:
 
-```
-ghosted source onset = Date1 − 10 days
-ghosted source end   = Date1 + 10 days
-```
-
+ghosted source onset = Date1 − 10 days ghosted source end = Date1 + 10 days
 **Step 4 — Date2 and ghosted spread lesion for Case2.** Date2 is the midpoint of Case1's
 own primary chancre — the point at which Case1 was most infectious. If Case1
 infected Case2, Case2 would have developed a chancre starting one average
@@ -317,20 +314,31 @@ incubation duration after that midpoint:
 - Primary or historical chancre: `Date2 = chancre onset + (duration ÷ 2)`
 - Secondary only: `Date2 = secondary onset − 28 days latency − 10.5 days`
 
-```
-ghosted spread onset = Date2 + 21 days
-ghosted spread end   = Date2 + 42 days
-```
-
+ghosted spread onset = Date2 + 21 days ghosted spread end = Date2 + 42 days
 **Step 5 — Evaluate four criteria for each scenario.**
 
-| Criterion | What is checked | Fail condition |
+| Criterion | What is checked | Pass condition |
 |---|---|---|
-| Exposure overlap source scenario| Date1 (likely inoculation date) must fall within the longest reported sexual exposure window | Fail if Date1 falls outside the exposure period; Warn if outside but within half the average incubation period (10 days) of the exposure boundary |
-| Exposure overlap spread scenario| Date2 (likely spread date) must fall within the longest reported sexual exposure window | Fail if Date2 falls outside the exposure period; Warn if outside but within half the average incubation period (10 days) of the exposure boundary |
-| Anatomical compatibility | Symptom location is consistent with the type of sex reported | Rectal chancre with no anal sex reported, etc. |
-| Latency to secondary | At least five weeks between ghosted lesion end and any secondary symptom onset | Gap less than 35 days |
-| Natural order | Ghosted lesion precedes secondary symptoms and treatment date | Lesion onset on or after secondary onset or treatment |
+| **Exposure overlap** | Infectious period must overlap with exposure window | Any intersection between Case2's infectious period and Case1's exposure window (SOURCE scenario), or Case1's infectious period and Case2's exposure window (SPREAD scenario) |
+| **Anatomical compatibility** | Symptom location is consistent with the type of sex reported | Rectal/anal chancre matches anal sex reported, etc. |
+| **Latency to secondary** | At least five weeks between ghosted lesion end and any secondary symptom onset | Gap ≥ 35 days |
+| **Natural order** | Ghosted lesion precedes secondary symptoms and treatment date | Lesion onset before secondary onset and treatment |
+
+**Exposure criterion (critical period intersection):**
+
+The exposure check verifies that transmission was *possible* by checking if the
+source's infectious period overlapped with the exposed person's contact window:
+
+- **SOURCE scenario:** Case2's infectious period (ghosted source lesion dates) must
+  intersect with Case1's exposure window. Any overlap = transmission possible.
+  
+- **SPREAD scenario:** Case1's infectious period (symptom onset + duration) must
+  intersect with Case2's exposure window.
+
+**Pass:** Periods overlap (any number of days)  
+**Warn:** Periods miss by ≤10 days (warn margin)  
+**Fail:** Periods miss by >10 days  
+**N/A:** Exposure dates not recorded
 
 Each criterion returns `pass`, `fail`, `warn` (missing data prevents checking),
 or `n/a` (criterion not applicable for this case). A scenario passes if no
@@ -356,10 +364,53 @@ to progressively build out a transmission chain across a full cluster.
 
 How far back to elicit partners depends on the OP's presenting symptoms:
 
+**Standard interview periods:**
 - **Primary syphilis:** start `125 days` before chancre onset
   (max incubation 90 days + max primary 35 days)
 - **Secondary syphilis:** start `237 days` before secondary symptom onset
   (90 + 35 + 70 + 42 days)
+
+**Shortened by previous negative labs:**
+
+If a previous negative RPR or treponemal test exists, the interview period is
+constrained because the person could not have been infected before that test
+(accounting for max incubation):
+
+```python
+standard_start = symptom_onset - (125 or 237 days)
+floor = last_negative_date - 90 days  # Max incubation before negative test
+
+interview_start = max(standard_start, floor)
+# Cannot investigate before the floor, even if standard says to
+Example:
+* Primary chancre onset: May 1, 2025
+* Previous negative RPR: April 1, 2025
+* Standard: May 1 - 125 = Dec 27, 2024
+* Floor: April 1 - 90 = Jan 1, 2025
+* Interview period: Jan 1 → May 1 (120 days, shortened from 125)
+The floor ensures you don't investigate before the person could have been infected, while the 90-day buffer accounts for the maximum incubation period before the negative test.
+
+### Critical period and exposure intersection
+
+The **critical period** represents the window during which a person was potentially
+infectious — from earliest possible inoculation to treatment date. This period is
+calculated for both Case1 and Case2 and used to verify transmission possibility.
+
+**Exposure intersection logic:**
+
+A partner qualifies for transmission analysis if their exposure period intersects
+with the OP's critical period — meaning they had contact during a time when the OP
+was infectious. Even a single day of overlap indicates possible transmission.
+
+**Example:**
+- OP critical period: Jan 1 → Feb 15 (infectious window)
+- Partner exposure: Jan 20 → Jan 25 (contact dates)
+- **Overlap: Jan 20-25 (5 days) ✓** Transmission possible
+
+The entire critical period does not need to be contained within the exposure window —
+any intersection qualifies. This ensures the ghosting analysis only evaluates
+scenarios where transmission was physically possible based on timing.
+
 
 ---
 
