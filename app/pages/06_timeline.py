@@ -412,11 +412,20 @@ if not partners:
 else:
     status_rows = []
     for p in partners:
+        # Fetch latest lab result for the partner
+        latest_lab_val = "—"
+        with SessionLocal() as db:
+            from app.db.queries import get_lab_results_for_partner
+            labs = get_lab_results_for_partner(db, p.id)
+            if labs:
+                latest = labs[-1]
+                latest_lab_val = f"{latest.test_type}: {latest.titer or latest.result or 'N/A'}"
+
         status_rows.append({
             "Partner #":       p.partner_number,
             "Name":            p.name or "—",
             "Treatment date":  str(p.treatment_date) if p.treatment_date else "Pending",
-            "Lab 1":           p.lab_1 or "—",
+            "Latest Lab":      latest_lab_val,
             "Treatment":       p.treatment or "—",
             "Status":          "Treated" if p.treatment_date else "Pending",
         })
