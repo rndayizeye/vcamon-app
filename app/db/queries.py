@@ -288,6 +288,79 @@ def delete_symptom_entry(db: Session, entry_id: int) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# SymptomEntry queries
+# ---------------------------------------------------------------------------
+
+def get_symptoms_for_case(db: Session, case_id: int) -> list["SymptomEntry"]:
+    """Retrieve all symptoms for a given case."""
+    from app.db.models import SymptomEntry
+    return (
+        db.query(SymptomEntry)
+        .filter(SymptomEntry.case_id == case_id)
+        .all()
+    )
+
+def get_symptoms_for_partner(db: Session, partner_id: int) -> list["SymptomEntry"]:
+    """Retrieve all symptoms for a given partner."""
+    from app.db.models import SymptomEntry
+    return (
+        db.query(SymptomEntry)
+        .filter(SymptomEntry.partner_id == partner_id)
+        .all()
+    )
+
+def create_symptom_entry(
+    db: Session,
+    symptom_type: str,
+    classification: str | None = None,
+    onset_date: date | None = None,
+    duration_days: int | None = None,
+    ongoing: bool = False,
+    case_id: int | None = None,
+    partner_id: int | None = None,
+) -> "SymptomEntry":
+    """Create a new symptom entry."""
+    from app.db.models import SymptomEntry
+    entry = SymptomEntry(
+        case_id=case_id,
+        partner_id=partner_id,
+        symptom_type=symptom_type,
+        classification=classification,
+        onset_date=onset_date,
+        duration_days=duration_days,
+        ongoing=ongoing,
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+def update_symptom_entry(
+    db: Session, entry_id: int, **kwargs
+) -> "SymptomEntry" | None:
+    """Update an existing symptom entry."""
+    from app.db.models import SymptomEntry
+    entry = db.query(SymptomEntry).filter(SymptomEntry.id == entry_id).first()
+    if not entry:
+        return None
+    for field, value in kwargs.items():
+        setattr(entry, field, value)
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+def delete_symptom_entry(db: Session, entry_id: int) -> bool:
+    """Delete a symptom entry."""
+    from app.db.models import SymptomEntry
+    entry = db.query(SymptomEntry).filter(SymptomEntry.id == entry_id).first()
+    if not entry:
+        return False
+    db.delete(entry)
+    db.commit()
+    return True
+
+
+# ---------------------------------------------------------------------------
 # Case queries
 # ---------------------------------------------------------------------------
 
