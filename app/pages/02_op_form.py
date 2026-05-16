@@ -241,7 +241,7 @@ with st.form("op_form", border=True):
         existing_labs,
         num_rows="dynamic",
         column_config={
-            "id": st.column_config.Column(disabled=True, hide_index=True),
+            "id": st.column_config.Column(disabled=True),
             "Category": st.column_config.SelectboxColumn(
                 "Category", 
                 options=enum_options(TestCategory),
