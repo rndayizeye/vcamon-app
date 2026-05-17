@@ -127,6 +127,17 @@ SEX_DISPLAY = ["Anal", "Oral", "Vaginal", "Penile", "Rectal"]
 SEX_VALUE = ["Anal LX", "Oral LX", "Vaginal LX", "Penile LX", "Rectal LX"]
 _display_to_value = dict(zip(SEX_DISPLAY, SEX_VALUE))
 
+# Anatomical location options for primary chancre — used in sex-type compatibility check
+_LOCATION_OPTIONS = [
+    "Anal LX",
+    "Oral LX",
+    "Vaginal LX",
+    "Penile LX",
+    "Rectal LX",
+    "Non-genital LX",
+    "LX",
+]
+
 
 def _sex_display_to_values(selected_labels: list[str]) -> list[str]:
     """Convert display labels back to full engine values."""
@@ -146,7 +157,18 @@ def _rows_to_symptoms(df: pd.DataFrame) -> list[Symptom]:
         onset_d = onset if isinstance(onset, date) else pd.to_datetime(onset).date()
         dur = row.get("Duration")
         duration_days = int(dur) if pd.notna(dur) else 0
-        syms.append(Symptom(type=sym_type, onset=onset_d, duration_days=duration_days))
+        loc = row.get("Location")
+        location = (
+            loc if loc and not (isinstance(loc, float) and pd.isna(loc)) else None
+        )
+        syms.append(
+            Symptom(
+                type=sym_type,
+                onset=onset_d,
+                duration_days=duration_days,
+                location=location,
+            )
+        )
     return syms
 
 
@@ -156,7 +178,7 @@ with col_a:
     st.subheader("Person A (OP)")
     a_name = st.text_input("Name / identifier", value="OP", key="a_name")
     st.caption("Symptoms — add one row per symptom, leave table empty if none")
-    _a_sym_empty = pd.DataFrame(columns=["Type", "Onset Date", "Duration"])
+    _a_sym_empty = pd.DataFrame(columns=["Type", "Onset Date", "Duration", "Location"])
     edited_a_sym_df = st.data_editor(
         _a_sym_empty,
         num_rows="dynamic",
@@ -174,6 +196,11 @@ with col_a:
             "Onset Date": st.column_config.DateColumn("Onset date", required=True),
             "Duration": st.column_config.NumberColumn(
                 "Duration (days, 0 = avg)", min_value=0, max_value=90, default=0
+            ),
+            "Location": st.column_config.SelectboxColumn(
+                "Lesion location",
+                options=_LOCATION_OPTIONS,
+                help="Anatomical site of a primary chancre. Leave blank for secondary symptoms.",
             ),
         },
         key="a_sym_editor",
@@ -198,7 +225,7 @@ with col_b:
     st.subheader("Person B (Partner)")
     b_name = st.text_input("Name / identifier", value="Partner", key="b_name")
     st.caption("Symptoms — add one row per symptom, leave table empty if none")
-    _b_sym_empty = pd.DataFrame(columns=["Type", "Onset Date", "Duration"])
+    _b_sym_empty = pd.DataFrame(columns=["Type", "Onset Date", "Duration", "Location"])
     edited_b_sym_df = st.data_editor(
         _b_sym_empty,
         num_rows="dynamic",
@@ -216,6 +243,11 @@ with col_b:
             "Onset Date": st.column_config.DateColumn("Onset date", required=True),
             "Duration": st.column_config.NumberColumn(
                 "Duration (days, 0 = avg)", min_value=0, max_value=90, default=0
+            ),
+            "Location": st.column_config.SelectboxColumn(
+                "Lesion location",
+                options=_LOCATION_OPTIONS,
+                help="Anatomical site of a primary chancre. Leave blank for secondary symptoms.",
             ),
         },
         key="b_sym_editor",

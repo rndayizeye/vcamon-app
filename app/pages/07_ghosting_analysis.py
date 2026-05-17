@@ -68,6 +68,17 @@ _VCA_SYM_OPTIONS = [
     "Secondary Rash/Lesions",
 ]
 
+# Anatomical location options — mirrors LesionType enum values
+_LOCATION_OPTIONS = [
+    "Anal LX",
+    "Oral LX",
+    "Vaginal LX",
+    "Penile LX",
+    "Rectal LX",
+    "Non-genital LX",
+    "LX",
+]
+
 
 def _entries_to_rows(
     entries,
@@ -87,11 +98,16 @@ def _entries_to_rows(
         vca_type = _CLASSIFICATION_TO_VCA.get(e.classification or "", "")
         if not vca_type:
             continue
+        # For primary lesions the stored symptom_type IS the anatomical location
+        # (e.g. "Anal LX", "Penile LX"). Pass it through so the sex-type
+        # compatibility check in the engine can do a real comparison.
+        location = e.symptom_type if e.classification == "Primary" else ""
         rows.append(
             {
                 "Type": vca_type,
                 "Onset Date": e.onset_date,
                 "Duration": e.duration_days or 0,
+                "Location": location,
             }
         )
     if historical_chancre and historical_date:
@@ -100,6 +116,7 @@ def _entries_to_rows(
                 "Type": "Historical Primary",
                 "Onset Date": historical_date,
                 "Duration": 0,
+                "Location": "",
             }
         )
     return rows
@@ -120,7 +137,18 @@ def _rows_to_symptoms(df) -> list:
         onset_d = onset if isinstance(onset, _date) else pd.to_datetime(onset).date()
         dur = row.get("Duration")
         duration_days = int(dur) if pd.notna(dur) else 0
-        syms.append(Symptom(type=sym_type, onset=onset_d, duration_days=duration_days))
+        loc = row.get("Location")
+        location = (
+            loc if loc and not (isinstance(loc, float) and pd.isna(loc)) else None
+        )
+        syms.append(
+            Symptom(
+                type=sym_type,
+                onset=onset_d,
+                duration_days=duration_days,
+                location=location,
+            )
+        )
     return syms
 
 
@@ -256,7 +284,7 @@ with col_op:
     )
     _op_sym_df = pd.DataFrame(
         _op_sym_rows if _op_sym_rows else [],
-        columns=["Type", "Onset Date", "Duration"],
+        columns=["Type", "Onset Date", "Duration", "Location"],
     )
     edited_op_sym_df = st.data_editor(
         _op_sym_df,
@@ -268,6 +296,11 @@ with col_op:
             "Onset Date": st.column_config.DateColumn("Onset date", required=True),
             "Duration": st.column_config.NumberColumn(
                 "Duration (days, 0 = avg)", min_value=0, max_value=90, default=0
+            ),
+            "Location": st.column_config.SelectboxColumn(
+                "Lesion location",
+                options=_LOCATION_OPTIONS,
+                help="Anatomical site of a primary chancre. Leave blank for secondary symptoms.",
             ),
         },
         key="op_sym_editor",
@@ -303,7 +336,7 @@ with col_partner:
     )
     _partner_sym_df = pd.DataFrame(
         _partner_sym_rows if _partner_sym_rows else [],
-        columns=["Type", "Onset Date", "Duration"],
+        columns=["Type", "Onset Date", "Duration", "Location"],
     )
     edited_partner_sym_df = st.data_editor(
         _partner_sym_df,
@@ -315,6 +348,11 @@ with col_partner:
             "Onset Date": st.column_config.DateColumn("Onset date", required=True),
             "Duration": st.column_config.NumberColumn(
                 "Duration (days, 0 = avg)", min_value=0, max_value=90, default=0
+            ),
+            "Location": st.column_config.SelectboxColumn(
+                "Lesion location",
+                options=_LOCATION_OPTIONS,
+                help="Anatomical site of a primary chancre. Leave blank for secondary symptoms.",
             ),
         },
         key="partner_sym_editor",

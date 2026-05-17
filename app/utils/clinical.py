@@ -461,12 +461,23 @@ def _latency_to_secondary(
     if gap >= MIN_LATENCY_TO_SECONDARY_DAYS:
         return "pass", (
             f"{gap} days between ghosted lesion end ({lesion_end}) and "
-            f"Case2 secondary onset ({earliest_sec}) — meets ≥5-week requirement."
+            f"Case2 secondary onset ({earliest_sec}) — meets "
+            f"≥{MIN_LATENCY_TO_SECONDARY_DAYS}-day requirement."
         )
+
+    if gap < 0:
+        # Negative gap means the ghosted primary was still active when secondary appeared
+        return "fail", (
+            f"Primary-secondary overlap: ghosted lesion end ({lesion_end}) is "
+            f"{abs(gap)} day(s) after Case2 secondary onset ({earliest_sec}) — "
+            f"the chancre was still present when secondary symptoms appeared."
+        )
+
     return "fail", (
-        f"Only {gap} days between ghosted lesion end ({lesion_end}) and "
-        f"Case2 secondary onset ({earliest_sec}) — less than required "
-        f"{MIN_LATENCY_TO_SECONDARY_DAYS} days."
+        f"Only {gap} day(s) between ghosted lesion end ({lesion_end}) and "
+        f"Case2 secondary onset ({earliest_sec}) — below the required "
+        f"{MIN_LATENCY_TO_SECONDARY_DAYS} days "
+        f"({MIN_LATENCY_TO_SECONDARY_DAYS // 7} weeks)."
     )
 
 
@@ -475,25 +486,40 @@ def _natural_order(
     case2_symptoms: list[Symptom],
     case2_treatment_date: Optional[date],
 ) -> tuple[str, str]:
-    issues = []
+    fail_issues: list[str] = []
+    warn_issues: list[str] = []
 
     secondary = [s for s in case2_symptoms if s.type == "Secondary Rash/Lesions"]
     if secondary:
         earliest_sec = min(s.onset for s in secondary)
         if lesion.onset >= earliest_sec:
-            issues.append(
+            # Hard fail: primary started on or after secondary — impossible biology
+            fail_issues.append(
                 f"Ghosted lesion onset ({lesion.onset}) is on/after Case2 secondary "
                 f"onset ({earliest_sec}) — violates primary-before-secondary order."
             )
+        elif lesion.end > earliest_sec:
+            # Soft warn: primary started before secondary but was still active when
+            # secondary appeared. LATENCY min = 0 permits this, but it is clinically
+            # suspicious and must be reviewed. The latency criterion will also fail.
+            overlap_days = (lesion.end - earliest_sec).days
+            warn_issues.append(
+                f"Primary-secondary overlap: ghosted lesion ({lesion.onset} → "
+                f"{lesion.end}) was still active {overlap_days} day(s) into "
+                f"Case2 secondary onset ({earliest_sec}). Latency minimum is 0 days "
+                f"so this is technically possible, but warrants manual review."
+            )
 
     if case2_treatment_date and lesion.onset >= case2_treatment_date:
-        issues.append(
+        fail_issues.append(
             f"Ghosted lesion onset ({lesion.onset}) is on/after Case2 treatment "
             f"({case2_treatment_date}) — symptoms should not appear after treatment."
         )
 
-    if issues:
-        return "fail", " | ".join(issues)
+    if fail_issues:
+        return "fail", " | ".join(fail_issues + warn_issues)
+    if warn_issues:
+        return "warn", " | ".join(warn_issues)
     return "pass", "Ghosted lesion follows natural syphilis progression order."
 
 
@@ -567,27 +593,60 @@ def determine_verdict(
     case1_role: str,
     case1_name: str,
     case2_name: str,
+    source_criteria: dict | None = None,
+    spread_criteria: dict | None = None,
 ) -> str:
+    """
+    Build the final verdict string.
+
+    source_criteria / spread_criteria are the dicts returned by evaluate_criteria.
+    When supplied, the verdict is annotated if a primary-secondary overlap was
+    detected in either scenario (natural_order == warn  OR  latency fail with
+    'overlap' in the detail text).
+    """
+    # --- Base directional conclusion ---
     if source_passes and not spread_passes:
         if case1_role == "OP":
-            return f"OP ({case1_name}) is the SOURCE of infection for partner ({case2_name})."
+            verdict = f"OP ({case1_name}) is the SOURCE of infection for partner ({case2_name})."
         else:
-            return f"Partner ({case1_name}) is the SOURCE of infection for OP ({case2_name})."
+            verdict = f"Partner ({case1_name}) is the SOURCE of infection for OP ({case2_name})."
     elif spread_passes and not source_passes:
         if case1_role == "OP":
-            return (
+            verdict = (
                 f"Partner ({case2_name}) is the SOURCE — OP ({case1_name}) is a SPREAD."
             )
         else:
-            return (
+            verdict = (
                 f"OP ({case2_name}) is the SOURCE — partner ({case1_name}) is a SPREAD."
             )
     elif source_passes and spread_passes:
-        return "AMBIGUOUS — both source and spread scenarios meet criteria. Manual review required."
+        verdict = "AMBIGUOUS — both source and spread scenarios meet criteria. Manual review required."
     else:
-        return (
+        verdict = (
             "UNRELATED INFECTIONS — neither source nor spread scenario meets criteria."
         )
+
+    # --- Overlap annotation ---
+    # Scan both scenario criteria for primary-secondary overlap signals and append
+    # a warning note so investigators are not misled by a technically-passing verdict.
+    overlap_flagged = False
+    for criteria in filter(None, [source_criteria, spread_criteria]):
+        nat = criteria.get("natural_order", {})
+        lat = criteria.get("latency", {})
+        if nat.get("status") == "warn" or (
+            lat.get("status") == "fail"
+            and "overlap" in (lat.get("detail") or "").lower()
+        ):
+            overlap_flagged = True
+            break
+
+    if overlap_flagged:
+        verdict += (
+            " ⚠ Primary-secondary overlap detected in at least one scenario — "
+            "manual clinical review recommended."
+        )
+
+    return verdict
 
 
 # ---------------------------------------------------------------------------
@@ -710,7 +769,13 @@ def run_ghosting_analysis(
     source_passes = _scenario_passes(source_criteria)
     spread_passes = _scenario_passes(spread_criteria)
     verdict = determine_verdict(
-        source_passes, spread_passes, case1_role, case1_name, case2_name
+        source_passes,
+        spread_passes,
+        case1_role,
+        case1_name,
+        case2_name,
+        source_criteria=source_criteria,
+        spread_criteria=spread_criteria,
     )
 
     log.append("")
