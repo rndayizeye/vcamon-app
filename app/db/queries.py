@@ -37,6 +37,7 @@ def get_case_partner_relationship(
         .first()
     )
 
+
 def create_case_partner_relationship(
     db: Session,
     case_id: int,
@@ -58,13 +59,16 @@ def create_case_partner_relationship(
     db.refresh(rel)
     return rel
 
+
 def update_case_partner_relationship(
     db: Session, relationship_id: int, **kwargs
 ) -> CasePartnerRelationship | None:
     """Update an existing relationship entry."""
-    rel = db.query(CasePartnerRelationship).filter(
-        CasePartnerRelationship.id == relationship_id
-    ).first()
+    rel = (
+        db.query(CasePartnerRelationship)
+        .filter(CasePartnerRelationship.id == relationship_id)
+        .first()
+    )
     if not rel:
         return None
     for field, value in kwargs.items():
@@ -73,11 +77,14 @@ def update_case_partner_relationship(
     db.refresh(rel)
     return rel
 
+
 def delete_case_partner_relationship(db: Session, relationship_id: int) -> bool:
     """Delete a relationship entry."""
-    rel = db.query(CasePartnerRelationship).filter(
-        CasePartnerRelationship.id == relationship_id
-    ).first()
+    rel = (
+        db.query(CasePartnerRelationship)
+        .filter(CasePartnerRelationship.id == relationship_id)
+        .first()
+    )
     if not rel:
         return False
     db.delete(rel)
@@ -89,13 +96,18 @@ def delete_case_partner_relationship(db: Session, relationship_id: int) -> bool:
 # RelationshipReport queries
 # ---------------------------------------------------------------------------
 
+
 def get_reports_for_relationship(
     db: Session, relationship_id: int
 ) -> list[RelationshipReport]:
     """Retrieve all reports for a specific relationship."""
-    return db.query(RelationshipReport).filter(
-        RelationshipReport.relationship_id == relationship_id
-    ).order_by(RelationshipReport.created_at.desc()).all()
+    return (
+        db.query(RelationshipReport)
+        .filter(RelationshipReport.relationship_id == relationship_id)
+        .order_by(RelationshipReport.created_at.desc())
+        .all()
+    )
+
 
 def create_relationship_report(
     db: Session,
@@ -118,24 +130,26 @@ def create_relationship_report(
     db.refresh(report)
     return report
 
+
 def delete_relationship_report(db: Session, report_id: int) -> bool:
     """Delete a specific report."""
-    report = db.query(RelationshipReport).filter(
-        RelationshipReport.id == report_id
-    ).first()
+    report = (
+        db.query(RelationshipReport).filter(RelationshipReport.id == report_id).first()
+    )
     if not report:
         return False
     db.delete(report)
     db.commit()
     return True
 
+
 def update_relationship_report(
     db: Session, report_id: int, **kwargs
 ) -> RelationshipReport | None:
     """Update an existing evidence report."""
-    report = db.query(RelationshipReport).filter(
-        RelationshipReport.id == report_id
-    ).first()
+    report = (
+        db.query(RelationshipReport).filter(RelationshipReport.id == report_id).first()
+    )
     if not report:
         return None
     for field, value in kwargs.items():
@@ -149,6 +163,7 @@ def update_relationship_report(
 # LabResultEntry queries
 # ---------------------------------------------------------------------------
 
+
 def get_lab_results_for_case(db: Session, case_id: int) -> list[LabResultEntry]:
     """Retrieve all lab results for a given case."""
     return (
@@ -158,6 +173,7 @@ def get_lab_results_for_case(db: Session, case_id: int) -> list[LabResultEntry]:
         .all()
     )
 
+
 def get_lab_results_for_partner(db: Session, partner_id: int) -> list[LabResultEntry]:
     """Retrieve all lab results for a given partner."""
     return (
@@ -166,6 +182,7 @@ def get_lab_results_for_partner(db: Session, partner_id: int) -> list[LabResultE
         .order_by(LabResultEntry.collection_date)
         .all()
     )
+
 
 def create_lab_result_entry(
     db: Session,
@@ -192,6 +209,7 @@ def create_lab_result_entry(
     db.refresh(lab_entry)
     return lab_entry
 
+
 def update_lab_result_entry(
     db: Session, entry_id: int, **kwargs
 ) -> LabResultEntry | None:
@@ -204,6 +222,7 @@ def update_lab_result_entry(
     db.commit()
     db.refresh(lab_entry)
     return lab_entry
+
 
 def delete_lab_result_entry(db: Session, entry_id: int) -> bool:
     """Delete a lab result entry."""
@@ -219,23 +238,20 @@ def delete_lab_result_entry(db: Session, entry_id: int) -> bool:
 # SymptomEntry queries
 # ---------------------------------------------------------------------------
 
+
 def get_symptoms_for_case(db: Session, case_id: int) -> list["SymptomEntry"]:
     """Retrieve all symptoms for a given case."""
     from app.db.models import SymptomEntry
-    return (
-        db.query(SymptomEntry)
-        .filter(SymptomEntry.case_id == case_id)
-        .all()
-    )
+
+    return db.query(SymptomEntry).filter(SymptomEntry.case_id == case_id).all()
+
 
 def get_symptoms_for_partner(db: Session, partner_id: int) -> list["SymptomEntry"]:
     """Retrieve all symptoms for a given partner."""
     from app.db.models import SymptomEntry
-    return (
-        db.query(SymptomEntry)
-        .filter(SymptomEntry.partner_id == partner_id)
-        .all()
-    )
+
+    return db.query(SymptomEntry).filter(SymptomEntry.partner_id == partner_id).all()
+
 
 def create_symptom_entry(
     db: Session,
@@ -249,6 +265,7 @@ def create_symptom_entry(
 ) -> "SymptomEntry":
     """Create a new symptom entry."""
     from app.db.models import SymptomEntry
+
     entry = SymptomEntry(
         case_id=case_id,
         partner_id=partner_id,
@@ -263,11 +280,13 @@ def create_symptom_entry(
     db.refresh(entry)
     return entry
 
+
 def update_symptom_entry(
     db: Session, entry_id: int, **kwargs
 ) -> Optional["SymptomEntry"]:
     """Update an existing symptom entry."""
     from app.db.models import SymptomEntry
+
     entry = db.query(SymptomEntry).filter(SymptomEntry.id == entry_id).first()
     if not entry:
         return None
@@ -277,9 +296,11 @@ def update_symptom_entry(
     db.refresh(entry)
     return entry
 
+
 def delete_symptom_entry(db: Session, entry_id: int) -> bool:
     """Delete a symptom entry."""
     from app.db.models import SymptomEntry
+
     entry = db.query(SymptomEntry).filter(SymptomEntry.id == entry_id).first()
     if not entry:
         return False
@@ -291,6 +312,7 @@ def delete_symptom_entry(db: Session, entry_id: int) -> bool:
 # ---------------------------------------------------------------------------
 # Case queries
 # ---------------------------------------------------------------------------
+
 
 def get_all_cases(db: Session) -> list[Case]:
     """Return all cases ordered by most recently updated."""
@@ -305,9 +327,7 @@ def create_case(
     db: Session, patient_name: str, initial_contact_date: date | None = None, **kwargs
 ) -> Case:
     case = Case(
-        patient_name=patient_name,
-        initial_contact_date=initial_contact_date,
-        **kwargs
+        patient_name=patient_name, initial_contact_date=initial_contact_date, **kwargs
     )
     db.add(case)
     db.commit()
@@ -348,6 +368,7 @@ def search_cases(db: Session, query: str) -> list[Case]:
 # Partner queries
 # ---------------------------------------------------------------------------
 
+
 def get_partners_for_case(db: Session, case_id: int) -> list[Partner]:
     return (
         db.query(Partner)
@@ -362,14 +383,14 @@ def get_partner_by_id(db: Session, partner_id: int) -> Partner | None:
 
 
 def create_partner(
-    db: Session, 
-    case_id: int, 
-    partner_number: int, 
+    db: Session,
+    case_id: int,
+    partner_number: int,
     symptom_classification: str | None = None,
     symptom_ongoing: bool = False,
     historical_primary_chancre: bool | None = None,
     historical_primary_date: date | None = None,
-    **kwargs
+    **kwargs,
 ) -> Partner:
     partner = Partner(
         case_id=case_id,
@@ -378,7 +399,7 @@ def create_partner(
         symptom_ongoing=symptom_ongoing,
         historical_primary_chancre=historical_primary_chancre,
         historical_primary_date=historical_primary_date,
-        **kwargs
+        **kwargs,
     )
     db.add(partner)
     db.commit()
@@ -400,6 +421,7 @@ def update_partner(db: Session, partner_id: int, **kwargs) -> Partner | None:
 # ---------------------------------------------------------------------------
 # MAP entry queries
 # ---------------------------------------------------------------------------
+
 
 def get_map_entries(
     db: Session, case_id: int, partner_id: int | None = None
@@ -458,12 +480,9 @@ def upsert_map_entry(
 # Arrow link queries  (used by 05_network_graph.py)
 # ---------------------------------------------------------------------------
 
+
 def get_arrow_links(db: Session, case_id: int) -> list[ArrowLink]:
-    return (
-        db.query(ArrowLink)
-        .filter(ArrowLink.case_id == case_id)
-        .all()
-    )
+    return db.query(ArrowLink).filter(ArrowLink.case_id == case_id).all()
 
 
 def create_arrow_link(
@@ -485,9 +504,7 @@ def delete_arrow_link(db: Session, link_id: int) -> bool:
     return True
 
 
-def arrow_link_exists(
-    db: Session, case_id: int, from_ref: str, to_ref: str
-) -> bool:
+def arrow_link_exists(db: Session, case_id: int, from_ref: str, to_ref: str) -> bool:
     return (
         db.query(ArrowLink)
         .filter(
@@ -502,6 +519,7 @@ def arrow_link_exists(
 # ---------------------------------------------------------------------------
 # Ghosting queries  (used by 05_network_graph.py)
 # ---------------------------------------------------------------------------
+
 
 def get_ghostings(db: Session, case_id: int) -> list[Ghosting]:
     return db.query(Ghosting).filter(Ghosting.case_id == case_id).all()
@@ -536,9 +554,11 @@ def delete_ghosting(db: Session, ghosting_id: int) -> bool:
     db.commit()
     return True
 
+
 # ---------------------------------------------------------------------------
 # Timeline event queries  (used by 06_timeline.py and 08_vca_chart.py)
 # ---------------------------------------------------------------------------
+
 
 def get_timeline_events(db: Session, case_id: int):
     return (
@@ -576,5 +596,4 @@ def delete_timeline_event(db: Session, event_id: int) -> bool:
         return False
     db.delete(evt)
     db.commit()
-    return True.commit()
     return True
