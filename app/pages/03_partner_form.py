@@ -248,10 +248,6 @@ with st.form("partner_form", border=True):
                     options=enum_options(LesionType) + enum_options(Symptom),
                     required=True
                 ),
-                "Classification": st.column_config.SelectboxColumn(
-                    "Classification", 
-                    options=enum_options(SymptomClassification),
-                ),
                 "Onset Date": st.column_config.DateColumn("Onset Date"),
                 "Duration": st.column_config.NumberColumn("Duration (Days)"),
                 "Ongoing": st.column_config.CheckboxColumn("Ongoing"),
@@ -633,7 +629,7 @@ if submitted or add_another or go_map:
                     update_symptom_entry(
                         db, int(row["id"]),
                         symptom_type=row["Type"],
-                        classification=row.get("Classification") or None,
+                        classification=_get_symptom_classification(row["Type"]),
                         onset_date=row.get("Onset Date"),
                         duration_days=int(row["Duration"]) if pd.notna(row.get("Duration")) else None,
                         ongoing=bool(row.get("Ongoing", False))
@@ -689,6 +685,23 @@ if partners:
 
     st.dataframe(
         df.style.apply(highlight_untreated, axis=1),
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "#": st.column_config.NumberColumn("#", width="small"),
+        },
+    )
+
+    # Quick-select buttons to jump to a partner
+    st.caption("Click a partner below to load them into the form:")
+    btn_cols = st.columns(min(len(partners), 6))
+    for i, p in enumerate(partners[:6]):
+        with btn_cols[i]:
+            label = f"P{p.partner_number} — {(p.name or 'Unnamed')[:12]}"
+            if st.button(label, key=f"quick_{p.id}", use_container_width=True):
+                set_active_partner_id(p.id)
+                st.rerun()
+s=1),
         use_container_width=True,
         hide_index=True,
         column_config={
