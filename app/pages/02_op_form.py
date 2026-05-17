@@ -207,27 +207,6 @@ with st.form("op_form", border=True):
             hide_index=True,
         )
 
-    st.markdown("---")
-    st.subheader("History of Primary Chancre")
-    historical_primary_chancre = st.radio(
-        "Did the patient have a primary chancre?",
-        options=[False, True], # False for No, True for Yes
-        format_func=lambda x: "Yes" if x else "No",
-        index=[False, True].index(case.historical_primary_chancre) if case and case.historical_primary_chancre is not None else 0,
-        help="Required for secondary syphilis diagnosis."
-    )
-
-    historical_primary_date = None
-    if historical_primary_chancre:
-        historical_primary_date = st.date_input(
-            "Date of primary chancre",
-            value=case.historical_primary_date if case else None,
-            min_value=date(2000, 1, 1),
-            max_value=date.today(),
-            format="MM/DD/YYYY",
-            help="When did the primary chancre first appear?"
-        )
-
     medical_info = st.text_area(
         "Medical info on date treated",
         value=case.medical_info or "" if case else "",
@@ -336,6 +315,35 @@ if submitted or go_partners or go_map:
         for e in errors:
             st.error(e)
     else:
+        # Deduce historical_primary_chancre and date
+        derived_historical_primary_chancre = False
+        derived_historical_primary_date = None
+
+        for row in edited_symptom_df.to_dict('records'):
+            symptom_type = row.get("Type")
+            onset_date = row.get("Onset Date")
+            duration_days = row.get("Duration")
+
+            is_primary_chancre = symptom_type in [
+                LesionType.ANAL.value,
+                LesionType.LAB.value,
+                LesionType.LX.value,
+                LesionType.ORAL.value,
+                LesionType.PENILE.value,
+                LesionType.RECTAL.value,
+                LesionType.VAGINAL.value,
+            ]
+
+            if is_primary_chancre and pd.notna(onset_date) and pd.notna(duration_days) and treatment_date:
+                try:
+                    symptom_end_date = pd.to_datetime(onset_date) + pd.Timedelta(days=int(duration_days))
+                    if symptom_end_date.date() < treatment_date:
+                        derived_historical_primary_chancre = True
+                        derived_historical_primary_date = pd.to_datetime(onset_date).date()
+                        break # Found one, no need to check further
+                except ValueError:
+                    pass # Handle cases where date conversion might fail
+
         payload = dict(
             lot=val_or_none(lot),
             case_manager=val_or_none(case_manager),
@@ -343,8 +351,8 @@ if submitted or go_partners or go_map:
             reason_for_exam=val_or_none(reason_for_exam),
             treatment_date=treatment_date if treatment_date else None,
             treatment=val_or_none(treatment),
-            historical_primary_chancre=historical_primary_chancre,
-            historical_primary_date=historical_primary_date if historical_primary_date else None,
+            historical_primary_chancre=derived_historical_primary_chancre,
+            historical_primary_date=derived_historical_primary_date,
             medical_info=val_or_none(medical_info),
             # Keep legacy fields as None
             lab_1=None,
