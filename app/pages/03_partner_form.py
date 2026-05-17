@@ -51,6 +51,7 @@ from app.db.queries import (
     update_relationship_report,
     update_symptom_entry,
 )
+from app.utils.clinical import get_symptom_classification
 from app.utils.session_state import (
     get_active_case_id,
     get_active_partner_id,
@@ -59,7 +60,6 @@ from app.utils.session_state import (
     set_active_partner_id,
 )
 from app.utils.validators import validate_partner_form
-from app.utils.clinical import get_symptom_classification
 
 st.set_page_config(page_title="Partners — VCA Monitor", layout="wide")
 init_session_state()
@@ -89,7 +89,7 @@ with st.sidebar:
         st.stop()
 
     st.write(f"**#{case.id} — {case.patient_name}**")
-    st.caption(f"Lot: {case.lot or '—'}  |  Manager: {case.case_manager or '—'}")
+    st.caption(f"Diagnosis: {case.lot or '—'}  |  Manager: {case.case_manager or '—'}")
 
     st.divider()
     st.subheader("Partners")
@@ -382,40 +382,18 @@ with st.form("partner_form", border=True):
     st.divider()
 
     st.divider()
-    with st.expander(
-        "🔬 Clinical Details (Optional - for VCA analysis)", expanded=False
-    ):
-        st.caption("Complete these fields to streamline ghosting analysis")
-
-        col_sym, col_exp = st.columns(2)
-
-        with col_sym:
-            st.subheader("Symptom Details")
-            symptom_onset = st.date_input(
-                "Symptom onset date",
-                value=partner.symptom_onset_date if partner else None,
-                help="When did this symptom first appear?",
-                format="MM/DD/YYYY",
-            )
-            symptom_duration = st.number_input(
-                "Symptom duration (days, 0=unknown)",
-                min_value=0,
-                max_value=90,
-                value=partner.symptom_duration_days or 0 if partner else 0,
-            )
-
-        with col_exp:
-            st.subheader("Exposure Window")
-            exposure_first = st.date_input(
-                "First exposure to OP",
-                value=relationship.exposure_first_date if relationship else None,
-                format="MM/DD/YYYY",
-            )
-            exposure_last = st.date_input(
-                "Last exposure to OP",
-                value=relationship.exposure_last_date if relationship else None,
-                format="MM/DD/YYYY",
-            )
+    with st.expander("📋 Exposure & Relationship Details", expanded=False):
+        st.subheader("Exposure Window")
+        exposure_first = st.date_input(
+            "First exposure to OP",
+            value=relationship.exposure_first_date if relationship else None,
+            format="MM/DD/YYYY",
+        )
+        exposure_last = st.date_input(
+            "Last exposure to OP",
+            value=relationship.exposure_last_date if relationship else None,
+            format="MM/DD/YYYY",
+        )
 
         sex_types_display = ["Anal", "Oral", "Vaginal", "Penile", "Rectal"]
         sex_types_value = ["Anal LX", "Oral LX", "Vaginal LX", "Penile LX", "Rectal LX"]
@@ -494,10 +472,6 @@ with st.form("partner_form", border=True):
             use_container_width=True,
             hide_index=True,
         )
-
-        st.divider()
-        st.subheader("Lab Dates")
-        st.info("Lab dates are now managed in the 'Lab results' section above.")
 
     # --- Buttons ---
     col_b1, col_b2, col_b3, _ = st.columns([1, 1, 1, 3])
@@ -782,8 +756,6 @@ if partners:
                 "Name": p.name or "—",
                 "Reason": p.reason_for_exam or "—",
                 "Treatment date": str(p.treatment_date) if p.treatment_date else "—",
-                "Lab 1": p.lab_1 or "—",
-                "Lab 2": p.lab_2 or "—",
                 "Treatment": p.treatment or "—",
             }
         )

@@ -6,7 +6,6 @@ Displays all cases in a searchable table, shows summary metrics,
 and lets the user open a case (routing to the OP form) or create a new one.
 """
 
-
 import pandas as pd
 import streamlit as st
 
@@ -31,6 +30,7 @@ require_password()
 # Load data
 # ---------------------------------------------------------------------------
 
+
 def load_dashboard_data(search_term: str = "") -> tuple[list, dict]:
     """
     Returns (cases, partner_counts).
@@ -54,17 +54,20 @@ def cases_to_dataframe(cases, partner_counts: dict) -> pd.DataFrame:
     """Convert case objects to a display-ready DataFrame."""
     rows = []
     for c in cases:
-        rows.append({
-            "ID":             c.id,
-            "Patient name":   c.patient_name,
-            "Lot":            c.lot or "—",
-            "Case manager":   c.case_manager or "—",
-            "Reason":         c.reason_for_exam or "—",
-            "Treatment date": str(c.treatment_date) if c.treatment_date else "—",
-            "Lab 1":          c.lab_1 or "—",
-            "Partners":       partner_counts.get(c.id, 0),
-            "Last updated":   c.updated_at.strftime("%Y-%m-%d %H:%M") if c.updated_at else "—",
-        })
+        rows.append(
+            {
+                "ID": c.id,
+                "Patient name": c.patient_name,
+                "Diagnosis": c.lot or "—",
+                "Case manager": c.case_manager or "—",
+                "Reason": c.reason_for_exam or "—",
+                "Treatment date": str(c.treatment_date) if c.treatment_date else "—",
+                "Partners": partner_counts.get(c.id, 0),
+                "Last updated": c.updated_at.strftime("%Y-%m-%d %H:%M")
+                if c.updated_at
+                else "—",
+            }
+        )
     return pd.DataFrame(rows) if rows else pd.DataFrame()
 
 
@@ -102,18 +105,21 @@ with col_new:
 
 cases, partner_counts = load_dashboard_data(search_term)
 
-total_cases    = len(cases)
+total_cases = len(cases)
 total_partners = sum(partner_counts.values())
-treated_count  = sum(1 for c in cases if c.treatment_date is not None)
-untreated      = total_cases - treated_count
+treated_count = sum(1 for c in cases if c.treatment_date is not None)
+untreated = total_cases - treated_count
 
 m1, m2, m3, m4 = st.columns(4)
-m1.metric("Total cases",    total_cases)
+m1.metric("Total cases", total_cases)
 m2.metric("Total partners", total_partners)
-m3.metric("Treated",        treated_count)
-m4.metric("Pending treatment", untreated,
-          delta=f"-{untreated}" if untreated else None,
-          delta_color="inverse")
+m3.metric("Treated", treated_count)
+m4.metric(
+    "Pending treatment",
+    untreated,
+    delta=f"-{untreated}" if untreated else None,
+    delta_color="inverse",
+)
 
 st.divider()
 
@@ -135,8 +141,10 @@ else:
             return ["background-color: #fff8e1"] * len(row)
         return [""] * len(row)
 
-    st.caption(f"Showing {len(cases)} case{'s' if len(cases) != 1 else ''}"
-               + (f" matching '{search_term}'" if search_term else ""))
+    st.caption(
+        f"Showing {len(cases)} case{'s' if len(cases) != 1 else ''}"
+        + (f" matching '{search_term}'" if search_term else "")
+    )
 
     # Render the styled table
     st.dataframe(
@@ -146,7 +154,9 @@ else:
         column_config={
             "ID": st.column_config.NumberColumn("ID", width="small"),
             "Partners": st.column_config.NumberColumn("Partners", width="small"),
-            "Treatment date": st.column_config.TextColumn("Treatment date", width="medium"),
+            "Treatment date": st.column_config.TextColumn(
+                "Treatment date", width="medium"
+            ),
             "Last updated": st.column_config.TextColumn("Last updated", width="medium"),
         },
     )
@@ -187,23 +197,26 @@ else:
     if selected_id:
         selected_case = next((c for c in cases if c.id == selected_id), None)
         if selected_case:
-            with st.expander(f"Quick view — {selected_case.patient_name}", expanded=True):
+            with st.expander(
+                f"Quick view — {selected_case.patient_name}", expanded=True
+            ):
                 q1, q2, q3, q4, q5 = st.columns(5)
-                q1.metric("Lot",            selected_case.lot or "—")
-                q2.metric("Case manager",   selected_case.case_manager or "—")
-                q3.metric("Reason",         selected_case.reason_for_exam or "—")
-                
+                q1.metric("Diagnosis", selected_case.lot or "—")
+                q2.metric("Case manager", selected_case.case_manager or "—")
+                q3.metric("Reason", selected_case.reason_for_exam or "—")
+
                 # Sync the summary view with the latest lab result
                 with SessionLocal() as db:
                     from app.db.queries import get_lab_results_for_case
+
                     latest_labs = get_lab_results_for_case(db, selected_case.id)
                     lab_display = "—"
                     if latest_labs:
                         latest = latest_labs[-1]
                         lab_display = f"{latest.test_type}: {latest.titer or latest.result or 'N/A'}"
-                
-                q4.metric("Latest Lab",      lab_display)
-                q5.metric("Partners",       partner_counts.get(selected_id, 0))
+
+                q4.metric("Latest Lab", lab_display)
+                q5.metric("Partners", partner_counts.get(selected_id, 0))
 
                 if selected_case.medical_info:
                     st.caption("Medical info")
@@ -215,7 +228,9 @@ else:
                         set_active_case_id(selected_id)
                         st.switch_page("pages/04_map_sheet.py")
                 with nav2:
-                    if st.button("Network graph", key="nav_net", use_container_width=True):
+                    if st.button(
+                        "Network graph", key="nav_net", use_container_width=True
+                    ):
                         set_active_case_id(selected_id)
                         st.switch_page("pages/05_network_graph.py")
                 with nav3:

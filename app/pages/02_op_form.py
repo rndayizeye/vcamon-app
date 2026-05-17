@@ -312,32 +312,6 @@ with st.form("op_form", border=True):
     st.divider()
     col_btn1, col_btn2, col_btn3, _ = st.columns([1, 1, 1, 3])
 
-    st.divider()
-    with st.expander(
-        "🔬 Clinical Details (Optional - for VCA analysis)", expanded=False
-    ):
-        st.caption("Complete these fields to streamline ghosting analysis")
-
-        st.subheader("Symptom Details")
-        symptom_onset = st.date_input(
-            "Symptom onset date",
-            value=case.symptom_onset_date if case else None,
-            help="When did this symptom first appear?",
-            format="MM/DD/YYYY",
-        )
-        symptom_duration = st.number_input(
-            "Symptom duration (days, 0=unknown)",
-            min_value=0,
-            max_value=90,
-            value=case.symptom_duration_days or 0 if case else 0,
-        )
-        symptom_ongoing = st.checkbox(
-            "Symptom is ongoing",
-            value=case.symptom_ongoing if case else False,
-            help="Check if the symptom is still active.",
-        )
-        st.info("Lab dates are now managed in the 'Lab results' section above.")
-
     with col_btn1:
         submitted = st.form_submit_button(
             "💾  Save" if case else "➕  Create case",
