@@ -19,11 +19,15 @@ from app.components.dropdowns import enum_options, val_or_none
 from app.db.database import SessionLocal
 from app.db.models import (
     LesionType,
+    NonTreponemalTestType,
+    NonTreponemalTiter,
     ReasonForExam,
     Symptom,
     SymptomClassification,
     TestCategory,
     Treatment,
+    TreponemalTestResult,
+    TreponemalTestType,
 )
 from app.db.queries import (
     create_case_partner_relationship,
@@ -55,6 +59,7 @@ from app.utils.session_state import (
     set_active_partner_id,
 )
 from app.utils.validators import validate_partner_form
+from app.utils.clinical import get_symptom_classification
 
 st.set_page_config(page_title="Partners — VCA Monitor", layout="wide")
 init_session_state()
@@ -222,7 +227,6 @@ with st.form("partner_form", border=True):
                     {
                         "id": s.id,
                         "Type": s.symptom_type,
-                        "Classification": s.classification or "",
                         "Onset Date": s.onset_date,
                         "Duration": s.duration_days,
                         "Ongoing": s.ongoing,
@@ -235,14 +239,7 @@ with st.form("partner_form", border=True):
         # Create DataFrame with proper schema
         symptom_df_base = pd.DataFrame(
             existing_symptoms,
-            columns=[
-                "id",
-                "Type",
-                "Classification",
-                "Onset Date",
-                "Duration",
-                "Ongoing",
-            ],
+            columns=["id", "Type", "Onset Date", "Duration", "Ongoing"],
         )
 
         edited_symptom_df = st.data_editor(
@@ -297,50 +294,90 @@ with st.form("partner_form", border=True):
     st.divider()
     st.subheader("Lab results")
     st.caption(
-        "Manage all laboratory results. Use the table to add, edit, or remove entries."
+        "Add, edit, or remove entries. "
+        "Non-treponemal (RPR / VDRL) on the left; treponemal confirmatory on the right."
     )
 
-    # Load existing lab results for the partner
+    # Load existing lab results — split by category
     if partner:
         with SessionLocal() as db:
             labs = get_lab_results_for_partner(db, partner.id)
-            existing_labs = [
+            existing_nontrop = [
                 {
                     "id": l.id,
-                    "Category": l.test_category,
                     "Test Type": l.test_type,
                     "Titer": l.titer or "",
+                    "Date": l.collection_date,
+                }
+                for l in labs
+                if l.test_category == TestCategory.NON_TREPONEMAL.value
+            ]
+            existing_trep = [
+                {
+                    "id": l.id,
+                    "Test Type": l.test_type,
                     "Result": l.result or "",
                     "Date": l.collection_date,
                 }
                 for l in labs
+                if l.test_category == TestCategory.TREPONEMAL.value
             ]
     else:
-        existing_labs = []
+        existing_nontrop = []
+        existing_trep = []
 
-    # Create DataFrame with proper schema
-    lab_df_base = pd.DataFrame(
-        existing_labs,
-        columns=["id", "Category", "Test Type", "Titer", "Result", "Date"],
+    nontrop_df = pd.DataFrame(
+        existing_nontrop, columns=["id", "Test Type", "Titer", "Date"]
     )
+    trep_df = pd.DataFrame(existing_trep, columns=["id", "Test Type", "Result", "Date"])
 
-    edited_lab_df = st.data_editor(
-        lab_df_base,
-        num_rows="dynamic",
-        column_config={
-            "id": st.column_config.NumberColumn("ID", disabled=True),
-            "Category": st.column_config.SelectboxColumn(
-                "Category", options=enum_options(TestCategory), required=True
-            ),
-            "Test Type": st.column_config.TextColumn("Test Type", required=True),
-            "Titer": st.column_config.TextColumn("Titer (Non-treponemal)"),
-            "Result": st.column_config.TextColumn("Result (Treponemal)"),
-            "Date": st.column_config.DateColumn("Collection Date", required=True),
-        },
-        key="partner_lab_editor",
-        use_container_width=True,
-        hide_index=True,
-    )
+    col_lab1, col_lab2 = st.columns(2)
+
+    with col_lab1:
+        st.caption("🔵 Non-treponemal (RPR / VDRL)")
+        edited_nontrop_df = st.data_editor(
+            nontrop_df,
+            num_rows="dynamic",
+            column_config={
+                "id": st.column_config.NumberColumn("ID", disabled=True),
+                "Test Type": st.column_config.SelectboxColumn(
+                    "Test",
+                    options=enum_options(NonTreponemalTestType),
+                    required=True,
+                ),
+                "Titer": st.column_config.SelectboxColumn(
+                    "Titer",
+                    options=enum_options(NonTreponemalTiter),
+                ),
+                "Date": st.column_config.DateColumn("Collection Date", required=True),
+            },
+            key="partner_nontrop_lab_editor",
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    with col_lab2:
+        st.caption("🟢 Treponemal confirmatory")
+        edited_trep_df = st.data_editor(
+            trep_df,
+            num_rows="dynamic",
+            column_config={
+                "id": st.column_config.NumberColumn("ID", disabled=True),
+                "Test Type": st.column_config.SelectboxColumn(
+                    "Test",
+                    options=enum_options(TreponemalTestType),
+                    required=True,
+                ),
+                "Result": st.column_config.SelectboxColumn(
+                    "Result",
+                    options=enum_options(TreponemalTestResult),
+                ),
+                "Date": st.column_config.DateColumn("Collection Date", required=True),
+            },
+            key="partner_trep_lab_editor",
+            use_container_width=True,
+            hide_index=True,
+        )
 
     st.divider()
 
@@ -486,32 +523,6 @@ with st.form("partner_form", border=True):
 # Save logic
 # ---------------------------------------------------------------------------
 
-# ---------------------------------------------------------------------------
-# Helper — infer symptom classification from symptom type
-# ---------------------------------------------------------------------------
-
-
-def _get_symptom_classification(symptom_type: str | None) -> str | None:
-    if symptom_type in [
-        LesionType.ANAL.value,
-        LesionType.LAB.value,
-        LesionType.LX.value,
-        LesionType.ORAL.value,
-        LesionType.PENILE.value,
-        LesionType.RECTAL.value,
-        LesionType.VAGINAL.value,
-    ]:
-        return SymptomClassification.PRIMARY.value
-    elif symptom_type in [
-        Symptom.RASH.value,
-        Symptom.PP_RASH.value,
-        Symptom.GB_RASH.value,
-        Symptom.C_LATA.value,
-        Symptom.ALOPECIA.value,
-    ]:
-        return SymptomClassification.SECONDARY.value
-    return None
-
 
 if submitted or add_another or go_map:
     errors = validate_partner_form(partner_name)
@@ -640,74 +651,93 @@ if submitted or add_another or go_map:
                             sex_types=row["Sex Types"],
                         )
 
-            # Sync Lab Results
+            # Sync Lab Results — two editors (non-treponemal + treponemal)
             current_lab_ids = [
                 l.id for l in get_lab_results_for_partner(db, partner_id)
             ]
-            editor_lab_ids = [
+            editor_lab_ids = {
                 int(row["id"])
-                for row in edited_lab_df.to_dict("records")
+                for df in (edited_nontrop_df, edited_trep_df)
+                for row in df.to_dict("records")
                 if pd.notna(row.get("id"))
-            ]
+            }
 
             for lid in current_lab_ids:
                 if lid not in editor_lab_ids:
                     delete_lab_result_entry(db, lid)
 
-            for row in edited_lab_df.to_dict("records"):
-                # Skip completely empty rows
-                if pd.isna(row.get("Category")) or not row.get("Category"):
+            for row in edited_nontrop_df.to_dict("records"):
+                if pd.isna(row.get("Test Type")) or not row.get("Test Type"):
                     continue
-
                 if pd.notna(row.get("id")):
                     update_lab_result_entry(
                         db,
                         int(row["id"]),
-                        test_category=row["Category"],
+                        test_category=TestCategory.NON_TREPONEMAL.value,
                         test_type=row["Test Type"],
-                        titer=row["Titer"],
-                        result=row["Result"],
+                        titer=row.get("Titer") or None,
+                        result=None,
                         collection_date=row["Date"],
                     )
                 else:
                     create_lab_result_entry(
                         db,
-                        test_category=row["Category"],
+                        test_category=TestCategory.NON_TREPONEMAL.value,
                         test_type=row["Test Type"],
                         collection_date=row["Date"],
                         partner_id=partner_id,
-                        titer=row["Titer"],
-                        result=row["Result"],
+                        titer=row.get("Titer") or None,
+                        result=None,
+                    )
+
+            for row in edited_trep_df.to_dict("records"):
+                if pd.isna(row.get("Test Type")) or not row.get("Test Type"):
+                    continue
+                if pd.notna(row.get("id")):
+                    update_lab_result_entry(
+                        db,
+                        int(row["id"]),
+                        test_category=TestCategory.TREPONEMAL.value,
+                        test_type=row["Test Type"],
+                        titer=None,
+                        result=row.get("Result") or None,
+                        collection_date=row["Date"],
+                    )
+                else:
+                    create_lab_result_entry(
+                        db,
+                        test_category=TestCategory.TREPONEMAL.value,
+                        test_type=row["Test Type"],
+                        collection_date=row["Date"],
+                        partner_id=partner_id,
+                        titer=None,
+                        result=row.get("Result") or None,
                     )
 
             # Sync Symptom Entries
             current_symptom_ids = [
                 s.id for s in get_symptoms_for_partner(db, partner_id)
             ]
-            editor_symptom_ids = [
+            editor_symptom_ids = {
                 int(row["id"])
                 for row in edited_symptom_df.to_dict("records")
                 if pd.notna(row.get("id"))
-            ]
+            }
 
-            # Delete removed symptoms
             for sid in current_symptom_ids:
                 if sid not in editor_symptom_ids:
                     delete_symptom_entry(db, sid)
 
-            # Upsert symptoms
             for row in edited_symptom_df.to_dict("records"):
-                # Skip completely empty rows
                 if pd.isna(row.get("Type")) or not row.get("Type"):
                     continue
-
+                derived_class = get_symptom_classification(row["Type"])
                 if pd.notna(row.get("id")):
-                    # Update existing
                     update_symptom_entry(
                         db,
                         int(row["id"]),
                         symptom_type=row["Type"],
-                        classification=_get_symptom_classification(row["Type"]),
+                        classification=derived_class,
                         onset_date=row.get("Onset Date"),
                         duration_days=int(row["Duration"])
                         if pd.notna(row.get("Duration"))
@@ -715,11 +745,10 @@ if submitted or add_another or go_map:
                         ongoing=bool(row.get("Ongoing", False)),
                     )
                 else:
-                    # Create new
                     create_symptom_entry(
                         db,
                         symptom_type=row["Type"],
-                        classification=row.get("Classification") or None,
+                        classification=derived_class,
                         onset_date=row.get("Onset Date"),
                         duration_days=int(row["Duration"])
                         if pd.notna(row.get("Duration"))
