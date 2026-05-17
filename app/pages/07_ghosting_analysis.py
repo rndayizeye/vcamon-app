@@ -25,6 +25,8 @@ from app.db.queries import (
     get_ghostings,
     get_partner_by_id,
     get_partners_for_case,
+    get_symptoms_for_case,
+    get_symptoms_for_partner,
 )
 from app.utils.clinical import (
     INCUBATION,
@@ -50,6 +52,79 @@ require_password()
 
 
 # ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+# Maps SymptomEntry.classification → VCA engine symptom type
+_CLASSIFICATION_TO_VCA: dict[str, str] = {
+    "Primary": "Primary Chancre",
+    "Secondary": "Secondary Rash/Lesions",
+}
+
+_VCA_SYM_OPTIONS = [
+    "Primary Chancre",
+    "Historical Primary",
+    "Ghosted Primary",
+    "Secondary Rash/Lesions",
+]
+
+
+def _entries_to_rows(
+    entries,
+    historical_chancre,
+    historical_date,
+) -> list[dict]:
+    """
+    Convert SymptomEntry ORM objects to data-editor row dicts.
+    Entries without an onset_date or with an unrecognised classification
+    are silently skipped.  A Historical Primary row is appended when the
+    model flag is set.
+    """
+    rows = []
+    for e in entries:
+        if not e.onset_date:
+            continue
+        vca_type = _CLASSIFICATION_TO_VCA.get(e.classification or "", "")
+        if not vca_type:
+            continue
+        rows.append(
+            {
+                "Type": vca_type,
+                "Onset Date": e.onset_date,
+                "Duration": e.duration_days or 0,
+            }
+        )
+    if historical_chancre and historical_date:
+        rows.append(
+            {
+                "Type": "Historical Primary",
+                "Onset Date": historical_date,
+                "Duration": 0,
+            }
+        )
+    return rows
+
+
+def _rows_to_symptoms(df) -> list:
+    """Convert a symptom data-editor DataFrame into engine Symptom objects."""
+    from datetime import date as _date
+
+    syms = []
+    for row in df.to_dict("records"):
+        sym_type = row.get("Type")
+        onset = row.get("Onset Date")
+        if not sym_type or (isinstance(sym_type, float) and pd.isna(sym_type)):
+            continue
+        if onset is None or (not isinstance(onset, _date) and pd.isna(onset)):
+            continue
+        onset_d = onset if isinstance(onset, _date) else pd.to_datetime(onset).date()
+        dur = row.get("Duration")
+        duration_days = int(dur) if pd.notna(dur) else 0
+        syms.append(Symptom(type=sym_type, onset=onset_d, duration_days=duration_days))
+    return syms
+
+
+# ---------------------------------------------------------------------------
 # Sidebar
 # ---------------------------------------------------------------------------
 
@@ -64,7 +139,7 @@ with st.sidebar:
         st.stop()
 
     with SessionLocal() as db:
-        case     = get_case_by_id(db, case_id)
+        case = get_case_by_id(db, case_id)
         partners = get_partners_for_case(db, case_id)
 
     if not case:
@@ -93,15 +168,29 @@ st.caption(
     "NCSDDC Visual Case Analysis methodology (2022)"
 )
 
-with st.expander("Clinical reference — syphilis natural history durations", expanded=False):
+with st.expander(
+    "Clinical reference — syphilis natural history durations", expanded=False
+):
     ref_data = {
-        "Phase":   ["Incubation", "Primary chancre", "Latency", "Secondary"],
-        "Min":     [f"{INCUBATION['min']}d", f"{PRIMARY['min']}d",
-                    f"{LATENCY['min']}d",    f"{SECONDARY['min']}d"],
-        "Avg":     [f"{INCUBATION['avg']}d", f"{PRIMARY['avg']}d",
-                    f"{LATENCY['avg']}d",    f"{SECONDARY['avg']}d"],
-        "Max":     [f"{INCUBATION['max']}d", f"{PRIMARY['max']}d",
-                    f"{LATENCY['max']}d",    f"{SECONDARY['max']}d"],
+        "Phase": ["Incubation", "Primary chancre", "Latency", "Secondary"],
+        "Min": [
+            f"{INCUBATION['min']}d",
+            f"{PRIMARY['min']}d",
+            f"{LATENCY['min']}d",
+            f"{SECONDARY['min']}d",
+        ],
+        "Avg": [
+            f"{INCUBATION['avg']}d",
+            f"{PRIMARY['avg']}d",
+            f"{LATENCY['avg']}d",
+            f"{SECONDARY['avg']}d",
+        ],
+        "Max": [
+            f"{INCUBATION['max']}d",
+            f"{PRIMARY['max']}d",
+            f"{LATENCY['max']}d",
+            f"{SECONDARY['max']}d",
+        ],
     }
     st.dataframe(pd.DataFrame(ref_data), use_container_width=True, hide_index=True)
     st.caption(
@@ -122,8 +211,7 @@ if not partners:
     st.stop()
 
 partner_options = {
-    p.id: f"Partner {p.partner_number} — {p.name or 'Unnamed'}"
-    for p in partners
+    p.id: f"Partner {p.partner_number} — {p.name or 'Unnamed'}" for p in partners
 }
 
 selected_partner_id = st.selectbox(
@@ -134,6 +222,10 @@ selected_partner_id = st.selectbox(
 
 with SessionLocal() as db:
     selected_partner = get_partner_by_id(db, selected_partner_id)
+
+with SessionLocal() as db:
+    op_sym_entries = get_symptoms_for_case(db, case_id)
+    partner_sym_entries = get_symptoms_for_partner(db, selected_partner_id)
 
 if not selected_partner:
     st.error("Partner not found.")
@@ -156,64 +248,96 @@ col_op, col_partner = st.columns(2)
 
 with col_op:
     st.markdown(f"**OP — {case.patient_name}**")
-    op_sym_type = st.selectbox(
-        "OP symptom type",
-        options=["Primary Chancre", "Historical Primary", "Ghosted Primary",
-                 "Secondary Rash/Lesions", "None"],
-        key="op_sym_type",
-        index=0 if case.lesion_type else 3,
+    st.caption("Symptoms — edit or add rows; pre-filled from saved records")
+    _op_sym_rows = _entries_to_rows(
+        op_sym_entries,
+        case.historical_primary_chancre,
+        case.historical_primary_date,
     )
-    op_sym_onset = st.date_input(
-        "OP symptom onset",
-        value=case.treatment_date or date.today(),
-        key="op_sym_onset", format="MM/DD/YYYY",
+    _op_sym_df = pd.DataFrame(
+        _op_sym_rows if _op_sym_rows else [],
+        columns=["Type", "Onset Date", "Duration"],
     )
-    op_sym_dur = st.number_input(
-        "OP symptom duration (days, 0 = use average)",
-        min_value=0, max_value=90, value=0, key="op_sym_dur",
+    edited_op_sym_df = st.data_editor(
+        _op_sym_df,
+        num_rows="dynamic",
+        column_config={
+            "Type": st.column_config.SelectboxColumn(
+                "Symptom type", options=_VCA_SYM_OPTIONS, required=True
+            ),
+            "Onset Date": st.column_config.DateColumn("Onset date", required=True),
+            "Duration": st.column_config.NumberColumn(
+                "Duration (days, 0 = avg)", min_value=0, max_value=90, default=0
+            ),
+        },
+        key="op_sym_editor",
+        use_container_width=True,
+        hide_index=True,
     )
     st.caption("Exposure (OP's account)")
-    op_exp_first = st.date_input("First exposure", value=None, key="op_exp_first", format="MM/DD/YYYY")
-    op_exp_last  = st.date_input("Last exposure",  value=None, key="op_exp_last",  format="MM/DD/YYYY")
+    op_exp_first = st.date_input(
+        "First exposure", value=None, key="op_exp_first", format="MM/DD/YYYY"
+    )
+    op_exp_last = st.date_input(
+        "Last exposure", value=None, key="op_exp_last", format="MM/DD/YYYY"
+    )
     op_sex_types = st.multiselect(
         "Sex type(s) reported by OP",
         options=["Anal LX", "Oral LX", "Vaginal LX", "Penile LX", "Rectal LX"],
         key="op_sex",
     )
     op_treatment = st.date_input(
-        "OP treatment date", value=case.treatment_date,
-        key="op_treat", format="MM/DD/YYYY",
+        "OP treatment date",
+        value=case.treatment_date,
+        key="op_treat",
+        format="MM/DD/YYYY",
     )
 
 with col_partner:
     st.markdown(f"**Partner — {pname}**")
-    p_sym_type = st.selectbox(
-        "Partner symptom type",
-        options=["Primary Chancre", "Historical Primary", "Ghosted Primary",
-                 "Secondary Rash/Lesions", "None"],
-        key="p_sym_type",
-        index=0 if selected_partner.lesion_type else 4,
+    st.caption("Symptoms — edit or add rows; pre-filled from saved records")
+    _partner_sym_rows = _entries_to_rows(
+        partner_sym_entries,
+        selected_partner.historical_primary_chancre,
+        selected_partner.historical_primary_date,
     )
-    p_sym_onset = st.date_input(
-        "Partner symptom onset",
-        value=selected_partner.treatment_date or date.today(),
-        key="p_sym_onset", format="MM/DD/YYYY",
+    _partner_sym_df = pd.DataFrame(
+        _partner_sym_rows if _partner_sym_rows else [],
+        columns=["Type", "Onset Date", "Duration"],
     )
-    p_sym_dur = st.number_input(
-        "Partner symptom duration (days, 0 = use average)",
-        min_value=0, max_value=90, value=0, key="p_sym_dur",
+    edited_partner_sym_df = st.data_editor(
+        _partner_sym_df,
+        num_rows="dynamic",
+        column_config={
+            "Type": st.column_config.SelectboxColumn(
+                "Symptom type", options=_VCA_SYM_OPTIONS, required=True
+            ),
+            "Onset Date": st.column_config.DateColumn("Onset date", required=True),
+            "Duration": st.column_config.NumberColumn(
+                "Duration (days, 0 = avg)", min_value=0, max_value=90, default=0
+            ),
+        },
+        key="partner_sym_editor",
+        use_container_width=True,
+        hide_index=True,
     )
     st.caption("Exposure (partner's account)")
-    p_exp_first = st.date_input("First exposure", value=None, key="p_exp_first", format="MM/DD/YYYY")
-    p_exp_last  = st.date_input("Last exposure",  value=None, key="p_exp_last",  format="MM/DD/YYYY")
+    p_exp_first = st.date_input(
+        "First exposure", value=None, key="p_exp_first", format="MM/DD/YYYY"
+    )
+    p_exp_last = st.date_input(
+        "Last exposure", value=None, key="p_exp_last", format="MM/DD/YYYY"
+    )
     p_sex_types = st.multiselect(
         "Sex type(s) reported by partner",
         options=["Anal LX", "Oral LX", "Vaginal LX", "Penile LX", "Rectal LX"],
         key="p_sex",
     )
     p_treatment = st.date_input(
-        "Partner treatment date", value=selected_partner.treatment_date,
-        key="p_treat", format="MM/DD/YYYY",
+        "Partner treatment date",
+        value=selected_partner.treatment_date,
+        key="p_treat",
+        format="MM/DD/YYYY",
     )
 
 # ---------------------------------------------------------------------------
@@ -224,21 +348,17 @@ st.divider()
 run_btn = st.button("Run ghosting analysis", type="primary")
 
 if run_btn:
-    op_symptoms = (
-        [Symptom(type=op_sym_type, onset=op_sym_onset, duration_days=int(op_sym_dur))]
-        if op_sym_type != "None" else []
-    )
-    partner_symptoms = (
-        [Symptom(type=p_sym_type, onset=p_sym_onset, duration_days=int(p_sym_dur))]
-        if p_sym_type != "None" else []
-    )
+    op_symptoms = _rows_to_symptoms(edited_op_sym_df)
+    partner_symptoms = _rows_to_symptoms(edited_partner_sym_df)
     op_exposure = (
         Exposure(first=op_exp_first, last=op_exp_last, sex_types=op_sex_types)
-        if op_exp_first and op_exp_last else None
+        if op_exp_first and op_exp_last
+        else None
     )
     partner_exposure = (
         Exposure(first=p_exp_first, last=p_exp_last, sex_types=p_sex_types)
-        if p_exp_first and p_exp_last else None
+        if p_exp_first and p_exp_last
+        else None
     )
 
     try:
@@ -253,13 +373,13 @@ if run_btn:
             partner_treatment_date=p_treatment,
         )
         # Cache inputs alongside result for diagram building
-        st.session_state["ghosting_result"]           = result
-        st.session_state["ghosting_op_symptoms"]      = op_symptoms
+        st.session_state["ghosting_result"] = result
+        st.session_state["ghosting_op_symptoms"] = op_symptoms
         st.session_state["ghosting_partner_symptoms"] = partner_symptoms
-        st.session_state["ghosting_op_exposure"]      = op_exposure
+        st.session_state["ghosting_op_exposure"] = op_exposure
         st.session_state["ghosting_partner_exposure"] = partner_exposure
-        st.session_state["ghosting_p_treatment"]      = p_treatment
-        st.session_state["ghosting_pname"]            = pname
+        st.session_state["ghosting_p_treatment"] = p_treatment
+        st.session_state["ghosting_pname"] = pname
     except ValueError as e:
         st.error(f"Cannot run analysis: {e}")
         st.stop()
@@ -272,12 +392,12 @@ if run_btn:
 if "ghosting_result" not in st.session_state:
     st.stop()
 
-result      = st.session_state["ghosting_result"]
-op_syms     = st.session_state.get("ghosting_op_symptoms", [])
-p_syms      = st.session_state.get("ghosting_partner_symptoms", [])
-op_exp      = st.session_state.get("ghosting_op_exposure")
-p_exp       = st.session_state.get("ghosting_partner_exposure")
-p_treat     = st.session_state.get("ghosting_p_treatment")
+result = st.session_state["ghosting_result"]
+op_syms = st.session_state.get("ghosting_op_symptoms", [])
+p_syms = st.session_state.get("ghosting_partner_symptoms", [])
+op_exp = st.session_state.get("ghosting_op_exposure")
+p_exp = st.session_state.get("ghosting_partner_exposure")
+p_treat = st.session_state.get("ghosting_p_treatment")
 cached_pname = st.session_state.get("ghosting_pname", pname)
 
 st.divider()
@@ -296,10 +416,10 @@ else:
 
 # Ghosted lesion date summary
 m1, m2, m3, m4 = st.columns(4)
-m1.metric("Ghosted source onset",  str(result.ghosted_source.onset))
-m2.metric("Ghosted source end",    str(result.ghosted_source.end))
-m3.metric("Ghosted spread onset",  str(result.ghosted_spread.onset))
-m4.metric("Ghosted spread end",    str(result.ghosted_spread.end))
+m1.metric("Ghosted source onset", str(result.ghosted_source.onset))
+m2.metric("Ghosted source end", str(result.ghosted_source.end))
+m3.metric("Ghosted spread onset", str(result.ghosted_spread.onset))
+m4.metric("Ghosted spread end", str(result.ghosted_spread.end))
 
 # ---------------------------------------------------------------------------
 # Visual scenario diagrams
@@ -316,12 +436,12 @@ st.caption(
 
 # Determine which symptom list belongs to P1 vs P2
 p1_is_op = result.p1_name == case.patient_name
-p1_syms  = op_syms if p1_is_op else p_syms
-p2_syms  = p_syms  if p1_is_op else op_syms
-p1_exp   = op_exp  if p1_is_op else p_exp
-p2_exp   = p_exp   if p1_is_op else op_exp
+p1_syms = op_syms if p1_is_op else p_syms
+p2_syms = p_syms if p1_is_op else op_syms
+p1_exp = op_exp if p1_is_op else p_exp
+p2_exp = p_exp if p1_is_op else op_exp
 
-p1_symptom = p1_syms[0] if p1_syms else None
+p1_symptom = result.p1_symptom  # anchor chosen by select_case1
 
 col_src, col_spr = st.columns(2)
 
@@ -383,21 +503,27 @@ st.subheader("Criteria evaluation")
 def _render_criteria_table(criteria: dict):
     rows = []
     for k, v in criteria.items():
-        icon = {"pass": "✓ Pass", "fail": "✗ Fail",
-                "warn": "⚠ Warn", "na":   "— N/A"}.get(v["status"], "?")
-        rows.append({
-            "Criterion": k.replace("_", " ").title(),
-            "Result":    icon,
-            "Detail":    v["detail"],
-        })
+        icon = {
+            "pass": "✓ Pass",
+            "fail": "✗ Fail",
+            "warn": "⚠ Warn",
+            "na": "— N/A",
+        }.get(v["status"], "?")
+        rows.append(
+            {
+                "Criterion": k.replace("_", " ").title(),
+                "Result": icon,
+                "Detail": v["detail"],
+            }
+        )
     st.dataframe(
         pd.DataFrame(rows),
         use_container_width=True,
         hide_index=True,
         column_config={
             "Criterion": st.column_config.TextColumn(width="medium"),
-            "Result":    st.column_config.TextColumn(width="small"),
-            "Detail":    st.column_config.TextColumn(width="large"),
+            "Result": st.column_config.TextColumn(width="small"),
+            "Detail": st.column_config.TextColumn(width="large"),
         },
     )
 
@@ -439,14 +565,24 @@ save_spread = st.checkbox(
 if st.button("💾  Save selected lesions", type="primary"):
     saved = []
     with SessionLocal() as db:
-        p1_ref = "OP" if result.p1_name == case.patient_name else str(selected_partner.partner_number)
-        p2_ref = str(selected_partner.partner_number) if result.p1_name == case.patient_name else "OP"
+        p1_ref = (
+            "OP"
+            if result.p1_name == case.patient_name
+            else str(selected_partner.partner_number)
+        )
+        p2_ref = (
+            str(selected_partner.partner_number)
+            if result.p1_name == case.patient_name
+            else "OP"
+        )
 
         if save_source:
             create_ghosting(
-                db, case_id=case_id,
+                db,
+                case_id=case_id,
                 ghosting_type=GhostingType.SOURCE.value,
-                from_ref=p1_ref, to_ref=p2_ref,
+                from_ref=p1_ref,
+                to_ref=p2_ref,
                 notes=(
                     f"Ghosted source: {result.ghosted_source.onset} → "
                     f"{result.ghosted_source.end}. "
@@ -458,9 +594,11 @@ if st.button("💾  Save selected lesions", type="primary"):
 
         if save_spread:
             create_ghosting(
-                db, case_id=case_id,
+                db,
+                case_id=case_id,
                 ghosting_type=GhostingType.SPREAD.value,
-                from_ref=p1_ref, to_ref=p2_ref,
+                from_ref=p1_ref,
+                to_ref=p2_ref,
                 notes=(
                     f"Ghosted spread: {result.ghosted_spread.onset} → "
                     f"{result.ghosted_spread.end}. "
@@ -472,9 +610,15 @@ if st.button("💾  Save selected lesions", type="primary"):
 
     if saved:
         st.success(f"Saved: {', '.join(saved)}.")
-        for key in ["ghosting_result", "ghosting_op_symptoms", "ghosting_partner_symptoms",
-                    "ghosting_op_exposure", "ghosting_partner_exposure",
-                    "ghosting_p_treatment", "ghosting_pname"]:
+        for key in [
+            "ghosting_result",
+            "ghosting_op_symptoms",
+            "ghosting_partner_symptoms",
+            "ghosting_op_exposure",
+            "ghosting_partner_exposure",
+            "ghosting_p_treatment",
+            "ghosting_pname",
+        ]:
             st.session_state.pop(key, None)
         st.rerun()
 
@@ -489,21 +633,26 @@ if ghostings:
     st.divider()
     st.subheader("Saved ghosting records")
 
-    ref_map = {str(p.partner_number): p.name or f"Partner {p.partner_number}"
-               for p in partners}
+    ref_map = {
+        str(p.partner_number): p.name or f"Partner {p.partner_number}" for p in partners
+    }
     ref_map["OP"] = case.patient_name
 
-    rows = [{
-        "ID":    g.id,
-        "Type":  g.ghosting_type,
-        "From":  ref_map.get(g.from_ref, g.from_ref or "—"),
-        "To":    ref_map.get(g.to_ref,   g.to_ref   or "—"),
-        "Notes": (g.notes or "")[:90],
-    } for g in ghostings]
+    rows = [
+        {
+            "ID": g.id,
+            "Type": g.ghosting_type,
+            "From": ref_map.get(g.from_ref, g.from_ref or "—"),
+            "To": ref_map.get(g.to_ref, g.to_ref or "—"),
+            "Notes": (g.notes or "")[:90],
+        }
+        for g in ghostings
+    ]
 
     st.dataframe(
         pd.DataFrame(rows).drop(columns=["ID"]),
-        use_container_width=True, hide_index=True,
+        use_container_width=True,
+        hide_index=True,
     )
 
     del_options = {
