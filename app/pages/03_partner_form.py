@@ -12,8 +12,8 @@ Navigation flow:
 import json
 from datetime import date
 
-import streamlit as st
 import pandas as pd
+import streamlit as st
 
 from app.components.dropdowns import enum_options, val_or_none
 from app.db.database import SessionLocal
@@ -30,22 +30,22 @@ from app.db.queries import (
     create_lab_result_entry,
     create_partner,
     create_relationship_report,
+    create_symptom_entry,
     delete_lab_result_entry,
     delete_relationship_report,
+    delete_symptom_entry,
     get_case_by_id,
     get_case_partner_relationship,
     get_lab_results_for_partner,
     get_partner_by_id,
     get_partners_for_case,
     get_reports_for_relationship,
+    get_symptoms_for_partner,
     update_case_partner_relationship,
     update_lab_result_entry,
     update_partner,
     update_relationship_report,
-    get_symptoms_for_partner,
-    delete_symptom_entry,
     update_symptom_entry,
-    create_symptom_entry,
 )
 from app.utils.session_state import (
     get_active_case_id,
@@ -91,10 +91,9 @@ with st.sidebar:
 
     # Partner switcher
     partner_options = {0: "➕  New partner"}
-    partner_options.update({
-        p.id: f"Partner {p.partner_number} — {p.name or 'Unnamed'}"
-        for p in partners
-    })
+    partner_options.update(
+        {p.id: f"Partner {p.partner_number} — {p.name or 'Unnamed'}" for p in partners}
+    )
 
     current_partner_id = get_active_partner_id() or 0
     if current_partner_id not in partner_options:
@@ -126,14 +125,14 @@ with SessionLocal() as db:
     partners = get_partners_for_case(db, case_id)
     active_pid = get_active_partner_id()
     partner = get_partner_by_id(db, active_pid) if active_pid else None
-    
+
     # Fetch relationship data if an active partner exists
     relationship = None
     if partner:
         relationship = get_case_partner_relationship(db, case_id, partner.id)
 
 # Next partner number for new records
-next_number = (max((p.partner_number for p in partners), default=0) + 1)
+next_number = max((p.partner_number for p in partners), default=0) + 1
 
 # ---------------------------------------------------------------------------
 # Page header
@@ -147,10 +146,7 @@ if partner:
         f"case #{case.id} — {case.patient_name}"
     )
 else:
-    st.caption(
-        f"Adding Partner {next_number} to "
-        f"case #{case.id} — {case.patient_name}"
-    )
+    st.caption(f"Adding Partner {next_number} to case #{case.id} — {case.patient_name}")
 
 # Partner count badge
 if partners:
@@ -165,7 +161,6 @@ st.divider()
 # ---------------------------------------------------------------------------
 
 with st.form("partner_form", border=True):
-
     # --- Identity ---
     st.subheader("Partner information")
     col1, col2 = st.columns([3, 1])
@@ -200,7 +195,9 @@ with st.form("partner_form", border=True):
         )
         treatment_date = st.date_input(
             "Treatment date",
-            value=partner.treatment_date if partner and partner.treatment_date else None,
+            value=partner.treatment_date
+            if partner and partner.treatment_date
+            else None,
             min_value=date(2000, 1, 1),
             max_value=date.today(),
             format="MM/DD/YYYY",
@@ -216,26 +213,36 @@ with st.form("partner_form", border=True):
     with col4:
         st.subheader("Symptoms & Lesions")
         st.caption("Add and manage all symptoms. Click a cell to edit.")
-        
+
         # Load existing symptoms for the partner
         if partner:
             with SessionLocal() as db:
                 symptoms = get_symptoms_for_partner(db, partner.id)
-                existing_symptoms = [{
-                    "id": s.id,
-                    "Type": s.symptom_type,
-                    "Classification": s.classification or "",
-                    "Onset Date": s.onset_date,
-                    "Duration": s.duration_days,
-                    "Ongoing": s.ongoing,
-                } for s in symptoms]
+                existing_symptoms = [
+                    {
+                        "id": s.id,
+                        "Type": s.symptom_type,
+                        "Classification": s.classification or "",
+                        "Onset Date": s.onset_date,
+                        "Duration": s.duration_days,
+                        "Ongoing": s.ongoing,
+                    }
+                    for s in symptoms
+                ]
         else:
             existing_symptoms = []
 
         # Create DataFrame with proper schema
         symptom_df_base = pd.DataFrame(
             existing_symptoms,
-            columns=["id", "Type", "Classification", "Onset Date", "Duration", "Ongoing"]
+            columns=[
+                "id",
+                "Type",
+                "Classification",
+                "Onset Date",
+                "Duration",
+                "Ongoing",
+            ],
         )
 
         edited_symptom_df = st.data_editor(
@@ -244,9 +251,9 @@ with st.form("partner_form", border=True):
             column_config={
                 "id": st.column_config.NumberColumn("ID", disabled=True),
                 "Type": st.column_config.SelectboxColumn(
-                    "Type", 
+                    "Type",
                     options=enum_options(LesionType) + enum_options(Symptom),
-                    required=True
+                    required=True,
                 ),
                 "Onset Date": st.column_config.DateColumn("Onset Date"),
                 "Duration": st.column_config.NumberColumn("Duration (Days)"),
@@ -263,8 +270,10 @@ with st.form("partner_form", border=True):
         "Did the partner have a primary chancre?",
         options=[False, True],
         format_func=lambda x: "Yes" if x else "No",
-        index=[False, True].index(partner.historical_primary_chancre) if partner and partner.historical_primary_chancre is not None else 0,
-        help="Required for secondary syphilis diagnosis."
+        index=[False, True].index(partner.historical_primary_chancre)
+        if partner and partner.historical_primary_chancre is not None
+        else 0,
+        help="Required for secondary syphilis diagnosis.",
     )
 
     historical_primary_date = None
@@ -275,7 +284,7 @@ with st.form("partner_form", border=True):
             min_value=date(2000, 1, 1),
             max_value=date.today(),
             format="MM/DD/YYYY",
-            help="When did the primary chancre first appear?"
+            help="When did the primary chancre first appear?",
         )
 
     medical_info = st.text_area(
@@ -287,27 +296,32 @@ with st.form("partner_form", border=True):
 
     st.divider()
     st.subheader("Lab results")
-    st.caption("Manage all laboratory results. Use the table to add, edit, or remove entries.")
-    
+    st.caption(
+        "Manage all laboratory results. Use the table to add, edit, or remove entries."
+    )
+
     # Load existing lab results for the partner
     if partner:
         with SessionLocal() as db:
             labs = get_lab_results_for_partner(db, partner.id)
-            existing_labs = [{
-                "id": l.id,
-                "Category": l.test_category,
-                "Test Type": l.test_type,
-                "Titer": l.titer or "",
-                "Result": l.result or "",
-                "Date": l.collection_date,
-            } for l in labs]
+            existing_labs = [
+                {
+                    "id": l.id,
+                    "Category": l.test_category,
+                    "Test Type": l.test_type,
+                    "Titer": l.titer or "",
+                    "Result": l.result or "",
+                    "Date": l.collection_date,
+                }
+                for l in labs
+            ]
     else:
         existing_labs = []
 
     # Create DataFrame with proper schema
     lab_df_base = pd.DataFrame(
         existing_labs,
-        columns=["id", "Category", "Test Type", "Titer", "Result", "Date"]
+        columns=["id", "Category", "Test Type", "Titer", "Result", "Date"],
     )
 
     edited_lab_df = st.data_editor(
@@ -316,9 +330,7 @@ with st.form("partner_form", border=True):
         column_config={
             "id": st.column_config.NumberColumn("ID", disabled=True),
             "Category": st.column_config.SelectboxColumn(
-                "Category", 
-                options=enum_options(TestCategory),
-                required=True
+                "Category", options=enum_options(TestCategory), required=True
             ),
             "Test Type": st.column_config.TextColumn("Test Type", required=True),
             "Titer": st.column_config.TextColumn("Titer (Non-treponemal)"),
@@ -333,7 +345,9 @@ with st.form("partner_form", border=True):
     st.divider()
 
     st.divider()
-    with st.expander("🔬 Clinical Details (Optional - for VCA analysis)", expanded=False):
+    with st.expander(
+        "🔬 Clinical Details (Optional - for VCA analysis)", expanded=False
+    ):
         st.caption("Complete these fields to streamline ghosting analysis")
 
         col_sym, col_exp = st.columns(2)
@@ -348,7 +362,8 @@ with st.form("partner_form", border=True):
             )
             symptom_duration = st.number_input(
                 "Symptom duration (days, 0=unknown)",
-                min_value=0, max_value=90,
+                min_value=0,
+                max_value=90,
                 value=partner.symptom_duration_days or 0 if partner else 0,
             )
 
@@ -379,7 +394,7 @@ with st.form("partner_form", border=True):
                 ]
             except json.JSONDecodeError:
                 pass
-        elif partner and hasattr(partner, 'sex_types') and partner.sex_types: 
+        elif partner and hasattr(partner, "sex_types") and partner.sex_types:
             try:
                 stored = json.loads(partner.sex_types)
                 current_sex = [
@@ -398,25 +413,30 @@ with st.form("partner_form", border=True):
 
         st.divider()
         st.subheader("Relationship Evidence")
-        st.caption("Multiple reports from different sources (e.g. OP, Partner) regarding their relationship.")
-        
+        st.caption(
+            "Multiple reports from different sources (e.g. OP, Partner) regarding their relationship."
+        )
+
         # Load existing reports if relationship exists
         if relationship:
             with SessionLocal() as db:
                 reps = get_reports_for_relationship(db, relationship.id)
-                existing_reports = [{
-                    "id": r.id,
-                    "Reporter": r.reporter,
-                    "First Exposure": r.exposure_first_date,
-                    "Last Exposure": r.exposure_last_date,
-                    "Sex Types": r.sex_types,
-                } for r in reps]
+                existing_reports = [
+                    {
+                        "id": r.id,
+                        "Reporter": r.reporter,
+                        "First Exposure": r.exposure_first_date,
+                        "Last Exposure": r.exposure_last_date,
+                        "Sex Types": r.sex_types,
+                    }
+                    for r in reps
+                ]
         else:
             existing_reports = []
-        
+
         report_df_base = pd.DataFrame(
             existing_reports,
-            columns=["id", "Reporter", "First Exposure", "Last Exposure", "Sex Types"]
+            columns=["id", "Reporter", "First Exposure", "Last Exposure", "Sex Types"],
         )
 
         edited_report_df = st.data_editor(
@@ -427,7 +447,7 @@ with st.form("partner_form", border=True):
                 "Reporter": st.column_config.SelectboxColumn(
                     "Reporter",
                     options=["OP", "Partner", "Third Party", "Other"],
-                    required=True
+                    required=True,
                 ),
                 "First Exposure": st.column_config.DateColumn("First Exposure"),
                 "Last Exposure": st.column_config.DateColumn("Last Exposure"),
@@ -466,6 +486,33 @@ with st.form("partner_form", border=True):
 # Save logic
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Helper — infer symptom classification from symptom type
+# ---------------------------------------------------------------------------
+
+
+def _get_symptom_classification(symptom_type: str | None) -> str | None:
+    if symptom_type in [
+        LesionType.ANAL.value,
+        LesionType.LAB.value,
+        LesionType.LX.value,
+        LesionType.ORAL.value,
+        LesionType.PENILE.value,
+        LesionType.RECTAL.value,
+        LesionType.VAGINAL.value,
+    ]:
+        return SymptomClassification.PRIMARY.value
+    elif symptom_type in [
+        Symptom.RASH.value,
+        Symptom.PP_RASH.value,
+        Symptom.GB_RASH.value,
+        Symptom.C_LATA.value,
+        Symptom.ALOPECIA.value,
+    ]:
+        return SymptomClassification.SECONDARY.value
+    return None
+
+
 if submitted or add_another or go_map:
     errors = validate_partner_form(partner_name)
     if errors:
@@ -478,7 +525,9 @@ if submitted or add_another or go_map:
             treatment_date=treatment_date if treatment_date else None,
             treatment=val_or_none(treatment),
             historical_primary_chancre=historical_primary_chancre,
-            historical_primary_date=historical_primary_date if historical_primary_date else None,
+            historical_primary_date=historical_primary_date
+            if historical_primary_date
+            else None,
             medical_info=val_or_none(medical_info),
             # Keep legacy fields as None
             lab_1=None,
@@ -493,25 +542,34 @@ if submitted or add_another or go_map:
             if partner:
                 saved = update_partner(db, partner.id, **payload)
                 partner_id = saved.id
-                st.success(
-                    f"Partner {saved.partner_number} updated — {saved.name}"
-                )
+                st.success(f"Partner {saved.partner_number} updated — {saved.name}")
                 # Update or create the relationship record
-                sex_types_json = json.dumps([sex_types_value[sex_types_display.index(s)] 
-                                             for s in sex_types_selected]) if sex_types_selected else None
+                sex_types_json = (
+                    json.dumps(
+                        [
+                            sex_types_value[sex_types_display.index(s)]
+                            for s in sex_types_selected
+                        ]
+                    )
+                    if sex_types_selected
+                    else None
+                )
                 if relationship:
                     relationship = update_case_partner_relationship(
-                        db, relationship.id,
+                        db,
+                        relationship.id,
                         exposure_first_date=exposure_first,
                         exposure_last_date=exposure_last,
-                        sex_types=sex_types_json
+                        sex_types=sex_types_json,
                     )
                 else:
                     relationship = create_case_partner_relationship(
-                        db, case_id, partner.id,
+                        db,
+                        case_id,
+                        partner.id,
                         exposure_first_date=exposure_first,
                         exposure_last_date=exposure_last,
-                        sex_types=sex_types_json
+                        sex_types=sex_types_json,
                     )
             else:
                 saved = create_partner(
@@ -520,45 +578,57 @@ if submitted or add_another or go_map:
                     partner_number=next_number,
                     **payload,
                 )
-                st.success(
-                    f"Partner {saved.partner_number} added — {saved.name}"
-                )
+                st.success(f"Partner {saved.partner_number} added — {saved.name}")
                 set_active_partner_id(saved.id)
                 partner_id = saved.id
                 # Create the relationship record for the new partner
-                sex_types_json = json.dumps([sex_types_value[sex_types_display.index(s)] 
-                                             for s in sex_types_selected]) if sex_types_selected else None
+                sex_types_json = (
+                    json.dumps(
+                        [
+                            sex_types_value[sex_types_display.index(s)]
+                            for s in sex_types_selected
+                        ]
+                    )
+                    if sex_types_selected
+                    else None
+                )
                 relationship = create_case_partner_relationship(
-                    db, case_id, saved.id,
+                    db,
+                    case_id,
+                    saved.id,
                     exposure_first_date=exposure_first,
                     exposure_last_date=exposure_last,
-                    sex_types=sex_types_json
+                    sex_types=sex_types_json,
                 )
 
             # Sync Relationship Reports
             if relationship:
-                current_report_ids = [r.id for r in get_reports_for_relationship(db, relationship.id)]
+                current_report_ids = [
+                    r.id for r in get_reports_for_relationship(db, relationship.id)
+                ]
                 editor_report_ids = [
-                    int(row["id"]) for row in edited_report_df.to_dict('records') 
+                    int(row["id"])
+                    for row in edited_report_df.to_dict("records")
                     if pd.notna(row.get("id"))
                 ]
-                
+
                 for rid in current_report_ids:
                     if rid not in editor_report_ids:
                         delete_relationship_report(db, rid)
-                
-                for row in edited_report_df.to_dict('records'):
+
+                for row in edited_report_df.to_dict("records"):
                     # Skip completely empty rows
                     if pd.isna(row.get("Reporter")) or not row.get("Reporter"):
                         continue
 
                     if pd.notna(row.get("id")):
                         update_relationship_report(
-                            db, int(row["id"]),
+                            db,
+                            int(row["id"]),
                             reporter=row["Reporter"],
                             exposure_first_date=row["First Exposure"],
                             exposure_last_date=row["Last Exposure"],
-                            sex_types=row["Sex Types"]
+                            sex_types=row["Sex Types"],
                         )
                     else:
                         create_relationship_report(
@@ -567,33 +637,37 @@ if submitted or add_another or go_map:
                             reporter=row["Reporter"],
                             exposure_first_date=row["First Exposure"],
                             exposure_last_date=row["Last Exposure"],
-                            sex_types=row["Sex Types"]
+                            sex_types=row["Sex Types"],
                         )
 
             # Sync Lab Results
-            current_lab_ids = [l.id for l in get_lab_results_for_partner(db, partner_id)]
+            current_lab_ids = [
+                l.id for l in get_lab_results_for_partner(db, partner_id)
+            ]
             editor_lab_ids = [
-                int(row["id"]) for row in edited_lab_df.to_dict('records') 
+                int(row["id"])
+                for row in edited_lab_df.to_dict("records")
                 if pd.notna(row.get("id"))
             ]
-            
+
             for lid in current_lab_ids:
                 if lid not in editor_lab_ids:
                     delete_lab_result_entry(db, lid)
-            
-            for row in edited_lab_df.to_dict('records'):
+
+            for row in edited_lab_df.to_dict("records"):
                 # Skip completely empty rows
                 if pd.isna(row.get("Category")) or not row.get("Category"):
                     continue
 
                 if pd.notna(row.get("id")):
                     update_lab_result_entry(
-                        db, int(row["id"]),
+                        db,
+                        int(row["id"]),
                         test_category=row["Category"],
                         test_type=row["Test Type"],
                         titer=row["Titer"],
                         result=row["Result"],
-                        collection_date=row["Date"]
+                        collection_date=row["Date"],
                     )
                 else:
                     create_lab_result_entry(
@@ -603,13 +677,16 @@ if submitted or add_another or go_map:
                         collection_date=row["Date"],
                         partner_id=partner_id,
                         titer=row["Titer"],
-                        result=row["Result"]
+                        result=row["Result"],
                     )
 
             # Sync Symptom Entries
-            current_symptom_ids = [s.id for s in get_symptoms_for_partner(db, partner_id)]
+            current_symptom_ids = [
+                s.id for s in get_symptoms_for_partner(db, partner_id)
+            ]
             editor_symptom_ids = [
-                int(row["id"]) for row in edited_symptom_df.to_dict('records') 
+                int(row["id"])
+                for row in edited_symptom_df.to_dict("records")
                 if pd.notna(row.get("id"))
             ]
 
@@ -619,20 +696,23 @@ if submitted or add_another or go_map:
                     delete_symptom_entry(db, sid)
 
             # Upsert symptoms
-            for row in edited_symptom_df.to_dict('records'):
+            for row in edited_symptom_df.to_dict("records"):
                 # Skip completely empty rows
                 if pd.isna(row.get("Type")) or not row.get("Type"):
                     continue
-                    
+
                 if pd.notna(row.get("id")):
                     # Update existing
                     update_symptom_entry(
-                        db, int(row["id"]),
+                        db,
+                        int(row["id"]),
                         symptom_type=row["Type"],
                         classification=_get_symptom_classification(row["Type"]),
                         onset_date=row.get("Onset Date"),
-                        duration_days=int(row["Duration"]) if pd.notna(row.get("Duration")) else None,
-                        ongoing=bool(row.get("Ongoing", False))
+                        duration_days=int(row["Duration"])
+                        if pd.notna(row.get("Duration"))
+                        else None,
+                        ongoing=bool(row.get("Ongoing", False)),
                     )
                 else:
                     # Create new
@@ -641,9 +721,11 @@ if submitted or add_another or go_map:
                         symptom_type=row["Type"],
                         classification=row.get("Classification") or None,
                         onset_date=row.get("Onset Date"),
-                        duration_days=int(row["Duration"]) if pd.notna(row.get("Duration")) else None,
+                        duration_days=int(row["Duration"])
+                        if pd.notna(row.get("Duration"))
+                        else None,
                         ongoing=bool(row.get("Ongoing", False)),
-                        partner_id=partner_id
+                        partner_id=partner_id,
                     )
 
         if go_map:
@@ -665,15 +747,17 @@ if partners:
 
     roster_rows = []
     for p in partners:
-        roster_rows.append({
-            "#":              p.partner_number,
-            "Name":           p.name or "—",
-            "Reason":         p.reason_for_exam or "—",
-            "Treatment date": str(p.treatment_date) if p.treatment_date else "—",
-            "Lab 1":          p.lab_1 or "—",
-            "Lab 2":          p.lab_2 or "—",
-            "Treatment":      p.treatment or "—",
-        })
+        roster_rows.append(
+            {
+                "#": p.partner_number,
+                "Name": p.name or "—",
+                "Reason": p.reason_for_exam or "—",
+                "Treatment date": str(p.treatment_date) if p.treatment_date else "—",
+                "Lab 1": p.lab_1 or "—",
+                "Lab 2": p.lab_2 or "—",
+                "Treatment": p.treatment or "—",
+            }
+        )
 
     df = pd.DataFrame(roster_rows)
 
@@ -684,4 +768,7 @@ if partners:
         return [""] * len(row)
 
     st.dataframe(
-        df.style.apply(highlight_untreated, axi
+        df.style.apply(highlight_untreated, axis=1),
+        use_container_width=True,
+        hide_index=True,
+    )
