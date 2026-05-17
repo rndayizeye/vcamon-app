@@ -13,6 +13,7 @@ import json
 from datetime import date
 
 import streamlit as st
+import pandas as pd
 
 from app.components.dropdowns import enum_options, val_or_none
 from app.db.database import SessionLocal
@@ -41,6 +42,10 @@ from app.db.queries import (
     update_lab_result_entry,
     update_partner,
     update_relationship_report,
+    get_symptoms_for_partner,
+    delete_symptom_entry,
+    update_symptom_entry,
+    create_symptom_entry,
 )
 from app.utils.session_state import (
     get_active_case_id,
@@ -213,26 +218,31 @@ with st.form("partner_form", border=True):
         st.caption("Add and manage all symptoms. Click a cell to edit.")
         
         # Load existing symptoms for the partner
-        existing_symptoms = []
         if partner:
             with SessionLocal() as db:
-                from app.db.queries import get_symptoms_for_partner
                 symptoms = get_symptoms_for_partner(db, partner.id)
-                for s in symptoms:
-                    existing_symptoms.append({
-                        "id": s.id,
-                        "Type": s.symptom_type,
-                        "Classification": s.classification,
-                        "Onset Date": s.onset_date,
-                        "Duration": s.duration_days,
-                        "Ongoing": s.ongoing,
-                    })
+                existing_symptoms = [{
+                    "id": s.id,
+                    "Type": s.symptom_type,
+                    "Classification": s.classification or "",
+                    "Onset Date": s.onset_date,
+                    "Duration": s.duration_days,
+                    "Ongoing": s.ongoing,
+                } for s in symptoms]
+        else:
+            existing_symptoms = []
 
-        symptom_df = st.data_editor(
+        # Create DataFrame with proper schema
+        symptom_df_base = pd.DataFrame(
             existing_symptoms,
+            columns=["id", "Type", "Classification", "Onset Date", "Duration", "Ongoing"]
+        )
+
+        edited_symptom_df = st.data_editor(
+            symptom_df_base,
             num_rows="dynamic",
             column_config={
-                "id": st.column_config.Column(disabled=True),
+                "id": st.column_config.NumberColumn("ID", disabled=True),
                 "Type": st.column_config.SelectboxColumn(
                     "Type", 
                     options=enum_options(LesionType) + enum_options(Symptom),
@@ -248,6 +258,7 @@ with st.form("partner_form", border=True):
             },
             key="partner_symptom_editor",
             use_container_width=True,
+            hide_index=True,
         )
 
     st.markdown("---")
@@ -280,29 +291,34 @@ with st.form("partner_form", border=True):
 
     st.divider()
     st.subheader("Lab results")
-    st.caption("Manage all laboratory results. The table below is editable—simply click a cell to change its value.")
+    st.caption("Manage all laboratory results. Use the table to add, edit, or remove entries.")
     
     # Load existing lab results for the partner
-    existing_labs = []
     if partner:
         with SessionLocal() as db:
             labs = get_lab_results_for_partner(db, partner.id)
-            for l in labs:
-                existing_labs.append({
-                    "id": l.id,
-                    "Category": l.test_category,
-                    "Test Type": l.test_type,
-                    "Titer": l.titer,
-                    "Result": l.result,
-                    "Date": l.collection_date,
-                })
+            existing_labs = [{
+                "id": l.id,
+                "Category": l.test_category,
+                "Test Type": l.test_type,
+                "Titer": l.titer or "",
+                "Result": l.result or "",
+                "Date": l.collection_date,
+            } for l in labs]
+    else:
+        existing_labs = []
 
-    # Data editor for repeatable lab history
-    lab_df = st.data_editor(
+    # Create DataFrame with proper schema
+    lab_df_base = pd.DataFrame(
         existing_labs,
+        columns=["id", "Category", "Test Type", "Titer", "Result", "Date"]
+    )
+
+    edited_lab_df = st.data_editor(
+        lab_df_base,
         num_rows="dynamic",
         column_config={
-            "id": st.column_config.Column(disabled=True),
+            "id": st.column_config.NumberColumn("ID", disabled=True),
             "Category": st.column_config.SelectboxColumn(
                 "Category", 
                 options=enum_options(TestCategory),
@@ -315,6 +331,7 @@ with st.form("partner_form", border=True):
         },
         key="partner_lab_editor",
         use_container_width=True,
+        hide_index=True,
     )
 
     st.divider()
@@ -388,24 +405,29 @@ with st.form("partner_form", border=True):
         st.caption("Multiple reports from different sources (e.g. OP, Partner) regarding their relationship.")
         
         # Load existing reports if relationship exists
-        existing_reports = []
         if relationship:
             with SessionLocal() as db:
                 reps = get_reports_for_relationship(db, relationship.id)
-                for r in reps:
-                    existing_reports.append({
-                        "id": r.id,
-                        "Reporter": r.reporter,
-                        "First Exposure": r.exposure_first_date,
-                        "Last Exposure": r.exposure_last_date,
-                        "Sex Types": r.sex_types,
-                    })
+                existing_reports = [{
+                    "id": r.id,
+                    "Reporter": r.reporter,
+                    "First Exposure": r.exposure_first_date,
+                    "Last Exposure": r.exposure_last_date,
+                    "Sex Types": r.sex_types,
+                } for r in reps]
+        else:
+            existing_reports = []
         
-        report_df = st.data_editor(
+        report_df_base = pd.DataFrame(
             existing_reports,
+            columns=["id", "Reporter", "First Exposure", "Last Exposure", "Sex Types"]
+        )
+
+        edited_report_df = st.data_editor(
+            report_df_base,
             num_rows="dynamic",
             column_config={
-                "id": st.column_config.Column(disabled=True),
+                "id": st.column_config.NumberColumn("ID", disabled=True),
                 "Reporter": st.column_config.SelectboxColumn(
                     "Reporter",
                     options=["OP", "Partner", "Third Party", "Other"],
@@ -417,6 +439,7 @@ with st.form("partner_form", border=True):
             },
             key="relationship_report_editor",
             use_container_width=True,
+            hide_index=True,
         )
 
         st.divider()
@@ -519,16 +542,23 @@ if submitted or add_another or go_map:
             # Sync Relationship Reports
             if relationship:
                 current_report_ids = [r.id for r in get_reports_for_relationship(db, relationship.id)]
-                editor_report_ids = [row["id"] for row in report_df if "id" in row and row["id"] is not None]
+                editor_report_ids = [
+                    int(row["id"]) for row in edited_report_df.to_dict('records') 
+                    if pd.notna(row.get("id"))
+                ]
                 
                 for rid in current_report_ids:
                     if rid not in editor_report_ids:
                         delete_relationship_report(db, rid)
                 
-                for row in report_df:
-                    if "id" in row and row["id"] is not None:
+                for row in edited_report_df.to_dict('records'):
+                    # Skip completely empty rows
+                    if pd.isna(row.get("Reporter")) or not row.get("Reporter"):
+                        continue
+
+                    if pd.notna(row.get("id")):
                         update_relationship_report(
-                            db, row["id"],
+                            db, int(row["id"]),
                             reporter=row["Reporter"],
                             exposure_first_date=row["First Exposure"],
                             exposure_last_date=row["Last Exposure"],
@@ -546,16 +576,23 @@ if submitted or add_another or go_map:
 
             # Sync Lab Results
             current_lab_ids = [l.id for l in get_lab_results_for_partner(db, partner_id)]
-            editor_lab_ids = [row["id"] for row in lab_df if "id" in row and row["id"] is not None]
+            editor_lab_ids = [
+                int(row["id"]) for row in edited_lab_df.to_dict('records') 
+                if pd.notna(row.get("id"))
+            ]
             
             for lid in current_lab_ids:
                 if lid not in editor_lab_ids:
                     delete_lab_result_entry(db, lid)
             
-            for row in lab_df:
-                if "id" in row and row["id"] is not None:
+            for row in edited_lab_df.to_dict('records'):
+                # Skip completely empty rows
+                if pd.isna(row.get("Category")) or not row.get("Category"):
+                    continue
+
+                if pd.notna(row.get("id")):
                     update_lab_result_entry(
-                        db, row["id"],
+                        db, int(row["id"]),
                         test_category=row["Category"],
                         test_type=row["Test Type"],
                         titer=row["Titer"],
@@ -571,6 +608,46 @@ if submitted or add_another or go_map:
                         partner_id=partner_id,
                         titer=row["Titer"],
                         result=row["Result"]
+                    )
+
+            # Sync Symptom Entries
+            current_symptom_ids = [s.id for s in get_symptoms_for_partner(db, partner_id)]
+            editor_symptom_ids = [
+                int(row["id"]) for row in edited_symptom_df.to_dict('records') 
+                if pd.notna(row.get("id"))
+            ]
+
+            # Delete removed symptoms
+            for sid in current_symptom_ids:
+                if sid not in editor_symptom_ids:
+                    delete_symptom_entry(db, sid)
+
+            # Upsert symptoms
+            for row in edited_symptom_df.to_dict('records'):
+                # Skip completely empty rows
+                if pd.isna(row.get("Type")) or not row.get("Type"):
+                    continue
+                    
+                if pd.notna(row.get("id")):
+                    # Update existing
+                    update_symptom_entry(
+                        db, int(row["id"]),
+                        symptom_type=row["Type"],
+                        classification=row.get("Classification") or None,
+                        onset_date=row.get("Onset Date"),
+                        duration_days=int(row["Duration"]) if pd.notna(row.get("Duration")) else None,
+                        ongoing=bool(row.get("Ongoing", False))
+                    )
+                else:
+                    # Create new
+                    create_symptom_entry(
+                        db,
+                        symptom_type=row["Type"],
+                        classification=row.get("Classification") or None,
+                        onset_date=row.get("Onset Date"),
+                        duration_days=int(row["Duration"]) if pd.notna(row.get("Duration")) else None,
+                        ongoing=bool(row.get("Ongoing", False)),
+                        partner_id=partner_id
                     )
 
         if go_map:
@@ -589,8 +666,6 @@ if submitted or add_another or go_map:
 if partners:
     st.divider()
     st.subheader("Partner roster")
-
-    import pandas as pd
 
     roster_rows = []
     for p in partners:
