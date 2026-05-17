@@ -197,10 +197,7 @@ with st.form("op_form", border=True):
                     options=enum_options(LesionType) + enum_options(Symptom),
                     required=True
                 ),
-                "Classification": st.column_config.SelectboxColumn(
-                    "Classification", 
-                    options=enum_options(SymptomClassification),
-                ),
+                
                 "Onset Date": st.column_config.DateColumn("Onset Date"),
                 "Duration": st.column_config.NumberColumn("Duration (Days)"),
                 "Ongoing": st.column_config.CheckboxColumn("Ongoing"),
@@ -291,12 +288,6 @@ with st.form("op_form", border=True):
         st.caption("Complete these fields to streamline ghosting analysis")
         
         st.subheader("Symptom Details")
-        symptom_classification = st.selectbox(
-            "Symptom classification",
-            options=enum_options(SymptomClassification),
-            index=enum_options(SymptomClassification).index(case.symptom_classification or "") if case else 0,
-            help="Is this a primary symptom or a secondary symptom?"
-        )
         symptom_onset = st.date_input(
             "Symptom onset date",
             value=case.symptom_onset_date if case else None,
@@ -443,7 +434,7 @@ if submitted or go_partners or go_map:
                     create_symptom_entry(
                         db,
                         symptom_type=row["Type"],
-                        classification=row.get("Classification") or None,
+                        classification=_get_symptom_classification(row["Type"]),
                         onset_date=row.get("Onset Date"),
                         duration_days=int(row["Duration"]) if pd.notna(row.get("Duration")) else None,
                         ongoing=bool(row.get("Ongoing", False)),
@@ -456,6 +447,29 @@ if submitted or go_partners or go_map:
                         st.switch_page("pages/04_map_sheet.py")
                     else:
                         st.rerun()
+
+
+# Helper function to determine symptom classification
+def _get_symptom_classification(symptom_type: str | None) -> str | None:
+    if symptom_type in [
+        LesionType.ANAL.value,
+        LesionType.LAB.value,
+        LesionType.LX.value,
+        LesionType.ORAL.value,
+        LesionType.PENILE.value,
+        LesionType.RECTAL.value,
+        LesionType.VAGINAL.value,
+    ]:
+        return SymptomClassification.PRIMARY.value
+    elif symptom_type in [
+        Symptom.RASH.value,
+        Symptom.PP_RASH.value,
+        Symptom.GB_RASH.value,
+        Symptom.C_LATA.value,
+        Symptom.ALOPECIA.value,
+    ]:
+        return SymptomClassification.SECONDARY.value
+    return None
 
 # ---------------------------------------------------------------------------
 # Summary metrics (shown when editing an existing case)
