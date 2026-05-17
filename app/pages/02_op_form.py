@@ -9,6 +9,7 @@ the shared sidebar case selector.
 from datetime import date
 
 import streamlit as st
+import pandas as pd
 
 from app.components.dropdowns import enum_options, val_or_none
 from app.db.database import SessionLocal
@@ -24,11 +25,17 @@ from app.db.queries import (
     create_case,
     create_lab_result_entry,
     delete_lab_result_entry,
+    delete_symptom_entry,
     get_all_cases,
     get_case_by_id,
     get_lab_results_for_case,
     update_case,
     update_lab_result_entry,
+    update_symptom_entry,
+    get_symptoms_for_case,
+    delete_symptom_entry,
+    update_symptom_entry,
+    create_symptom_entry
 )
 from app.utils.session_state import (
     get_active_case_id,
@@ -36,6 +43,7 @@ from app.utils.session_state import (
     require_password,
     set_active_case_id,
 )
+
 from app.utils.validators import validate_op_form
 
 st.set_page_config(page_title="OP Form — VCA Monitor", layout="wide")
@@ -153,30 +161,37 @@ with st.form("op_form", border=True):
         )
 
     with col5:
-        st.subheader("Symptoms & Lesions")
+        st.subheader("Symptoms")
         st.caption("Add and manage all symptoms. Click a cell to edit.")
         
         # Load existing symptoms for the case
-        existing_symptoms = []
+        
         if case:
             with SessionLocal() as db:
                 from app.db.queries import get_symptoms_for_case
                 symptoms = get_symptoms_for_case(db, case.id)
-                for s in symptoms:
-                    existing_symptoms.append({
-                        "id": s.id,
-                        "Type": s.symptom_type,
-                        "Classification": s.classification,
-                        "Onset Date": s.onset_date,
-                        "Duration": s.duration_days,
-                        "Ongoing": s.ongoing,
-                    })
-
-        symptom_df = st.data_editor(
+                existing_symptoms = [{
+                    "id": s.id,
+                    "Type": s.symptom_type,
+                    "Classification": s.classification or "",
+                    "Onset Date": s.onset_date,
+                    "Duration": s.duration_days,
+                    "Ongoing": s.ongoing,
+                } for s in symptoms]
+        else:
+            existing_symptoms = []
+        
+        # Create DataFrame with proper schema (shows editable table even when empty)
+        symptom_df = pd.DataFrame(
             existing_symptoms,
+            columns=["id", "Type", "Classification", "Onset Date", "Duration", "Ongoing"]
+        )
+
+        edited_symptom_df = st.data_editor(
+            symptom_df,
             num_rows="dynamic",
             column_config={
-                "id": st.column_config.Column(disabled=True),
+                "id": st.column_config.NumberColumn("ID", disabled=True),
                 "Type": st.column_config.SelectboxColumn(
                     "Type", 
                     options=enum_options(LesionType) + enum_options(Symptom),
@@ -192,6 +207,7 @@ with st.form("op_form", border=True):
             },
             key="symptom_editor",
             use_container_width=True,
+            hide_index=True,
         )
 
     st.markdown("---")
@@ -225,28 +241,33 @@ with st.form("op_form", border=True):
     st.divider()
     st.subheader("Lab results")
     st.caption("Manage all laboratory results. Use the table to add, edit, or remove entries.")
-    
+
     # Load existing lab results for the case
-    existing_labs = []
     if case:
         with SessionLocal() as db:
             labs = get_lab_results_for_case(db, case.id)
-            for l in labs:
-                existing_labs.append({
-                    "id": l.id,
-                    "Category": l.test_category,
-                    "Test Type": l.test_type,
-                    "Titer": l.titer,
-                    "Result": l.result,
-                    "Date": l.collection_date,
-                })
+            existing_labs = [{
+                "id": l.id,
+                "Category": l.test_category,
+                "Test Type": l.test_type,
+                "Titer": l.titer or "",
+                "Result": l.result or "",
+                "Date": l.collection_date,
+            } for l in labs]
+    else:
+        existing_labs = []
 
-    # Data editor for repeatable lab history
-    lab_df = st.data_editor(
+    # Create DataFrame with proper schema
+    lab_df = pd.DataFrame(
         existing_labs,
+        columns=["id", "Category", "Test Type", "Titer", "Result", "Date"]
+    )
+
+    edited_lab_df = st.data_editor(
+        lab_df,
         num_rows="dynamic",
         column_config={
-            "id": st.column_config.Column(disabled=True),
+            "id": st.column_config.NumberColumn("ID", disabled=True),
             "Category": st.column_config.SelectboxColumn(
                 "Category", 
                 options=enum_options(TestCategory),
@@ -259,6 +280,7 @@ with st.form("op_form", border=True):
         },
         key="lab_editor",
         use_container_width=True,
+        hide_index=True,
     )
 
     st.divider()
@@ -318,8 +340,6 @@ if submitted or go_partners or go_map:
     errors = validate_op_form(
         patient_name=patient_name,
         treatment_date=treatment_date if treatment_date else None,
-        lab_1=None, # Legacy validator might need update, passing None for now
-        lab_2=None,
     )
     if errors:
         for e in errors:
@@ -356,19 +376,24 @@ if submitted or go_partners or go_map:
                 st.success(f"Case #{saved.id} created — {saved.patient_name}")
 
             # Sync Lab Results
-            # 1. Identify deletions
             current_lab_ids = [l.id for l in get_lab_results_for_case(db, case_id)]
-            editor_lab_ids = [row["id"] for row in lab_df if "id" in row and row["id"] is not None]
+            editor_lab_ids = [
+                int(row["id"]) for row in edited_lab_df.to_dict('records') 
+                if pd.notna(row.get("id"))
+            ]
             
             for lid in current_lab_ids:
                 if lid not in editor_lab_ids:
                     delete_lab_result_entry(db, lid)
             
-            # 2. Upsert entries
-            for row in lab_df:
-                if "id" in row and row["id"] is not None:
+            for row in edited_lab_df.to_dict('records'):
+                # Skip completely empty rows
+                if pd.isna(row.get("Category")) or not row.get("Category"):
+                    continue
+                    
+                if pd.notna(row.get("id")):
                     update_lab_result_entry(
-                        db, row["id"],
+                        db, int(row["id"]),
                         test_category=row["Category"],
                         test_type=row["Test Type"],
                         titer=row["Titer"],
@@ -385,13 +410,52 @@ if submitted or go_partners or go_map:
                         titer=row["Titer"],
                         result=row["Result"]
                     )
+        # Sync Symptom Entries
+            current_symptom_ids = [s.id for s in get_symptoms_for_case(db, case_id)]
+            editor_symptom_ids = [
+                int(row["id"]) for row in edited_symptom_df.to_dict('records') 
+                if pd.notna(row.get("id"))
+            ]
 
-        if go_partners:
-            st.switch_page("pages/03_partner_form.py")
-        elif go_map:
-            st.switch_page("pages/04_map_sheet.py")
-        else:
-            st.rerun()
+            # Delete removed symptoms
+            for sid in current_symptom_ids:
+                if sid not in editor_symptom_ids:
+                    delete_symptom_entry(db, sid)
+
+            # Upsert symptoms
+            for row in edited_symptom_df.to_dict('records'):
+                # Skip completely empty rows
+                if pd.isna(row.get("Type")) or not row.get("Type"):
+                    continue
+                    
+                if pd.notna(row.get("id")):
+                    # Update existing
+                    update_symptom_entry(
+                        db, int(row["id"]),
+                        symptom_type=row["Type"],
+                        classification=row.get("Classification") or None,
+                        onset_date=row.get("Onset Date"),
+                        duration_days=int(row["Duration"]) if pd.notna(row.get("Duration")) else None,
+                        ongoing=bool(row.get("Ongoing", False))
+                    )
+                else:
+                    # Create new
+                    create_symptom_entry(
+                        db,
+                        symptom_type=row["Type"],
+                        classification=row.get("Classification") or None,
+                        onset_date=row.get("Onset Date"),
+                        duration_days=int(row["Duration"]) if pd.notna(row.get("Duration")) else None,
+                        ongoing=bool(row.get("Ongoing", False)),
+                        case_id=case_id
+                    )
+
+                    if go_partners:
+                        st.switch_page("pages/03_partner_form.py")
+                    elif go_map:
+                        st.switch_page("pages/04_map_sheet.py")
+                    else:
+                        st.rerun()
 
 # ---------------------------------------------------------------------------
 # Summary metrics (shown when editing an existing case)
