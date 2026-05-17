@@ -684,37 +684,4 @@ if partners:
         return [""] * len(row)
 
     st.dataframe(
-        df.style.apply(highlight_untreated, axis=1),
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "#": st.column_config.NumberColumn("#", width="small"),
-        },
-    )
-
-    # Quick-select buttons to jump to a partner
-    st.caption("Click a partner below to load them into the form:")
-    btn_cols = st.columns(min(len(partners), 6))
-    for i, p in enumerate(partners[:6]):
-        with btn_cols[i]:
-            label = f"P{p.partner_number} — {(p.name or 'Unnamed')[:12]}"
-            if st.button(label, key=f"quick_{p.id}", use_container_width=True):
-                set_active_partner_id(p.id)
-                st.rerun()
-s=1),
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "#": st.column_config.NumberColumn("#", width="small"),
-        },
-    )
-
-    # Quick-select buttons to jump to a partner
-    st.caption("Click a partner below to load them into the form:")
-    btn_cols = st.columns(min(len(partners), 6))
-    for i, p in enumerate(partners[:6]):
-        with btn_cols[i]:
-            label = f"P{p.partner_number} — {(p.name or 'Unnamed')[:12]}"
-            if st.button(label, key=f"quick_{p.id}", use_container_width=True):
-                set_active_partner_id(p.id)
-                st.rerun()
+        df.style.apply(highlight_untreated, axi
