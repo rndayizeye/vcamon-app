@@ -448,33 +448,62 @@ def _sex_type_compatible(
 
 
 def _latency_to_secondary(
-    lesion_end: date,
+    lesion: GhostedLesion,
     case2_symptoms: list[Symptom],
 ) -> tuple[str, str]:
+    """
+    Check that sufficient latency exists between the ghosted lesion end and
+    Case2's earliest secondary symptom.
+
+    Accepts the full GhostedLesion (not just lesion_end) so it can distinguish
+    two clinically distinct negative-gap situations:
+
+      overlap        lesion.onset < sec.onset ≤ lesion.end
+                     Primary was started before secondary and was still active
+                     when secondary appeared.  Latency min = 0 permits this
+                     but it is suspicious and warrants review.
+
+      reversed       lesion.onset ≥ sec.onset
+                     Secondary appeared before the ghosted primary even started.
+                     Impossible under natural progression; _natural_order also
+                     returns a hard FAIL for this case.
+    """
     secondary = [s for s in case2_symptoms if s.type == "Secondary Rash/Lesions"]
     if not secondary:
         return "na", "Case2 has no secondary symptoms — latency check not applicable."
 
     earliest_sec = min(s.onset for s in secondary)
-    gap = (earliest_sec - lesion_end).days
+    gap = (earliest_sec - lesion.end).days
 
     if gap >= MIN_LATENCY_TO_SECONDARY_DAYS:
         return "pass", (
-            f"{gap} days between ghosted lesion end ({lesion_end}) and "
+            f"{gap} days between ghosted lesion end ({lesion.end}) and "
             f"Case2 secondary onset ({earliest_sec}) — meets "
-            f"≥{MIN_LATENCY_TO_SECONDARY_DAYS}-day requirement."
+            f"\u2265{MIN_LATENCY_TO_SECONDARY_DAYS}-day requirement."
         )
 
     if gap < 0:
-        # Negative gap means the ghosted primary was still active when secondary appeared
-        return "fail", (
-            f"Primary-secondary overlap: ghosted lesion end ({lesion_end}) is "
-            f"{abs(gap)} day(s) after Case2 secondary onset ({earliest_sec}) — "
-            f"the chancre was still present when secondary symptoms appeared."
-        )
+        if lesion.onset < earliest_sec:
+            # True overlap: primary started before secondary but was still active
+            # when secondary appeared (lesion.onset < sec ≤ lesion.end).
+            return "fail", (
+                f"Primary-secondary overlap: ghosted lesion end ({lesion.end}) is "
+                f"{abs(gap)} day(s) after Case2 secondary onset ({earliest_sec}) — "
+                f"the chancre was still present when secondary symptoms appeared."
+            )
+        else:
+            # Reversed timeline: secondary appeared before the ghosted primary even
+            # started (lesion.onset ≥ sec.onset). _natural_order reports a hard FAIL
+            # for the same reason; this message adds the latency dimension.
+            days_before = (lesion.onset - earliest_sec).days
+            return "fail", (
+                f"Reversed timeline: Case2 secondary symptoms began ({earliest_sec}) "
+                f"{days_before} day(s) before ghosted lesion onset ({lesion.onset}) — "
+                f"secondary preceded primary, which is impossible under natural progression."
+            )
 
     return "fail", (
-        f"Only {gap} day(s) between ghosted lesion end ({lesion_end}) and "
+        f"Only {gap} day(s) between ghosted lesion end ({lesion.end}) and "
         f"Case2 secondary onset ({earliest_sec}) — below the required "
         f"{MIN_LATENCY_TO_SECONDARY_DAYS} days "
         f"({MIN_LATENCY_TO_SECONDARY_DAYS // 7} weeks)."
@@ -565,7 +594,7 @@ def evaluate_criteria(
     sex_status, sex_detail = _sex_type_compatible(
         case1_symptom, exposure.sex_types if exposure else []
     )
-    lat_status, lat_detail = _latency_to_secondary(lesion.end, case2_symptoms)
+    lat_status, lat_detail = _latency_to_secondary(lesion, case2_symptoms)
     ord_status, ord_detail = _natural_order(
         lesion, case2_symptoms, case2_treatment_date
     )
