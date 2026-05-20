@@ -1,0 +1,120 @@
+# VCA Monitor — Architecture Decision Records (ADRs)
+_Why things are the way they are. Read before proposing refactors._
+
+---
+
+## ADR-001: clinical.py must stay framework-free
+
+**Status:** Active
+**Decision:** `app/utils/clinical.py` imports only Python stdlib (`datetime`, `dataclasses`).
+No Streamlit, no SQLAlchemy, no third-party libraries.
+**Reason:** The ghosting engine is the core intellectual asset. It must drop directly
+into the planned FastAPI v2 backend without modification.
+**Note:** `get_symptom_classification()` was added to `clinical.py` in the last merge.
+This is acceptable — it is pure Python with no framework imports and is legitimately
+part of the clinical vocabulary (Primary vs Secondary classification).
+
+---
+
+## ADR-002: SQLite for v1, PostgreSQL for v2
+
+**Status:** Active
+**Decision:** SQLite for local dev and Streamlit Cloud beta. PostgreSQL via Supabase for v2.
+**Database filename:** `vcamon_v2.db` (changed from `vcamon.db` after the schema standardisation merge).
+**Migration policy:** `init_db()` inspects the schema on startup and drops/recreates tables
+if required columns are missing. Acceptable while all data is synthetic.
+**Critical:** `docker-compose.yml` still references the old `vcamon.db` filename — must
+be updated before the next Docker deploy.
+**Implication:** Do not use SQLite-specific syntax. Keep queries PostgreSQL-compatible.
+
+---
+
+## ADR-003: All DB access through queries.py
+
+**Status:** Active
+**Decision:** No inline ORM queries in page files. All reads and writes go through
+named functions in `app/db/queries.py`.
+**Reason:** Pages are already complex. Query functions can be tested in isolation with
+in-memory SQLite. The ghosting analysis pages (07, 09) import `get_symptoms_for_case`
+and `get_symptoms_for_partner` from queries — this is the correct pattern.
+
+---
+
+## ADR-004: from_ref / to_ref use string refs, not foreign keys
+
+**Status:** Active
+**Decision:** `ArrowLink.from_ref` and `Ghosting.from_ref/to_ref` store `"OP"` or
+a partner number string (`"1"`, `"2"`), not integer foreign keys.
+**Reason:** The "OP" party is not a `Partner` row. String refs mirror the Excel convention
+and avoid a polymorphic relationship.
+**Implication:** Refs must be resolved to display labels at the page layer using
+the `ref_to_label` dict pattern in `05_network_graph.py`.
+
+---
+
+## ADR-005: Exposure check uses period intersection, not point-in-time
+
+**Status:** Active
+**Decision:** The exposure criterion checks whether the infectious period _overlaps_
+with the exposure window (any intersection), not whether a single date falls inside.
+**Warn margin:** Periods that miss by ≤10 days → WARN not FAIL.
+**Implementation:** `_check_exposure()` in `clinical.py`.
+
+---
+
+## ADR-006: Legacy fields kept, new tables added
+
+**Status:** Active
+**Decision:** `lab_1`, `lab_2`, `lab_3`, `lesion_type`, `symptom` on `cases` and
+`partners` are kept but deprecated. All new writes go to `lab_results` and
+`symptom_entries`. Legacy fields are set to `None` on new saves.
+**Reason:** Avoiding a breaking migration on a live deployment.
+**Current state:** Pages 02 and 03 fully write to the new tables. Page 08 (VCA chart)
+still reads legacy fields for symptom data — this is known tech debt (see TASKS).
+
+---
+
+## ADR-007: GhostingResult uses case1/case2 naming, not p1/p2
+
+**Status:** Active
+**Decision:** `GhostingResult` fields are `case1_name`, `case2_name`, `case1_symptom`.
+Legacy `p1_name`, `p2_name`, `p1_symptom` are property aliases that must be kept.
+**Reason:** The VCA methodology uses "Case1/Case2" terminology. The old p1/p2 naming
+was ambiguous ("P1" also means "Partner 1" in the app).
+
+---
+
+## ADR-008: Streamlit data_editor not used inside st.form()
+
+**Status:** Pending (not yet fixed)
+**Decision:** `st.data_editor(num_rows="dynamic")` must not be placed inside a
+`st.form()` block — Streamlit does not reliably surface edits on submit.
+**Current state:** Pages 02 and 03 still have all three editors inside `st.form()`.
+This is a known bug. The fix (plain `st.button()` + session_state) is tracked in TASKS.
+
+---
+
+## ADR-009: Lab vocabulary enums are UI-only, not DB-mapped
+
+**Status:** Active (decided in last merge)
+**Decision:** `NonTreponemalTestType`, `TreponemalTestType`, `NonTreponemalTiter`,
+and `TreponemalTestResult` are Python enums used only for `st.data_editor`
+`SelectboxColumn` options. They are NOT declared as SQLAlchemy `Enum` columns.
+**Reason:** Lab data is stored as free text strings in `LabResultEntry.test_type`,
+`.titer`, and `.result`. Using DB-level enums would require a migration every time a
+new test type is added. The UI enums provide validation at input time without
+constraining the schema.
+**Implication:** Never pass these enums as `Enum(NonTreponemalTestType, ...)` to
+a SQLAlchemy `mapped_column()`.
+
+---
+
+## ADR-010: Symptom classification is derived, never manually set
+
+**Status:** Active (decided in last merge)
+**Decision:** `SymptomEntry.classification` is set by calling
+`get_symptom_classification(symptom_type)` at save time, not by user input.
+**Reason:** The classification (Primary/Secondary) is deterministic from the lesion
+or symptom type string. Asking users to set it manually is redundant and error-prone.
+**Implication:** Pages that save `SymptomEntry` rows must call `get_symptom_classification()`
+on each row before writing to DB. Pages 02, 03 already do this.
