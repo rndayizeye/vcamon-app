@@ -1,2 +1,2 @@
-model_name: "your_model_name"
-model_path: "path/to/model"
+model_name: "my_model"
+model_path: "/path/to/my/model"
