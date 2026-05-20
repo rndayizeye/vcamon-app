@@ -11,33 +11,25 @@ from app.utils.validators import (
 class TestOpFormValidation:
 
     def test_valid_form_returns_no_errors(self):
-        errors = validate_op_form("Doe, Jane", date.today(), "RPR 1:4", "TPPA+")
+        errors = validate_op_form("Doe, Jane", date.today())
         assert errors == []
 
     def test_missing_patient_name_is_invalid(self):
-        errors = validate_op_form("", date.today(), "RPR 1:4", "")
+        errors = validate_op_form("", date.today())
         assert any("name" in e.lower() for e in errors)
 
     def test_whitespace_only_name_is_invalid(self):
-        errors = validate_op_form("   ", date.today(), "", "")
+        errors = validate_op_form("   ", date.today())
         assert any("name" in e.lower() for e in errors)
 
     def test_future_treatment_date_is_invalid(self):
         future = date.today() + timedelta(days=1)
-        errors = validate_op_form("Doe, Jane", future, "", "")
+        errors = validate_op_form("Doe, Jane", future)
         assert any("future" in e.lower() for e in errors)
 
     def test_today_treatment_date_is_valid(self):
-        errors = validate_op_form("Doe, Jane", date.today(), "", "")
+        errors = validate_op_form("Doe, Jane", date.today())
         assert not any("future" in e.lower() for e in errors)
-
-    def test_lab2_without_lab1_triggers_warning(self):
-        errors = validate_op_form("Doe, Jane", None, "", "TPPA+")
-        assert any("lab 1" in e.lower() for e in errors)
-
-    def test_lab1_and_lab2_together_is_valid(self):
-        errors = validate_op_form("Doe, Jane", None, "RPR 1:4", "TPPA+")
-        assert errors == []
 
 
 class TestPartnerFormValidation:

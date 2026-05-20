@@ -61,10 +61,10 @@ with st.sidebar:
     st.caption("**Clinical reference**")
 
     ref_rows = [
-        ("Incubation",  INCUBATION["min"],  INCUBATION["avg"],  INCUBATION["max"]),
-        ("Primary",     PRIMARY["min"],      PRIMARY["avg"],      PRIMARY["max"]),
-        ("Latency",     LATENCY["min"],      LATENCY["avg"],      LATENCY["max"]),
-        ("Secondary",   SECONDARY["min"],    SECONDARY["avg"],    SECONDARY["max"]),
+        ("Incubation", INCUBATION["min"], INCUBATION["avg"], INCUBATION["max"]),
+        ("Primary", PRIMARY["min"], PRIMARY["avg"], PRIMARY["max"]),
+        ("Latency", LATENCY["min"], LATENCY["avg"], LATENCY["max"]),
+        ("Secondary", SECONDARY["min"], SECONDARY["avg"], SECONDARY["max"]),
     ]
     for label, mn, avg, mx in ref_rows:
         st.markdown(
@@ -122,18 +122,21 @@ st.divider()
 # Input form — two columns, Person A and Person B
 # ---------------------------------------------------------------------------
 
-SYM_TYPES = [
-    "Primary Chancre",
-    "Historical Primary",
-    "Ghosted Primary",
-    "Secondary Rash/Lesions",
-    "None",
-]
-
 # Display labels without "LX" — map back to full values for the engine
 SEX_DISPLAY = ["Anal", "Oral", "Vaginal", "Penile", "Rectal"]
-SEX_VALUE   = ["Anal LX", "Oral LX", "Vaginal LX", "Penile LX", "Rectal LX"]
+SEX_VALUE = ["Anal LX", "Oral LX", "Vaginal LX", "Penile LX", "Rectal LX"]
 _display_to_value = dict(zip(SEX_DISPLAY, SEX_VALUE))
+
+# Anatomical location options for primary chancre — used in sex-type compatibility check
+_LOCATION_OPTIONS = [
+    "Anal LX",
+    "Oral LX",
+    "Vaginal LX",
+    "Penile LX",
+    "Rectal LX",
+    "Non-genital LX",
+    "LX",
+]
 
 
 def _sex_display_to_values(selected_labels: list[str]) -> list[str]:
@@ -141,28 +144,69 @@ def _sex_display_to_values(selected_labels: list[str]) -> list[str]:
     return [_display_to_value[s] for s in selected_labels if s in _display_to_value]
 
 
+def _rows_to_symptoms(df: pd.DataFrame) -> list[Symptom]:
+    """Convert a symptom data-editor DataFrame into engine Symptom objects."""
+    syms = []
+    for row in df.to_dict("records"):
+        sym_type = row.get("Type")
+        onset = row.get("Onset Date")
+        if not sym_type or (isinstance(sym_type, float) and pd.isna(sym_type)):
+            continue
+        if onset is None or (not isinstance(onset, date) and pd.isna(onset)):
+            continue
+        onset_d = onset if isinstance(onset, date) else pd.to_datetime(onset).date()
+        dur = row.get("Duration")
+        duration_days = int(dur) if pd.notna(dur) else 0
+        loc = row.get("Location")
+        location = (
+            loc if loc and not (isinstance(loc, float) and pd.isna(loc)) else None
+        )
+        syms.append(
+            Symptom(
+                type=sym_type,
+                onset=onset_d,
+                duration_days=duration_days,
+                location=location,
+            )
+        )
+    return syms
+
+
 col_a, col_b = st.columns(2)
 
 with col_a:
     st.subheader("Person A (OP)")
     a_name = st.text_input("Name / identifier", value="OP", key="a_name")
-    a_sym_type = st.selectbox("Symptom type", SYM_TYPES, index=4, key="a_sym_type")
-
-    # Only show onset/duration when A has a symptom selected
-    if a_sym_type != "None":
-        a_sym_onset = st.date_input(
-            "Symptom onset date",
-            value=date.today() - timedelta(days=21),
-            key="a_sym_onset",
-            format="MM/DD/YYYY",
-        )
-        a_sym_dur = st.number_input(
-            "Symptom duration (days, 0 = use average)",
-            min_value=0, max_value=90, value=0, key="a_sym_dur",
-        )
-    else:
-        a_sym_onset = date.today()   # unused downstream
-        a_sym_dur   = 0
+    st.caption("Symptoms — add one row per symptom, leave table empty if none")
+    _a_sym_empty = pd.DataFrame(columns=["Type", "Onset Date", "Duration", "Location"])
+    edited_a_sym_df = st.data_editor(
+        _a_sym_empty,
+        num_rows="dynamic",
+        column_config={
+            "Type": st.column_config.SelectboxColumn(
+                "Symptom type",
+                options=[
+                    "Primary Chancre",
+                    "Historical Primary",
+                    "Ghosted Primary",
+                    "Secondary Rash/Lesions",
+                ],
+                required=True,
+            ),
+            "Onset Date": st.column_config.DateColumn("Onset date", required=True),
+            "Duration": st.column_config.NumberColumn(
+                "Duration (days, 0 = avg)", min_value=0, max_value=90, default=0
+            ),
+            "Location": st.column_config.SelectboxColumn(
+                "Lesion location",
+                options=_LOCATION_OPTIONS,
+                help="Anatomical site of a primary chancre. Leave blank for secondary symptoms.",
+            ),
+        },
+        key="a_sym_editor",
+        use_container_width=True,
+        hide_index=True,
+    )
 
     st.caption("Exposure window (A's account of contact with B)")
     a_exp_first = st.date_input(
@@ -180,23 +224,36 @@ with col_a:
 with col_b:
     st.subheader("Person B (Partner)")
     b_name = st.text_input("Name / identifier", value="Partner", key="b_name")
-    b_sym_type = st.selectbox("Symptom type", SYM_TYPES, index=4, key="b_sym_type")
-
-    # Only show onset fields when B has a symptom — hide when "None"
-    if b_sym_type != "None":
-        b_sym_onset = st.date_input(
-            "Symptom onset date",
-            value=date.today() - timedelta(days=45),
-            key="b_sym_onset",
-            format="MM/DD/YYYY",
-        )
-        b_sym_dur = st.number_input(
-            "Symptom duration (days, 0 = use average)",
-            min_value=0, max_value=90, value=0, key="b_sym_dur",
-        )
-    else:
-        b_sym_onset = date.today()   # unused but keeps downstream code clean
-        b_sym_dur   = 0
+    st.caption("Symptoms — add one row per symptom, leave table empty if none")
+    _b_sym_empty = pd.DataFrame(columns=["Type", "Onset Date", "Duration", "Location"])
+    edited_b_sym_df = st.data_editor(
+        _b_sym_empty,
+        num_rows="dynamic",
+        column_config={
+            "Type": st.column_config.SelectboxColumn(
+                "Symptom type",
+                options=[
+                    "Primary Chancre",
+                    "Historical Primary",
+                    "Ghosted Primary",
+                    "Secondary Rash/Lesions",
+                ],
+                required=True,
+            ),
+            "Onset Date": st.column_config.DateColumn("Onset date", required=True),
+            "Duration": st.column_config.NumberColumn(
+                "Duration (days, 0 = avg)", min_value=0, max_value=90, default=0
+            ),
+            "Location": st.column_config.SelectboxColumn(
+                "Lesion location",
+                options=_LOCATION_OPTIONS,
+                help="Anatomical site of a primary chancre. Leave blank for secondary symptoms.",
+            ),
+        },
+        key="b_sym_editor",
+        use_container_width=True,
+        hide_index=True,
+    )
 
     st.caption("Exposure window (B's account of contact with A)")
     b_exp_first = st.date_input(
@@ -229,15 +286,9 @@ with clear_col:
         st.rerun()
 
 if run_btn:
-    # Build symptom lists
-    a_symptoms = (
-        [Symptom(type=a_sym_type, onset=a_sym_onset, duration_days=int(a_sym_dur))]
-        if a_sym_type != "None" else []
-    )
-    b_symptoms = (
-        [Symptom(type=b_sym_type, onset=b_sym_onset, duration_days=int(b_sym_dur))]
-        if b_sym_type != "None" else []
-    )
+    # Build symptom lists from multi-row editors
+    a_symptoms = _rows_to_symptoms(edited_a_sym_df)
+    b_symptoms = _rows_to_symptoms(edited_b_sym_df)
 
     if not a_symptoms and not b_symptoms:
         st.error("At least one person must have a symptom type selected.")
@@ -245,11 +296,13 @@ if run_btn:
 
     a_exposure = (
         Exposure(first=a_exp_first, last=a_exp_last, sex_types=a_sex)
-        if a_exp_first and a_exp_last else None
+        if a_exp_first and a_exp_last
+        else None
     )
     b_exposure = (
         Exposure(first=b_exp_first, last=b_exp_last, sex_types=b_sex)
-        if b_exp_first and b_exp_last else None
+        if b_exp_first and b_exp_last
+        else None
     )
 
     try:
@@ -306,9 +359,9 @@ else:
 # Ghosted date metrics
 m1, m2, m3, m4 = st.columns(4)
 m1.metric("Ghosted source onset", str(result.ghosted_source.onset))
-m2.metric("Ghosted source end",   str(result.ghosted_source.end))
+m2.metric("Ghosted source end", str(result.ghosted_source.end))
 m3.metric("Ghosted spread onset", str(result.ghosted_spread.onset))
-m4.metric("Ghosted spread end",   str(result.ghosted_spread.end))
+m4.metric("Ghosted spread end", str(result.ghosted_spread.end))
 
 # ---------------------------------------------------------------------------
 # Scenario diagrams
@@ -317,18 +370,24 @@ m4.metric("Ghosted spread end",   str(result.ghosted_spread.end))
 st.divider()
 st.subheader("Scenario visualisations")
 
-p1_is_a    = result.p1_name == (inp["a_name"].strip() or "Person A")
-p1_syms    = inp["a_symptoms"] if p1_is_a else inp["b_symptoms"]
-p2_syms    = inp["b_symptoms"] if p1_is_a else inp["a_symptoms"]
-p2_exp     = inp["b_exposure"] if p1_is_a else inp["a_exposure"]
+p1_is_a = result.p1_name == (inp["a_name"].strip() or "Person A")
+p1_syms = inp["a_symptoms"] if p1_is_a else inp["b_symptoms"]
+p2_syms = inp["b_symptoms"] if p1_is_a else inp["a_symptoms"]
+p2_exp = inp["b_exposure"] if p1_is_a else inp["a_exposure"]
 
-p1_symptom = p1_syms[0] if p1_syms else None
+p1_symptom = (
+    result.p1_symptom
+)  # anchor chosen by select_case1 — correct for multi-symptom lists
 
 # Fixed 12-month window: anchor on the earliest treatment date entered,
 # fall back to P1 symptom onset. 9 months before → 3 months after.
-_anchor = inp["a_treatment"] or inp["b_treatment"] or (p1_symptom.onset if p1_symptom else date.today())
-_graph_min = _anchor - timedelta(days=274)   # ~9 months
-_graph_max = _anchor + timedelta(days=91)    # ~3 months
+_anchor = (
+    inp["a_treatment"]
+    or inp["b_treatment"]
+    or (p1_symptom.onset if p1_symptom else date.today())
+)
+_graph_min = _anchor - timedelta(days=274)  # ~9 months
+_graph_max = _anchor + timedelta(days=91)  # ~3 months
 _graph_range = (_graph_min, _graph_max)
 
 if p1_symptom:
@@ -392,22 +451,26 @@ def _render_criteria(criteria: dict):
     rows = []
     for k, v in criteria.items():
         icon = {
-            "pass": "✓ Pass", "fail": "✗ Fail",
-            "warn": "⚠ Warn", "na":   "— N/A",
+            "pass": "✓ Pass",
+            "fail": "✗ Fail",
+            "warn": "⚠ Warn",
+            "na": "— N/A",
         }.get(v["status"], "?")
-        rows.append({
-            "Criterion": k.replace("_", " ").title(),
-            "Result": icon,
-            "Detail": v["detail"],
-        })
+        rows.append(
+            {
+                "Criterion": k.replace("_", " ").title(),
+                "Result": icon,
+                "Detail": v["detail"],
+            }
+        )
     st.dataframe(
         pd.DataFrame(rows),
         use_container_width=True,
         hide_index=True,
         column_config={
             "Criterion": st.column_config.TextColumn(width="medium"),
-            "Result":    st.column_config.TextColumn(width="small"),
-            "Detail":    st.column_config.TextColumn(width="large"),
+            "Result": st.column_config.TextColumn(width="small"),
+            "Detail": st.column_config.TextColumn(width="large"),
         },
     )
 
@@ -431,16 +494,20 @@ st.caption("How far back to elicit contacts, based on the anchor symptom.")
 
 if p1_symptom:
     if p1_symptom.type in ("Primary Chancre", "Historical Primary", "Ghosted Primary"):
-        interview_start = p1_symptom.onset - timedelta(days=INTERVIEW_PERIOD_PRIMARY_DAYS)
+        interview_start = p1_symptom.onset - timedelta(
+            days=INTERVIEW_PERIOD_PRIMARY_DAYS
+        )
         period_label = f"{INTERVIEW_PERIOD_PRIMARY_DAYS} days (primary)"
     else:
-        interview_start = p1_symptom.onset - timedelta(days=INTERVIEW_PERIOD_SECONDARY_DAYS)
+        interview_start = p1_symptom.onset - timedelta(
+            days=INTERVIEW_PERIOD_SECONDARY_DAYS
+        )
         period_label = f"{INTERVIEW_PERIOD_SECONDARY_DAYS} days (secondary)"
 
     ip1, ip2, ip3 = st.columns(3)
-    ip1.metric("Anchor symptom onset",  str(p1_symptom.onset))
+    ip1.metric("Anchor symptom onset", str(p1_symptom.onset))
     ip2.metric("Interview period start", str(interview_start))
-    ip3.metric("Period length",          period_label)
+    ip3.metric("Period length", period_label)
 else:
     st.info("No P1 symptom — interview period cannot be calculated.")
 
@@ -485,8 +552,16 @@ if active_case_id:
         from app.db.queries import create_ghosting
 
         p_ref = partner_ref_input.strip() or None
-        from_ref = "OP" if result.p1_name == (inp["a_name"].strip() or "Person A") else (p_ref or "1")
-        to_ref   = (p_ref or "1") if result.p1_name == (inp["a_name"].strip() or "Person A") else "OP"
+        from_ref = (
+            "OP"
+            if result.p1_name == (inp["a_name"].strip() or "Person A")
+            else (p_ref or "1")
+        )
+        to_ref = (
+            (p_ref or "1")
+            if result.p1_name == (inp["a_name"].strip() or "Person A")
+            else "OP"
+        )
 
         saved = []
         with SessionLocal() as db:

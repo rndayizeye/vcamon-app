@@ -42,24 +42,25 @@ from typing import Optional
 # ---------------------------------------------------------------------------
 
 INCUBATION = {"min": 10, "avg": 21, "max": 90}
-PRIMARY    = {"min":  7, "avg": 21, "max": 35}
-LATENCY    = {"min":  0, "avg": 28, "max": 70}
-SECONDARY  = {"min": 14, "avg": 28, "max": 42}
+PRIMARY = {"min": 7, "avg": 21, "max": 35}
+LATENCY = {"min": 0, "avg": 28, "max": 70}
+SECONDARY = {"min": 14, "avg": 28, "max": 42}
 
-INTERVIEW_PERIOD_PRIMARY_DAYS   = INCUBATION["max"] + PRIMARY["max"]           # 125
+INTERVIEW_PERIOD_PRIMARY_DAYS = INCUBATION["max"] + PRIMARY["max"]  # 125
 INTERVIEW_PERIOD_SECONDARY_DAYS = (
-    INCUBATION["max"] + PRIMARY["max"] + LATENCY["max"] + SECONDARY["max"]    # 237
+    INCUBATION["max"] + PRIMARY["max"] + LATENCY["max"] + SECONDARY["max"]  # 237
 )
 
 # Warn threshold for exposure check — half average incubation (10 days)
-EXPOSURE_WARN_MARGIN_DAYS = INCUBATION["avg"] // 2   # 10
+EXPOSURE_WARN_MARGIN_DAYS = INCUBATION["avg"] // 2  # 10
 
 # Minimum latency between ghosted lesion end and secondary symptom onset
-MIN_LATENCY_TO_SECONDARY_DAYS = 35   # 5 weeks
+MIN_LATENCY_TO_SECONDARY_DAYS = 35  # 5 weeks
 
 # ---------------------------------------------------------------------------
 # Interview period — calculate earliest relevant date for case investigation based on symptoms and previous negative tests
 # ---------------------------------------------------------------------------
+
 
 def calc_interview_period_start(
     symptom_onset: date,
@@ -68,7 +69,7 @@ def calc_interview_period_start(
 ) -> date:
     """
     Calculate interview period start date.
-    
+
     Standard: 125 days (primary) or 237 days (secondary) from onset
     With previous negative: Cannot go before (negative_date - 90 days)
     """
@@ -76,20 +77,22 @@ def calc_interview_period_start(
         standard_start = symptom_onset - timedelta(days=INTERVIEW_PERIOD_PRIMARY_DAYS)
     else:
         standard_start = symptom_onset - timedelta(days=INTERVIEW_PERIOD_SECONDARY_DAYS)
-    
+
     if last_negative_date:
         floor = last_negative_date - timedelta(days=INCUBATION["max"])
         return max(standard_start, floor)
-    
+
     return standard_start
+
+
 # ---------------------------------------------------------------------------
 # Symptom ranking — ghosting hierarchy
 # ---------------------------------------------------------------------------
 
 SYMPTOM_RANK: dict[str, int] = {
-    "Primary Chancre":        1,
-    "Historical Primary":     2,
-    "Ghosted Primary":        3,
+    "Primary Chancre": 1,
+    "Historical Primary": 2,
+    "Ghosted Primary": 3,
     "Secondary Rash/Lesions": 4,
 }
 
@@ -99,8 +102,56 @@ def symptom_rank(symptom_type: str) -> int:
 
 
 # ---------------------------------------------------------------------------
+# Symptom classification — shared UI/save helper (Primary vs Secondary)
+# ---------------------------------------------------------------------------
+
+# Values mirror LesionType enum  →  Primary syphilis
+_PRIMARY_LESION_VALUES: frozenset[str] = frozenset(
+    {
+        "Anal LX",
+        "Non-genital LX",
+        "LX",
+        "Oral LX",
+        "Penile LX",
+        "Rectal LX",
+        "Vaginal LX",
+    }
+)
+
+# Values mirror Symptom enum  →  Secondary syphilis
+_SECONDARY_SYMPTOM_VALUES: frozenset[str] = frozenset(
+    {
+        "Rash",
+        "PP Rash",
+        "GB Rash",
+        "C-lata",
+        "Alopecia",
+    }
+)
+
+
+def get_symptom_classification(symptom_type: str | None) -> str | None:
+    """
+    Derive Primary / Secondary classification from a symptom or lesion type
+    string as stored in SymptomEntry.symptom_type.
+
+    Returns "Primary", "Secondary", or None if the type is unrecognised.
+    Called on every save so the DB value always reflects the current type;
+    the user never needs to set it manually.
+    """
+    if not symptom_type:
+        return None
+    if symptom_type in _PRIMARY_LESION_VALUES:
+        return "Primary"
+    if symptom_type in _SECONDARY_SYMPTOM_VALUES:
+        return "Secondary"
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class Symptom:
@@ -119,11 +170,11 @@ class Exposure:
 
 @dataclass
 class GhostedLesion:
-    lesion_type: str        # "ghosted_source" | "ghosted_spread"
+    lesion_type: str  # "ghosted_source" | "ghosted_spread"
     onset: date
     end: date
     derived_from_symptom: str
-    assigned_to: str        # "OP" | "partner"
+    assigned_to: str  # "OP" | "partner"
 
 
 @dataclass
@@ -139,16 +190,22 @@ class GhostingResult:
 
     # Keep legacy aliases so existing page code doesn't break immediately
     @property
-    def p1_name(self): return self.case1_name
+    def p1_name(self):
+        return self.case1_name
+
     @property
-    def p2_name(self): return self.case2_name
+    def p2_name(self):
+        return self.case2_name
+
     @property
-    def p1_symptom(self): return self.case1_symptom
+    def p1_symptom(self):
+        return self.case1_symptom
 
 
 # ---------------------------------------------------------------------------
 # Step 1 — Select Case1
 # ---------------------------------------------------------------------------
+
 
 def select_case1(
     op_symptoms: list[Symptom],
@@ -159,15 +216,18 @@ def select_case1(
     If ranks are equal, earlier onset becomes Case1.
     Returns (case1_role, case1_symptom, case2_role, case2_symptoms).
     """
+
     def best(symptoms: list[Symptom]) -> Optional[Symptom]:
         usable = [s for s in symptoms if s.type in SYMPTOM_RANK]
         return min(usable, key=lambda s: symptom_rank(s.type)) if usable else None
 
-    op_best      = best(op_symptoms)
+    op_best = best(op_symptoms)
     partner_best = best(partner_symptoms)
 
     if op_best is None and partner_best is None:
-        raise ValueError("Neither the OP nor the partner has usable symptoms for ghosting.")
+        raise ValueError(
+            "Neither the OP nor the partner has usable symptoms for ghosting."
+        )
 
     if op_best is None:
         return "partner", partner_best, "OP", op_symptoms
@@ -184,7 +244,7 @@ def select_case1(
             return "partner", partner_best, "OP", op_symptoms
         else:
             return "OP", op_best, "partner", partner_symptoms
-    
+
     # Different ranks - lower rank number wins
     if op_rank < partner_rank:
         return "OP", op_best, "partner", partner_symptoms
@@ -199,6 +259,7 @@ select_p1 = select_case1
 # ---------------------------------------------------------------------------
 # Step 2 — Calculate Date1 (likely inoculation date for Case1)
 # ---------------------------------------------------------------------------
+
 
 def calc_date1(symptom: Symptom) -> date:
     """
@@ -229,7 +290,10 @@ avg_inoculation_date = calc_date1
 # Date1 is the midpoint of the ghosted source window
 # ---------------------------------------------------------------------------
 
-def calc_ghosted_source(date1: date, assigned_to: str, derived_from: str) -> GhostedLesion:
+
+def calc_ghosted_source(
+    date1: date, assigned_to: str, derived_from: str
+) -> GhostedLesion:
     """
     Date1 is the likely inoculation date of Case1.
     The ghosted source chancre for Case2 is centred on Date1:
@@ -241,7 +305,7 @@ def calc_ghosted_source(date1: date, assigned_to: str, derived_from: str) -> Gho
     return GhostedLesion(
         lesion_type="ghosted_source",
         onset=date1 - timedelta(days=half_primary),
-        end=date1   + timedelta(days=half_primary),
+        end=date1 + timedelta(days=half_primary),
         derived_from_symptom=derived_from,
         assigned_to=assigned_to,
     )
@@ -250,6 +314,7 @@ def calc_ghosted_source(date1: date, assigned_to: str, derived_from: str) -> Gho
 # ---------------------------------------------------------------------------
 # Step 4 — Date2 and ghosted spread lesion for Case2
 # ---------------------------------------------------------------------------
+
 
 def calc_date2(symptom: Symptom) -> date:
     """
@@ -276,7 +341,9 @@ def calc_date2(symptom: Symptom) -> date:
 calc_d2 = calc_date2
 
 
-def calc_ghosted_spread(date2: date, assigned_to: str, derived_from: str) -> GhostedLesion:
+def calc_ghosted_spread(
+    date2: date, assigned_to: str, derived_from: str
+) -> GhostedLesion:
     """
     Ghosted spread lesion for Case2, starting one avg incubation duration
     after Date2 (Case1's infectious midpoint):
@@ -285,7 +352,7 @@ def calc_ghosted_spread(date2: date, assigned_to: str, derived_from: str) -> Gho
         end   = onset + avg primary duration (21 days)
     """
     onset = date2 + timedelta(days=INCUBATION["avg"])
-    end   = onset + timedelta(days=PRIMARY["avg"])
+    end = onset + timedelta(days=PRIMARY["avg"])
     return GhostedLesion(
         lesion_type="ghosted_spread",
         onset=onset,
@@ -299,6 +366,7 @@ def calc_ghosted_spread(date2: date, assigned_to: str, derived_from: str) -> Gho
 # Criteria evaluation
 # ---------------------------------------------------------------------------
 
+
 def _check_exposure(
     infectious_start: date,
     infectious_end: date,
@@ -311,14 +379,14 @@ def _check_exposure(
     """
     if exposure is None or exposure.first is None or exposure.last is None:
         return "warn", "Exposure dates not recorded — cannot verify overlap."
-    
+
     # Check period intersection
-    overlaps = (infectious_start <= exposure.last and 
-                exposure.first <= infectious_end)
-    
+    overlaps = infectious_start <= exposure.last and exposure.first <= infectious_end
+
     if overlaps:
-        overlap_days = (min(infectious_end, exposure.last) - 
-                       max(infectious_start, exposure.first)).days + 1
+        overlap_days = (
+            min(infectious_end, exposure.last) - max(infectious_start, exposure.first)
+        ).days + 1
         return "pass", (
             f"Infectious period ({infectious_start} → {infectious_end}) "
             f"overlaps exposure ({exposure.first} → {exposure.last}) "
@@ -331,13 +399,13 @@ def _check_exposure(
     else:
         gap = (infectious_start - exposure.last).days
         direction = "after"
-    
+
     if gap <= EXPOSURE_WARN_MARGIN_DAYS:
         return "warn", (
             f"Infectious period ends {gap} day(s) {direction} exposure window "
             f"(within {EXPOSURE_WARN_MARGIN_DAYS}-day warn margin)."
         )
-    
+
     return "fail", (
         f"No overlap: infectious period is {gap} day(s) {direction} "
         f"exposure window (exceeds warn margin)."
@@ -350,11 +418,11 @@ def _sex_type_compatible(
 ) -> tuple[str, str]:
     if not sex_types:
         return "warn", "Sex types not recorded — cannot check anatomical compatibility."
-    
+
     # Use location if available, fall back to type
     check_string = (symptom.location or symptom.type).lower()
     sex_lower = [s.lower() for s in sex_types]
-    
+
     compatible = False
     if "anal" in check_string or "rectal" in check_string:
         compatible = any("anal" in s for s in sex_lower)
@@ -367,7 +435,7 @@ def _sex_type_compatible(
         if symptom.location is None:
             return "warn", "Lesion location not recorded — cannot verify compatibility."
         compatible = True  # Lab LX or other non-specific
-    
+
     if compatible:
         return "pass", (
             f"Lesion location ({symptom.location or symptom.type}) is consistent "
@@ -380,25 +448,65 @@ def _sex_type_compatible(
 
 
 def _latency_to_secondary(
-    lesion_end: date,
+    lesion: GhostedLesion,
     case2_symptoms: list[Symptom],
 ) -> tuple[str, str]:
+    """
+    Check that sufficient latency exists between the ghosted lesion end and
+    Case2's earliest secondary symptom.
+
+    Accepts the full GhostedLesion (not just lesion_end) so it can distinguish
+    two clinically distinct negative-gap situations:
+
+      overlap        lesion.onset < sec.onset ≤ lesion.end
+                     Primary was started before secondary and was still active
+                     when secondary appeared.  Latency min = 0 permits this
+                     but it is suspicious and warrants review.
+
+      reversed       lesion.onset ≥ sec.onset
+                     Secondary appeared before the ghosted primary even started.
+                     Impossible under natural progression; _natural_order also
+                     returns a hard FAIL for this case.
+    """
     secondary = [s for s in case2_symptoms if s.type == "Secondary Rash/Lesions"]
     if not secondary:
         return "na", "Case2 has no secondary symptoms — latency check not applicable."
 
     earliest_sec = min(s.onset for s in secondary)
-    gap = (earliest_sec - lesion_end).days
+    gap = (earliest_sec - lesion.end).days
 
     if gap >= MIN_LATENCY_TO_SECONDARY_DAYS:
         return "pass", (
-            f"{gap} days between ghosted lesion end ({lesion_end}) and "
-            f"Case2 secondary onset ({earliest_sec}) — meets ≥5-week requirement."
+            f"{gap} days between ghosted lesion end ({lesion.end}) and "
+            f"Case2 secondary onset ({earliest_sec}) — meets "
+            f"\u2265{MIN_LATENCY_TO_SECONDARY_DAYS}-day requirement."
         )
+
+    if gap < 0:
+        if lesion.onset < earliest_sec:
+            # True overlap: primary started before secondary but was still active
+            # when secondary appeared (lesion.onset < sec ≤ lesion.end).
+            return "fail", (
+                f"Primary-secondary overlap: ghosted lesion end ({lesion.end}) is "
+                f"{abs(gap)} day(s) after Case2 secondary onset ({earliest_sec}) — "
+                f"the chancre was still present when secondary symptoms appeared."
+            )
+        else:
+            # Reversed timeline: secondary appeared before the ghosted primary even
+            # started (lesion.onset ≥ sec.onset). _natural_order reports a hard FAIL
+            # for the same reason; this message adds the latency dimension.
+            days_before = (lesion.onset - earliest_sec).days
+            return "fail", (
+                f"Reversed timeline: Case2 secondary symptoms began ({earliest_sec}) "
+                f"{days_before} day(s) before ghosted lesion onset ({lesion.onset}) — "
+                f"secondary preceded primary, which is impossible under natural progression."
+            )
+
     return "fail", (
-        f"Only {gap} days between ghosted lesion end ({lesion_end}) and "
-        f"Case2 secondary onset ({earliest_sec}) — less than required "
-        f"{MIN_LATENCY_TO_SECONDARY_DAYS} days."
+        f"Only {gap} day(s) between ghosted lesion end ({lesion.end}) and "
+        f"Case2 secondary onset ({earliest_sec}) — below the required "
+        f"{MIN_LATENCY_TO_SECONDARY_DAYS} days "
+        f"({MIN_LATENCY_TO_SECONDARY_DAYS // 7} weeks)."
     )
 
 
@@ -407,30 +515,45 @@ def _natural_order(
     case2_symptoms: list[Symptom],
     case2_treatment_date: Optional[date],
 ) -> tuple[str, str]:
-    issues = []
+    fail_issues: list[str] = []
+    warn_issues: list[str] = []
 
     secondary = [s for s in case2_symptoms if s.type == "Secondary Rash/Lesions"]
     if secondary:
         earliest_sec = min(s.onset for s in secondary)
         if lesion.onset >= earliest_sec:
-            issues.append(
+            # Hard fail: primary started on or after secondary — impossible biology
+            fail_issues.append(
                 f"Ghosted lesion onset ({lesion.onset}) is on/after Case2 secondary "
                 f"onset ({earliest_sec}) — violates primary-before-secondary order."
             )
+        elif lesion.end > earliest_sec:
+            # Soft warn: primary started before secondary but was still active when
+            # secondary appeared. LATENCY min = 0 permits this, but it is clinically
+            # suspicious and must be reviewed. The latency criterion will also fail.
+            overlap_days = (lesion.end - earliest_sec).days
+            warn_issues.append(
+                f"Primary-secondary overlap: ghosted lesion ({lesion.onset} → "
+                f"{lesion.end}) was still active {overlap_days} day(s) into "
+                f"Case2 secondary onset ({earliest_sec}). Latency minimum is 0 days "
+                f"so this is technically possible, but warrants manual review."
+            )
 
     if case2_treatment_date and lesion.onset >= case2_treatment_date:
-        issues.append(
+        fail_issues.append(
             f"Ghosted lesion onset ({lesion.onset}) is on/after Case2 treatment "
             f"({case2_treatment_date}) — symptoms should not appear after treatment."
         )
 
-    if issues:
-        return "fail", " | ".join(issues)
+    if fail_issues:
+        return "fail", " | ".join(fail_issues + warn_issues)
+    if warn_issues:
+        return "warn", " | ".join(warn_issues)
     return "pass", "Ghosted lesion follows natural syphilis progression order."
 
 
 def evaluate_criteria(
-    scenario: str,                          # "source" or "spread"
+    scenario: str,  # "source" or "spread"
     lesion: GhostedLesion,
     case1_symptom: Symptom,
     case2_symptoms: list[Symptom],
@@ -456,10 +579,14 @@ def evaluate_criteria(
         infectious_end = lesion.end
     else:  # spread
         # Case1 must be infectious during Case2's exposure
-        dur = case1_symptom.duration_days if case1_symptom.duration_days > 0 else PRIMARY["avg"]
+        dur = (
+            case1_symptom.duration_days
+            if case1_symptom.duration_days > 0
+            else PRIMARY["avg"]
+        )
         infectious_start = case1_symptom.onset
         infectious_end = case1_symptom.onset + timedelta(days=dur)
-    
+
     exp_status, exp_detail = _check_exposure(
         infectious_start, infectious_end, exposure, scenario
     )
@@ -467,13 +594,15 @@ def evaluate_criteria(
     sex_status, sex_detail = _sex_type_compatible(
         case1_symptom, exposure.sex_types if exposure else []
     )
-    lat_status, lat_detail = _latency_to_secondary(lesion.end, case2_symptoms)
-    ord_status, ord_detail = _natural_order(lesion, case2_symptoms, case2_treatment_date)
+    lat_status, lat_detail = _latency_to_secondary(lesion, case2_symptoms)
+    ord_status, ord_detail = _natural_order(
+        lesion, case2_symptoms, case2_treatment_date
+    )
 
     return {
-        "exposure":      {"status": exp_status, "detail": exp_detail},
-        "sex_type":      {"status": sex_status, "detail": sex_detail},
-        "latency":       {"status": lat_status, "detail": lat_detail},
+        "exposure": {"status": exp_status, "detail": exp_detail},
+        "sex_type": {"status": sex_status, "detail": sex_detail},
+        "latency": {"status": lat_status, "detail": lat_detail},
         "natural_order": {"status": ord_status, "detail": ord_detail},
     }
 
@@ -486,39 +615,79 @@ def _scenario_passes(criteria: dict) -> bool:
 # Step 6 — Verdict
 # ---------------------------------------------------------------------------
 
+
 def determine_verdict(
     source_passes: bool,
     spread_passes: bool,
     case1_role: str,
     case1_name: str,
     case2_name: str,
+    source_criteria: dict | None = None,
+    spread_criteria: dict | None = None,
 ) -> str:
+    """
+    Build the final verdict string.
+
+    source_criteria / spread_criteria are the dicts returned by evaluate_criteria.
+    When supplied, the verdict is annotated if a primary-secondary overlap was
+    detected in either scenario (natural_order == warn  OR  latency fail with
+    'overlap' in the detail text).
+    """
+    # --- Base directional conclusion ---
     if source_passes and not spread_passes:
         if case1_role == "OP":
-            return f"OP ({case1_name}) is the SOURCE of infection for partner ({case2_name})."
+            verdict = f"OP ({case1_name}) is the SOURCE of infection for partner ({case2_name})."
         else:
-            return f"Partner ({case1_name}) is the SOURCE of infection for OP ({case2_name})."
+            verdict = f"Partner ({case1_name}) is the SOURCE of infection for OP ({case2_name})."
     elif spread_passes and not source_passes:
         if case1_role == "OP":
-            return f"Partner ({case2_name}) is the SOURCE — OP ({case1_name}) is a SPREAD."
+            verdict = (
+                f"Partner ({case2_name}) is the SOURCE — OP ({case1_name}) is a SPREAD."
+            )
         else:
-            return f"OP ({case2_name}) is the SOURCE — partner ({case1_name}) is a SPREAD."
+            verdict = (
+                f"OP ({case2_name}) is the SOURCE — partner ({case1_name}) is a SPREAD."
+            )
     elif source_passes and spread_passes:
-        return "AMBIGUOUS — both source and spread scenarios meet criteria. Manual review required."
+        verdict = "AMBIGUOUS — both source and spread scenarios meet criteria. Manual review required."
     else:
-        return "UNRELATED INFECTIONS — neither source nor spread scenario meets criteria."
+        verdict = (
+            "UNRELATED INFECTIONS — neither source nor spread scenario meets criteria."
+        )
+
+    # --- Overlap annotation ---
+    # Scan both scenario criteria for primary-secondary overlap signals and append
+    # a warning note so investigators are not misled by a technically-passing verdict.
+    overlap_flagged = False
+    for criteria in filter(None, [source_criteria, spread_criteria]):
+        nat = criteria.get("natural_order", {})
+        lat = criteria.get("latency", {})
+        if nat.get("status") == "warn" or (
+            lat.get("status") == "fail"
+            and "overlap" in (lat.get("detail") or "").lower()
+        ):
+            overlap_flagged = True
+            break
+
+    if overlap_flagged:
+        verdict += (
+            " ⚠ Primary-secondary overlap detected in at least one scenario — "
+            "manual clinical review recommended."
+        )
+
+    return verdict
 
 
 # ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 
+
 def run_ghosting_analysis(
     op_name: str,
     op_symptoms: list[Symptom],
     op_exposure: Optional[Exposure],
     op_treatment_date: Optional[date],
-
     partner_name: str,
     partner_symptoms: list[Symptom],
     partner_exposure: Optional[Exposure],
@@ -543,10 +712,12 @@ def run_ghosting_analysis(
     case1_role, case1_symptom, case2_role, case2_symptoms = select_case1(
         op_symptoms, partner_symptoms
     )
-    case1_name = op_name      if case1_role == "OP" else partner_name
+    case1_name = op_name if case1_role == "OP" else partner_name
     case2_name = partner_name if case1_role == "OP" else op_name
-    case2_treatment = partner_treatment_date if case1_role == "OP" else op_treatment_date
-    case2_exposure  = partner_exposure       if case1_role == "OP" else op_exposure
+    case2_treatment = (
+        partner_treatment_date if case1_role == "OP" else op_treatment_date
+    )
+    case2_exposure = partner_exposure if case1_role == "OP" else op_exposure
 
     log.append(
         f"Step 1: Case1 = {case1_name} ({case1_role}) with '{case1_symptom.type}' "
@@ -559,8 +730,9 @@ def run_ghosting_analysis(
     log.append(f"Step 2: Date1 (likely inoculation date for Case1) = {date1}.")
 
     # --- Step 3 ---
-    ghosted_source = calc_ghosted_source(date1, assigned_to=case2_role,
-                                         derived_from=case1_symptom.type)
+    ghosted_source = calc_ghosted_source(
+        date1, assigned_to=case2_role, derived_from=case1_symptom.type
+    )
     log.append(
         f"Step 3: Ghosted SOURCE lesion for {case2_name}: "
         f"{ghosted_source.onset} → {ghosted_source.end}."
@@ -568,8 +740,9 @@ def run_ghosting_analysis(
 
     # --- Step 4 ---
     date2 = calc_date2(case1_symptom)
-    ghosted_spread = calc_ghosted_spread(date2, assigned_to=case2_role,
-                                         derived_from=case1_symptom.type)
+    ghosted_spread = calc_ghosted_spread(
+        date2, assigned_to=case2_role, derived_from=case1_symptom.type
+    )
     log.append(f"Step 4: Date2 (Case1 infectious midpoint) = {date2}.")
     log.append(
         f"        Ghosted SPREAD lesion for {case2_name}: "
@@ -591,8 +764,12 @@ def run_ghosting_analysis(
         date2=date2,
     )
     for k, v in source_criteria.items():
-        icon = {"pass": "[PASS]", "fail": "[FAIL]",
-                "warn": "[WARN]", "na":   "[N/A ]"}.get(v["status"], "[?]")
+        icon = {
+            "pass": "[PASS]",
+            "fail": "[FAIL]",
+            "warn": "[WARN]",
+            "na": "[N/A ]",
+        }.get(v["status"], "[?]")
         log.append(f"  {icon} {k.upper()}: {v['detail']}")
 
     log.append("")
@@ -609,15 +786,26 @@ def run_ghosting_analysis(
         date2=date2,
     )
     for k, v in spread_criteria.items():
-        icon = {"pass": "[PASS]", "fail": "[FAIL]",
-                "warn": "[WARN]", "na":   "[N/A ]"}.get(v["status"], "[?]")
+        icon = {
+            "pass": "[PASS]",
+            "fail": "[FAIL]",
+            "warn": "[WARN]",
+            "na": "[N/A ]",
+        }.get(v["status"], "[?]")
         log.append(f"  {icon} {k.upper()}: {v['detail']}")
 
     # --- Step 7 — verdict ---
     source_passes = _scenario_passes(source_criteria)
     spread_passes = _scenario_passes(spread_criteria)
-    verdict = determine_verdict(source_passes, spread_passes,
-                                case1_role, case1_name, case2_name)
+    verdict = determine_verdict(
+        source_passes,
+        spread_passes,
+        case1_role,
+        case1_name,
+        case2_name,
+        source_criteria=source_criteria,
+        spread_criteria=spread_criteria,
+    )
 
     log.append("")
     log.append("--- Conclusion ---")
