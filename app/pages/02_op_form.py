@@ -19,7 +19,6 @@ from app.db.models import (
     NonTreponemalTiter,
     ReasonForExam,
     Symptom,
-    SymptomClassification,
     TestCategory,
     Treatment,
     TreponemalTestResult,

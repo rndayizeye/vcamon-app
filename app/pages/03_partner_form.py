@@ -23,7 +23,6 @@ from app.db.models import (
     NonTreponemalTiter,
     ReasonForExam,
     Symptom,
-    SymptomClassification,
     TestCategory,
     Treatment,
     TreponemalTestResult,
@@ -395,34 +394,44 @@ with st.form("partner_form", border=True):
             format="MM/DD/YYYY",
         )
 
-        sex_types_display = ["Anal", "Oral", "Vaginal", "Penile", "Rectal"]
-        sex_types_value = ["Anal LX", "Oral LX", "Vaginal LX", "Penile LX", "Rectal LX"]
+        exposure_modalities_display = ["Anal", "Oral", "Vaginal", "Penile", "Rectal"]
+        exposure_modalities_value = [
+            "Anal LX",
+            "Oral LX",
+            "Vaginal LX",
+            "Penile LX",
+            "Rectal LX",
+        ]
 
         current_sex = []
-        if relationship and relationship.sex_types:
+        if relationship and relationship.exposure_modalities:
             try:
-                stored = json.loads(relationship.sex_types)
+                stored = json.loads(relationship.exposure_modalities)
                 current_sex = [
-                    sex_types_display[sex_types_value.index(s)]
+                    exposure_modalities_display[exposure_modalities_value.index(s)]
                     for s in stored
-                    if s in sex_types_value
+                    if s in exposure_modalities_value
                 ]
             except json.JSONDecodeError:
                 pass
-        elif partner and hasattr(partner, "sex_types") and partner.sex_types:
+        elif (
+            partner
+            and hasattr(partner, "exposure_modalities")
+            and partner.exposure_modalities
+        ):
             try:
-                stored = json.loads(partner.sex_types)
+                stored = json.loads(partner.exposure_modalities)
                 current_sex = [
-                    sex_types_display[sex_types_value.index(s)]
+                    exposure_modalities_display[exposure_modalities_value.index(s)]
                     for s in stored
-                    if s in sex_types_value
+                    if s in exposure_modalities_value
                 ]
             except json.JSONDecodeError:
                 pass
 
-        sex_types_selected = st.multiselect(
+        exposure_modalities_selected = st.multiselect(
             "Sex type(s) reported",
-            options=sex_types_display,
+            options=exposure_modalities_display,
             default=current_sex,
         )
 
@@ -442,7 +451,7 @@ with st.form("partner_form", border=True):
                         "Reporter": r.reporter,
                         "First Exposure": r.exposure_first_date,
                         "Last Exposure": r.exposure_last_date,
-                        "Sex Types": r.sex_types,
+                        "Exposure Modalities": r.exposure_modalities,
                     }
                     for r in reps
                 ]
@@ -451,7 +460,13 @@ with st.form("partner_form", border=True):
 
         report_df_base = pd.DataFrame(
             existing_reports,
-            columns=["id", "Reporter", "First Exposure", "Last Exposure", "Sex Types"],
+            columns=[
+                "id",
+                "Reporter",
+                "First Exposure",
+                "Last Exposure",
+                "Exposure Modalities",
+            ],
         )
 
         edited_report_df = st.data_editor(
@@ -466,7 +481,9 @@ with st.form("partner_form", border=True):
                 ),
                 "First Exposure": st.column_config.DateColumn("First Exposure"),
                 "Last Exposure": st.column_config.DateColumn("Last Exposure"),
-                "Sex Types": st.column_config.TextColumn("Sex Types (JSON array)"),
+                "Exposure Modalities": st.column_config.TextColumn(
+                    "Exposure Modalities (JSON array)"
+                ),
             },
             key="relationship_report_editor",
             use_container_width=True,
@@ -529,14 +546,16 @@ if submitted or add_another or go_map:
                 partner_id = saved.id
                 st.success(f"Partner {saved.partner_number} updated — {saved.name}")
                 # Update or create the relationship record
-                sex_types_json = (
+                exposure_modalities_json = (
                     json.dumps(
                         [
-                            sex_types_value[sex_types_display.index(s)]
-                            for s in sex_types_selected
+                            exposure_modalities_value[
+                                exposure_modalities_display.index(s)
+                            ]
+                            for s in exposure_modalities_selected
                         ]
                     )
-                    if sex_types_selected
+                    if exposure_modalities_selected
                     else None
                 )
                 if relationship:
@@ -545,7 +564,7 @@ if submitted or add_another or go_map:
                         relationship.id,
                         exposure_first_date=exposure_first,
                         exposure_last_date=exposure_last,
-                        sex_types=sex_types_json,
+                        exposure_modalities=exposure_modalities_json,
                     )
                 else:
                     relationship = create_case_partner_relationship(
@@ -554,7 +573,7 @@ if submitted or add_another or go_map:
                         partner.id,
                         exposure_first_date=exposure_first,
                         exposure_last_date=exposure_last,
-                        sex_types=sex_types_json,
+                        exposure_modalities=exposure_modalities_json,
                     )
             else:
                 saved = create_partner(
@@ -567,14 +586,16 @@ if submitted or add_another or go_map:
                 set_active_partner_id(saved.id)
                 partner_id = saved.id
                 # Create the relationship record for the new partner
-                sex_types_json = (
+                exposure_modalities_json = (
                     json.dumps(
                         [
-                            sex_types_value[sex_types_display.index(s)]
-                            for s in sex_types_selected
+                            exposure_modalities_value[
+                                exposure_modalities_display.index(s)
+                            ]
+                            for s in exposure_modalities_selected
                         ]
                     )
-                    if sex_types_selected
+                    if exposure_modalities_selected
                     else None
                 )
                 relationship = create_case_partner_relationship(
@@ -583,7 +604,7 @@ if submitted or add_another or go_map:
                     saved.id,
                     exposure_first_date=exposure_first,
                     exposure_last_date=exposure_last,
-                    sex_types=sex_types_json,
+                    exposure_modalities=exposure_modalities_json,
                 )
 
             # Sync Relationship Reports
@@ -613,7 +634,7 @@ if submitted or add_another or go_map:
                             reporter=row["Reporter"],
                             exposure_first_date=row["First Exposure"],
                             exposure_last_date=row["Last Exposure"],
-                            sex_types=row["Sex Types"],
+                            exposure_modalities=row["Exposure Modalities"],
                         )
                     else:
                         create_relationship_report(
@@ -622,7 +643,7 @@ if submitted or add_another or go_map:
                             reporter=row["Reporter"],
                             exposure_first_date=row["First Exposure"],
                             exposure_last_date=row["Last Exposure"],
-                            sex_types=row["Sex Types"],
+                            exposure_modalities=row["Exposure Modalities"],
                         )
 
             # Sync Lab Results — two editors (non-treponemal + treponemal)

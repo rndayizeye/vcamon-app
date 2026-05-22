@@ -158,7 +158,7 @@ def _rows_to_symptoms(df: pd.DataFrame) -> list[Symptom]:
         dur = row.get("Duration")
         duration_days = int(dur) if pd.notna(dur) else 0
         loc = row.get("Location")
-        location = (
+        anatomical_site = (
             loc if loc and not (isinstance(loc, float) and pd.isna(loc)) else None
         )
         syms.append(
@@ -166,7 +166,7 @@ def _rows_to_symptoms(df: pd.DataFrame) -> list[Symptom]:
                 type=sym_type,
                 onset=onset_d,
                 duration_days=duration_days,
-                location=location,
+                anatomical_site=anatomical_site,
             )
         )
     return syms
@@ -198,7 +198,7 @@ with col_a:
                 "Duration (days, 0 = avg)", min_value=0, max_value=90, default=0
             ),
             "Location": st.column_config.SelectboxColumn(
-                "Lesion location",
+                "Anatomical site",
                 options=_LOCATION_OPTIONS,
                 help="Anatomical site of a primary chancre. Leave blank for secondary symptoms.",
             ),
@@ -245,7 +245,7 @@ with col_b:
                 "Duration (days, 0 = avg)", min_value=0, max_value=90, default=0
             ),
             "Location": st.column_config.SelectboxColumn(
-                "Lesion location",
+                "Anatomical site",
                 options=_LOCATION_OPTIONS,
                 help="Anatomical site of a primary chancre. Leave blank for secondary symptoms.",
             ),
@@ -295,12 +295,12 @@ if run_btn:
         st.stop()
 
     a_exposure = (
-        Exposure(first=a_exp_first, last=a_exp_last, sex_types=a_sex)
+        Exposure(first=a_exp_first, last=a_exp_last, exposure_modalities=a_sex)
         if a_exp_first and a_exp_last
         else None
     )
     b_exposure = (
-        Exposure(first=b_exp_first, last=b_exp_last, sex_types=b_sex)
+        Exposure(first=b_exp_first, last=b_exp_last, exposure_modalities=b_sex)
         if b_exp_first and b_exp_last
         else None
     )

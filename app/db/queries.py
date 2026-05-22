@@ -20,6 +20,7 @@ from app.db.models import (
     MAPEntry,
     Partner,
     RelationshipReport,
+    SymptomEntry,
     TimelineEvent,
 )
 
@@ -44,7 +45,7 @@ def create_case_partner_relationship(
     partner_id: int,
     exposure_first_date: date | None = None,
     exposure_last_date: date | None = None,
-    sex_types: str | None = None,
+    exposure_modalities: str | None = None,
 ) -> CasePartnerRelationship:
     """Create a new relationship entry."""
     rel = CasePartnerRelationship(
@@ -52,7 +53,7 @@ def create_case_partner_relationship(
         partner_id=partner_id,
         exposure_first_date=exposure_first_date,
         exposure_last_date=exposure_last_date,
-        sex_types=sex_types,
+        exposure_modalities=exposure_modalities,
     )
     db.add(rel)
     db.commit()
@@ -115,7 +116,7 @@ def create_relationship_report(
     reporter: str,
     exposure_first_date: date | None = None,
     exposure_last_date: date | None = None,
-    sex_types: str | None = None,
+    exposure_modalities: str | None = None,
 ) -> RelationshipReport:
     """Create a new evidence report."""
     report = RelationshipReport(
@@ -123,7 +124,7 @@ def create_relationship_report(
         reporter=reporter,
         exposure_first_date=exposure_first_date,
         exposure_last_date=exposure_last_date,
-        sex_types=sex_types,
+        exposure_modalities=exposure_modalities,
     )
     db.add(report)
     db.commit()
@@ -239,17 +240,13 @@ def delete_lab_result_entry(db: Session, entry_id: int) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def get_symptoms_for_case(db: Session, case_id: int) -> list["SymptomEntry"]:
+def get_symptoms_for_case(db: Session, case_id: int) -> list[SymptomEntry]:
     """Retrieve all symptoms for a given case."""
-    from app.db.models import SymptomEntry
-
     return db.query(SymptomEntry).filter(SymptomEntry.case_id == case_id).all()
 
 
-def get_symptoms_for_partner(db: Session, partner_id: int) -> list["SymptomEntry"]:
+def get_symptoms_for_partner(db: Session, partner_id: int) -> list[SymptomEntry]:
     """Retrieve all symptoms for a given partner."""
-    from app.db.models import SymptomEntry
-
     return db.query(SymptomEntry).filter(SymptomEntry.partner_id == partner_id).all()
 
 
@@ -262,10 +259,8 @@ def create_symptom_entry(
     ongoing: bool = False,
     case_id: int | None = None,
     partner_id: int | None = None,
-) -> "SymptomEntry":
+) -> SymptomEntry:
     """Create a new symptom entry."""
-    from app.db.models import SymptomEntry
-
     entry = SymptomEntry(
         case_id=case_id,
         partner_id=partner_id,
@@ -283,10 +278,8 @@ def create_symptom_entry(
 
 def update_symptom_entry(
     db: Session, entry_id: int, **kwargs
-) -> Optional["SymptomEntry"]:
+) -> Optional[SymptomEntry]:
     """Update an existing symptom entry."""
-    from app.db.models import SymptomEntry
-
     entry = db.query(SymptomEntry).filter(SymptomEntry.id == entry_id).first()
     if not entry:
         return None
@@ -298,9 +291,7 @@ def update_symptom_entry(
 
 
 def delete_symptom_entry(db: Session, entry_id: int) -> bool:
-    """Delete a symptom entry."""
-    from app.db.models import SymptomEntry
-
+    """Delete a specific symptom entry."""
     entry = db.query(SymptomEntry).filter(SymptomEntry.id == entry_id).first()
     if not entry:
         return False

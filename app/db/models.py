@@ -582,7 +582,7 @@ class CasePartnerRelationship(Base):
     # Relationship-specific clinical details (Consensus Narrative)
     exposure_first_date: Mapped[date | None] = mapped_column(Date)
     exposure_last_date: Mapped[date | None] = mapped_column(Date)
-    sex_types: Mapped[str | None] = mapped_column(String(200))  # JSON array
+    exposure_modalities: Mapped[str | None] = mapped_column(String(200))  # JSON array
 
     case: Mapped["Case"] = relationship("Case", back_populates="relationships")
     partner: Mapped["Partner"] = relationship("Partner", back_populates="relationships")
@@ -621,7 +621,7 @@ class RelationshipReport(Base):
     )  # e.g. "OP", "Partner 1"
     exposure_first_date: Mapped[date | None] = mapped_column(Date)
     exposure_last_date: Mapped[date | None] = mapped_column(Date)
-    sex_types: Mapped[str | None] = mapped_column(String(200))  # JSON array
+    exposure_modalities: Mapped[str | None] = mapped_column(String(200))  # JSON array
 
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 

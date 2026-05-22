@@ -1,15 +1,15 @@
 # tests/test_validators.py
 
 from datetime import date, timedelta
+
 from app.utils.validators import (
+    validate_arrow_link,
     validate_op_form,
     validate_partner_form,
-    validate_arrow_link,
 )
 
 
 class TestOpFormValidation:
-
     def test_valid_form_returns_no_errors(self):
         errors = validate_op_form("Doe, Jane", date.today())
         assert errors == []
@@ -33,7 +33,6 @@ class TestOpFormValidation:
 
 
 class TestPartnerFormValidation:
-
     def test_valid_partner_name(self):
         assert validate_partner_form("Smith, John") == []
 
@@ -47,7 +46,6 @@ class TestPartnerFormValidation:
 
 
 class TestArrowLinkValidation:
-
     def test_valid_link(self):
         assert validate_arrow_link("OP", "1") == []
 

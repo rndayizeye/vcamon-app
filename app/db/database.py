@@ -1,5 +1,6 @@
 import os
-from sqlalchemy import create_engine, text, inspect
+
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 # On Streamlit Cloud the working directory isn't writable — use /tmp instead
@@ -30,14 +31,16 @@ engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
 
+
 def init_db():
     from app.db import models  # noqa: F401
+
     try:
         inspector = inspect(engine)
         if inspector.has_table("cases"):
-            columns = [col['name'] for col in inspector.get_columns("cases")]
-            required_columns = ['initial_contact_date', 'symptom_classification']
-            
+            columns = [col["name"] for col in inspector.get_columns("cases")]
+            required_columns = ["initial_contact_date", "symptom_classification"]
+
             if not all(col in columns for col in required_columns):
                 print("⚠️  Database schema mismatch - recreating tables...")
                 Base.metadata.drop_all(bind=engine)
@@ -45,8 +48,9 @@ def init_db():
         print(f"Schema check failed: {e}")
         # On error, drop and recreate to be safe
         Base.metadata.drop_all(bind=engine)
-    
+
     Base.metadata.create_all(bind=engine)
+
 
 def get_db():
     db = SessionLocal()

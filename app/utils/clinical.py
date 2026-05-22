@@ -158,14 +158,14 @@ class Symptom:
     type: str
     onset: date
     duration_days: int
-    location: str | None = None  # "Anal LX", "Penile LX", etc.
+    anatomical_site: str | None = None  # "Anal LX", "Penile LX", etc.
 
 
 @dataclass
 class Exposure:
     first: date
     last: date
-    sex_types: list[str] = field(default_factory=list)
+    exposure_modalities: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -178,13 +178,26 @@ class GhostedLesion:
 
 
 @dataclass
+class ScenarioResult:
+    """Results for a specific transmission direction across all constant ranges."""
+
+    range_data: dict[
+        str, dict
+    ]  # Maps 'aggressive'|'expected'|'conservative' -> criteria_dict
+    range_lesions: dict[
+        str, GhostedLesion
+    ]  # Maps 'aggressive'|'expected'|'conservative' -> GhostedLesion
+    confidence: str  # "Robust", "Likely", "Possible", "Unrelated"
+    pass_count: int  # Number of ranges that passed (0-3)
+
+
+@dataclass
 class GhostingResult:
     case1_name: str
     case2_name: str
     case1_symptom: Symptom
-    ghosted_source: GhostedLesion
-    ghosted_spread: GhostedLesion
-    criteria: dict
+    source_scenarios: ScenarioResult
+    spread_scenarios: ScenarioResult
     verdict: str
     log: list[str]
 
@@ -200,6 +213,26 @@ class GhostingResult:
     @property
     def p1_symptom(self):
         return self.case1_symptom
+
+    @property
+    def ghosted_source(self):
+        return self.source_scenarios.range_lesions["expected"]
+
+    @property
+    def ghosted_spread(self):
+        return self.spread_scenarios.range_lesions["expected"]
+
+    @property
+    def criteria(self):
+        return {
+            "source": self.source_scenarios.range_data["expected"],
+            "spread": self.spread_scenarios.range_data["expected"],
+        }
+
+
+# ---------------------------------------------------------------------------
+# Step 1 — Select Case1
+# ---------------------------------------------------------------------------
 
 
 # ---------------------------------------------------------------------------
@@ -261,28 +294,25 @@ select_p1 = select_case1
 # ---------------------------------------------------------------------------
 
 
-def calc_date1(symptom: Symptom) -> date:
+def calc_date1(symptom: Symptom, constant_key: str = "avg") -> date:
     """
     Work backwards from Case1's symptom onset to estimate when Case1
     was inoculated (Date1).
-
-    Primary / Historical / Ghosted:
-        Date1 = onset − avg incubation (21 days)
-
-    Secondary:
-        Date1 = onset − avg latency − avg primary − avg incubation
     """
     if symptom.type in ("Primary Chancre", "Historical Primary", "Ghosted Primary"):
-        return symptom.onset - timedelta(days=INCUBATION["avg"])
+        return symptom.onset - timedelta(days=INCUBATION[constant_key])
     elif symptom.type == "Secondary Rash/Lesions":
-        days_back = INCUBATION["avg"] + PRIMARY["avg"] + LATENCY["avg"]
+        days_back = (
+            INCUBATION[constant_key] + PRIMARY[constant_key] + LATENCY[constant_key]
+        )
         return symptom.onset - timedelta(days=days_back)
     else:
         raise ValueError(f"Cannot calculate Date1 for symptom type: {symptom.type}")
 
 
 # Legacy alias
-avg_inoculation_date = calc_date1
+def avg_inoculation_date(symptom: Symptom) -> date:
+    return calc_date1(symptom, constant_key="avg")
 
 
 # ---------------------------------------------------------------------------
@@ -292,16 +322,13 @@ avg_inoculation_date = calc_date1
 
 
 def calc_ghosted_source(
-    date1: date, assigned_to: str, derived_from: str
+    date1: date, assigned_to: str, derived_from: str, constant_key: str = "avg"
 ) -> GhostedLesion:
     """
     Date1 is the likely inoculation date of Case1.
-    The ghosted source chancre for Case2 is centred on Date1:
-
-        onset = Date1 − half avg primary duration  (10 days)
-        end   = Date1 + half avg primary duration  (10 days)
+    The ghosted source chancre for Case2 is centred on Date1.
     """
-    half_primary = PRIMARY["avg"] // 2
+    half_primary = PRIMARY[constant_key] // 2
     return GhostedLesion(
         lesion_type="ghosted_source",
         onset=date1 - timedelta(days=half_primary),
@@ -316,23 +343,23 @@ def calc_ghosted_source(
 # ---------------------------------------------------------------------------
 
 
-def calc_date2(symptom: Symptom) -> date:
+def calc_date2(symptom: Symptom, constant_key: str = "avg") -> date:
     """
     Date2 = midpoint of Case1's primary chancre — the point of peak
     infectiousness for Case1.
-
-    Primary / Historical / Ghosted:
-        Date2 = onset + (duration ÷ 2)
-
-    Secondary only:
-        Date2 = secondary onset − avg latency − half avg primary
     """
     if symptom.type in ("Primary Chancre", "Historical Primary", "Ghosted Primary"):
-        dur = symptom.duration_days if symptom.duration_days > 0 else PRIMARY["avg"]
+        dur = (
+            symptom.duration_days
+            if symptom.duration_days > 0
+            else PRIMARY[constant_key]
+        )
         return symptom.onset + timedelta(days=dur // 2)
     elif symptom.type == "Secondary Rash/Lesions":
-        half_primary = PRIMARY["avg"] / 2
-        return symptom.onset - timedelta(days=round(LATENCY["avg"] + half_primary))
+        half_primary = PRIMARY[constant_key] / 2
+        return symptom.onset - timedelta(
+            days=round(LATENCY[constant_key] + half_primary)
+        )
     else:
         raise ValueError(f"Cannot calculate Date2 for symptom type: {symptom.type}")
 
@@ -342,17 +369,14 @@ calc_d2 = calc_date2
 
 
 def calc_ghosted_spread(
-    date2: date, assigned_to: str, derived_from: str
+    date2: date, assigned_to: str, derived_from: str, constant_key: str = "avg"
 ) -> GhostedLesion:
     """
-    Ghosted spread lesion for Case2, starting one avg incubation duration
-    after Date2 (Case1's infectious midpoint):
-
-        onset = Date2 + avg incubation (21 days)
-        end   = onset + avg primary duration (21 days)
+    Ghosted spread lesion for Case2, starting one incubation duration
+    after Date2 (Case1's infectious midpoint).
     """
-    onset = date2 + timedelta(days=INCUBATION["avg"])
-    end = onset + timedelta(days=PRIMARY["avg"])
+    onset = date2 + timedelta(days=INCUBATION[constant_key])
+    end = onset + timedelta(days=PRIMARY[constant_key])
     return GhostedLesion(
         lesion_type="ghosted_spread",
         onset=onset,
@@ -412,38 +436,38 @@ def _check_exposure(
     )
 
 
-def _sex_type_compatible(
+def _exposure_modality_compatible(
     symptom: Symptom,
-    sex_types: list[str],
+    exposure_modalities: list[str],
 ) -> tuple[str, str]:
-    if not sex_types:
+    if not exposure_modalities:
         return "warn", "Sex types not recorded — cannot check anatomical compatibility."
 
-    # Use location if available, fall back to type
-    check_string = (symptom.location or symptom.type).lower()
-    sex_lower = [s.lower() for s in sex_types]
+    # Use anatomical_site if available, fall back to type
+    check_string = (symptom.anatomical_site or symptom.type).lower()
+    modality_lower = [s.lower() for s in exposure_modalities]
 
     compatible = False
     if "anal" in check_string or "rectal" in check_string:
-        compatible = any("anal" in s for s in sex_lower)
+        compatible = any("anal" in s for s in modality_lower)
     elif "penile" in check_string or "vaginal" in check_string:
-        compatible = any(k in s for s in sex_lower for k in ("vaginal", "anal"))
+        compatible = any(k in s for s in modality_lower for k in ("vaginal", "anal"))
     elif "oral" in check_string:
-        compatible = any("oral" in s for s in sex_lower)
+        compatible = any("oral" in s for s in modality_lower)
     else:
         # No location data or unknown type
-        if symptom.location is None:
+        if symptom.anatomical_site is None:
             return "warn", "Lesion location not recorded — cannot verify compatibility."
         compatible = True  # Lab LX or other non-specific
 
     if compatible:
         return "pass", (
-            f"Lesion location ({symptom.location or symptom.type}) is consistent "
-            f"with reported sex types ({', '.join(sex_types)})."
+            f"Lesion location ({symptom.anatomical_site or symptom.type}) is consistent "
+            f"with reported exposure modalities ({', '.join(exposure_modalities)})."
         )
     return "fail", (
-        f"Lesion location ({symptom.location or symptom.type}) may NOT be consistent "
-        f"with reported sex types ({', '.join(sex_types)}). Manual verification needed."
+        f"Lesion location ({symptom.anatomical_site or symptom.type}) may NOT be consistent "
+        f"with reported exposure modalities ({', '.join(exposure_modalities)}). Manual verification needed."
     )
 
 
@@ -591,8 +615,8 @@ def evaluate_criteria(
         infectious_start, infectious_end, exposure, scenario
     )
 
-    sex_status, sex_detail = _sex_type_compatible(
-        case1_symptom, exposure.sex_types if exposure else []
+    modality_status, modality_detail = _exposure_modality_compatible(
+        case1_symptom, exposure.exposure_modalities if exposure else []
     )
     lat_status, lat_detail = _latency_to_secondary(lesion, case2_symptoms)
     ord_status, ord_detail = _natural_order(
@@ -601,7 +625,7 @@ def evaluate_criteria(
 
     return {
         "exposure": {"status": exp_status, "detail": exp_detail},
-        "sex_type": {"status": sex_status, "detail": sex_detail},
+        "exposure_modality": {"status": modality_status, "detail": modality_detail},
         "latency": {"status": lat_status, "detail": lat_detail},
         "natural_order": {"status": ord_status, "detail": ord_detail},
     }
@@ -617,29 +641,31 @@ def _scenario_passes(criteria: dict) -> bool:
 
 
 def determine_verdict(
-    source_passes: bool,
-    spread_passes: bool,
+    source_confidence: str,
+    spread_confidence: str,
     case1_role: str,
     case1_name: str,
     case2_name: str,
-    source_criteria: dict | None = None,
-    spread_criteria: dict | None = None,
+    source_results: ScenarioResult,
+    spread_results: ScenarioResult,
 ) -> str:
     """
-    Build the final verdict string.
+    Build the final verdict string based on confidence levels.
 
-    source_criteria / spread_criteria are the dicts returned by evaluate_criteria.
-    When supplied, the verdict is annotated if a primary-secondary overlap was
-    detected in either scenario (natural_order == warn  OR  latency fail with
-    'overlap' in the detail text).
+    Confidence levels: Robust > Likely > Possible > Unrelated
     """
+    conf_rank = {"Robust": 3, "Likely": 2, "Possible": 1, "Unrelated": 0}
+
+    s_rank = conf_rank.get(source_confidence, 0)
+    sp_rank = conf_rank.get(spread_confidence, 0)
+
     # --- Base directional conclusion ---
-    if source_passes and not spread_passes:
+    if s_rank > sp_rank and s_rank > 0:
         if case1_role == "OP":
             verdict = f"OP ({case1_name}) is the SOURCE of infection for partner ({case2_name})."
         else:
             verdict = f"Partner ({case1_name}) is the SOURCE of infection for OP ({case2_name})."
-    elif spread_passes and not source_passes:
+    elif sp_rank > s_rank and sp_rank > 0:
         if case1_role == "OP":
             verdict = (
                 f"Partner ({case2_name}) is the SOURCE — OP ({case1_name}) is a SPREAD."
@@ -648,30 +674,30 @@ def determine_verdict(
             verdict = (
                 f"OP ({case2_name}) is the SOURCE — partner ({case1_name}) is a SPREAD."
             )
-    elif source_passes and spread_passes:
-        verdict = "AMBIGUOUS — both source and spread scenarios meet criteria. Manual review required."
+    elif s_rank > 0 and s_rank == sp_rank:
+        verdict = "AMBIGUOUS — both source and spread scenarios show similar confidence. Manual review required."
     else:
-        verdict = (
-            "UNRELATED INFECTIONS — neither source nor spread scenario meets criteria."
-        )
+        verdict = "UNRELATED INFECTIONS — neither source nor spread scenario shows a likely transmission link."
 
     # --- Overlap annotation ---
-    # Scan both scenario criteria for primary-secondary overlap signals and append
-    # a warning note so investigators are not misled by a technically-passing verdict.
+    # Scan ALL ranges for primary-secondary overlap signals
     overlap_flagged = False
-    for criteria in filter(None, [source_criteria, spread_criteria]):
-        nat = criteria.get("natural_order", {})
-        lat = criteria.get("latency", {})
-        if nat.get("status") == "warn" or (
-            lat.get("status") == "fail"
-            and "overlap" in (lat.get("detail") or "").lower()
-        ):
-            overlap_flagged = True
+    for res in [source_results, spread_results]:
+        for range_name, criteria in res.range_data.items():
+            nat = criteria.get("natural_order", {})
+            lat = criteria.get("latency", {})
+            if nat.get("status") == "warn" or (
+                lat.get("status") == "fail"
+                and "overlap" in (lat.get("detail") or "").lower()
+            ):
+                overlap_flagged = True
+                break
+        if overlap_flagged:
             break
 
     if overlap_flagged:
         verdict += (
-            " ⚠ Primary-secondary overlap detected in at least one scenario — "
+            " ⚠ Primary-secondary overlap detected in at least one range — "
             "manual clinical review recommended."
         )
 
@@ -694,21 +720,15 @@ def run_ghosting_analysis(
     partner_treatment_date: Optional[date],
 ) -> GhostingResult:
     """
-    Full ghosting analysis pipeline following VCA methodology.
-
-    Steps:
-      1. Identify Case1 (highest-ranking symptom)
-      2. Calculate Date1 (likely inoculation date for Case1)
-      3. Calculate ghosted SOURCE lesion for Case2 (centred on Date1)
-      4. Calculate Date2 (Case1's infectious midpoint)
-      5. Calculate ghosted SPREAD lesion for Case2
-      6. Evaluate source scenario — Date1 vs exposure window
-      7. Evaluate spread scenario — Date2 vs exposure window
-      8. Determine verdict
+    Full ghosting analysis pipeline following VCA methodology, executing
+    across three ranges: Aggressive, Expected, and Conservative.
     """
-    log: list[str] = ["=== VCA Ghosting Analysis ===", ""]
+    log: list[str] = ["=== VCA Range-Based Ghosting Analysis ===", ""]
 
-    # --- Step 1 ---
+    # Range mapping
+    SCENARIOS = {"aggressive": "min", "expected": "avg", "conservative": "max"}
+
+    # --- Step 1: Identify Case1 ---
     case1_role, case1_symptom, case2_role, case2_symptoms = select_case1(
         op_symptoms, partner_symptoms
     )
@@ -725,99 +745,119 @@ def run_ghosting_analysis(
     )
     log.append(f"        Case2 = {case2_name} ({case2_role}).")
 
-    # --- Step 2 ---
-    date1 = calc_date1(case1_symptom)
-    log.append(f"Step 2: Date1 (likely inoculation date for Case1) = {date1}.")
+    # Containers for range results
+    source_range_data = {}
+    source_range_lesions = {}
+    spread_range_data = {}
+    spread_range_lesions = {}
 
-    # --- Step 3 ---
-    ghosted_source = calc_ghosted_source(
-        date1, assigned_to=case2_role, derived_from=case1_symptom.type
+    # --- Steps 2-6: Range Loop ---
+    for scenario_name, key in SCENARIOS.items():
+        log.append(f"\n--- Processing Range: {scenario_name.upper()} (key={key}) ---")
+
+        # Date calculations
+        d1 = calc_date1(case1_symptom, constant_key=key)
+        d2 = calc_date2(case1_symptom, constant_key=key)
+
+        # Lesion generation
+        source_lesion = calc_ghosted_source(
+            d1,
+            assigned_to=case2_role,
+            derived_from=case1_symptom.type,
+            constant_key=key,
+        )
+        spread_lesion = calc_ghosted_spread(
+            d2,
+            assigned_to=case2_role,
+            derived_from=case1_symptom.type,
+            constant_key=key,
+        )
+
+        # Evaluate
+        source_crit = evaluate_criteria(
+            scenario="source",
+            lesion=source_lesion,
+            case1_symptom=case1_symptom,
+            case2_symptoms=case2_symptoms,
+            case2_exposure=case2_exposure,
+            op_exposure=op_exposure,
+            case2_treatment_date=case2_treatment,
+            date1=d1,
+            date2=d2,
+        )
+        spread_crit = evaluate_criteria(
+            scenario="spread",
+            lesion=spread_lesion,
+            case1_symptom=case1_symptom,
+            case2_symptoms=case2_symptoms,
+            case2_exposure=case2_exposure,
+            op_exposure=op_exposure,
+            case2_treatment_date=case2_treatment,
+            date1=d1,
+            date2=d2,
+        )
+
+        source_range_data[scenario_name] = source_crit
+        source_range_lesions[scenario_name] = source_lesion
+        spread_range_data[scenario_name] = spread_crit
+        spread_range_lesions[scenario_name] = spread_lesion
+
+        # Log results for this range
+        for sname, crit in [("SOURCE", source_crit), ("SPREAD", spread_crit)]:
+            log.append(f"  {sname} scenario:")
+            for k, v in crit.items():
+                icon = {
+                    "pass": "[PASS]",
+                    "fail": "[FAIL]",
+                    "warn": "[WARN]",
+                    "na": "[N/A ]",
+                }.get(v["status"], "[?]")
+                log.append(f"    {icon} {k.upper()}: {v['detail']}")
+
+    # --- Step 7: Confidence and Verdict ---
+    def derive_confidence(data: dict[str, dict]) -> tuple[str, int]:
+        passes = sum(1 for crit in data.values() if _scenario_passes(crit))
+        levels = {3: "Robust", 2: "Likely", 1: "Possible", 0: "Unrelated"}
+        return levels[passes], passes
+
+    source_conf, source_pass_count = derive_confidence(source_range_data)
+    spread_conf, spread_pass_count = derive_confidence(spread_range_data)
+
+    log.append("\nConfidence Summary:")
+    log.append(f"  Source Scenario: {source_conf} ({source_pass_count}/3 ranges pass)")
+    log.append(f"  Spread Scenario: {spread_conf} ({spread_pass_count}/3 ranges pass)")
+
+    source_scenarios = ScenarioResult(
+        range_data=source_range_data,
+        range_lesions=source_range_lesions,
+        confidence=source_conf,
+        pass_count=source_pass_count,
     )
-    log.append(
-        f"Step 3: Ghosted SOURCE lesion for {case2_name}: "
-        f"{ghosted_source.onset} → {ghosted_source.end}."
+    spread_scenarios = ScenarioResult(
+        range_data=spread_range_data,
+        range_lesions=spread_range_lesions,
+        confidence=spread_conf,
+        pass_count=spread_pass_count,
     )
 
-    # --- Step 4 ---
-    date2 = calc_date2(case1_symptom)
-    ghosted_spread = calc_ghosted_spread(
-        date2, assigned_to=case2_role, derived_from=case1_symptom.type
-    )
-    log.append(f"Step 4: Date2 (Case1 infectious midpoint) = {date2}.")
-    log.append(
-        f"        Ghosted SPREAD lesion for {case2_name}: "
-        f"{ghosted_spread.onset} → {ghosted_spread.end}."
-    )
-
-    # --- Steps 5 & 6 — evaluate criteria ---
-    log.append("")
-    log.append("--- Evaluating SOURCE scenario (Date1 vs exposure window) ---")
-    source_criteria = evaluate_criteria(
-        scenario="source",
-        lesion=ghosted_source,
-        case1_symptom=case1_symptom,
-        case2_symptoms=case2_symptoms,
-        case2_exposure=case2_exposure,
-        op_exposure=op_exposure,
-        case2_treatment_date=case2_treatment,
-        date1=date1,
-        date2=date2,
-    )
-    for k, v in source_criteria.items():
-        icon = {
-            "pass": "[PASS]",
-            "fail": "[FAIL]",
-            "warn": "[WARN]",
-            "na": "[N/A ]",
-        }.get(v["status"], "[?]")
-        log.append(f"  {icon} {k.upper()}: {v['detail']}")
-
-    log.append("")
-    log.append("--- Evaluating SPREAD scenario (Date2 vs exposure window) ---")
-    spread_criteria = evaluate_criteria(
-        scenario="spread",
-        lesion=ghosted_spread,
-        case1_symptom=case1_symptom,
-        case2_symptoms=case2_symptoms,
-        case2_exposure=case2_exposure,
-        op_exposure=op_exposure,
-        case2_treatment_date=case2_treatment,
-        date1=date1,
-        date2=date2,
-    )
-    for k, v in spread_criteria.items():
-        icon = {
-            "pass": "[PASS]",
-            "fail": "[FAIL]",
-            "warn": "[WARN]",
-            "na": "[N/A ]",
-        }.get(v["status"], "[?]")
-        log.append(f"  {icon} {k.upper()}: {v['detail']}")
-
-    # --- Step 7 — verdict ---
-    source_passes = _scenario_passes(source_criteria)
-    spread_passes = _scenario_passes(spread_criteria)
     verdict = determine_verdict(
-        source_passes,
-        spread_passes,
-        case1_role,
-        case1_name,
-        case2_name,
-        source_criteria=source_criteria,
-        spread_criteria=spread_criteria,
+        source_confidence=source_conf,
+        spread_confidence=spread_conf,
+        case1_role=case1_role,
+        case1_name=case1_name,
+        case2_name=case2_name,
+        source_results=source_scenarios,
+        spread_results=spread_scenarios,
     )
 
-    log.append("")
-    log.append("--- Conclusion ---")
-    log.append(verdict)
+    log.append(f"\nConclusion: {verdict}")
 
     return GhostingResult(
         case1_name=case1_name,
         case2_name=case2_name,
         case1_symptom=case1_symptom,
-        ghosted_source=ghosted_source,
-        ghosted_spread=ghosted_spread,
-        criteria={"source": source_criteria, "spread": spread_criteria},
+        source_scenarios=source_scenarios,
+        spread_scenarios=spread_scenarios,
         verdict=verdict,
         log=log,
     )

@@ -65,10 +65,9 @@ with st.sidebar:
 
     # Subject = OP or a specific partner
     subject_options = {0: f"OP — {case.patient_name}"}
-    subject_options.update({
-        p.id: f"Partner {p.partner_number} — {p.name or 'Unnamed'}"
-        for p in partners
-    })
+    subject_options.update(
+        {p.id: f"Partner {p.partner_number} — {p.name or 'Unnamed'}" for p in partners}
+    )
 
     # Default to OP (0) unless a partner is active
     current_partner_id = get_active_partner_id() or 0
@@ -103,9 +102,7 @@ with SessionLocal() as db:
     existing = get_map_entries(db, case_id, partner_id=map_partner_id)
 
 # Subject label for headings
-subject_label = (
-    subject_options.get(selected_subject, "OP")
-)
+subject_label = subject_options.get(selected_subject, "OP")
 
 # ---------------------------------------------------------------------------
 # Page header + completion summary
@@ -115,18 +112,21 @@ st.title("MAP Assessment Sheet")
 st.caption(f"Subject: {subject_label}  |  Case #{case.id} — {case.patient_name}")
 
 # Completion metrics
-total_items    = len([i for i, v in MAP_ITEMS.items() if v["label"]])
-checked_p      = sum(1 for e in existing.values() if e.p_value)
-checked_c      = sum(1 for e in existing.values() if e.c_value)
+total_items = len([i for i, v in MAP_ITEMS.items() if v["label"]])
+checked_p = sum(1 for e in existing.values() if e.p_value)
+checked_c = sum(1 for e in existing.values() if e.c_value)
 high_pri_count = sum(1 for e in existing.values() if e.high_priority)
 
 m1, m2, m3, m4 = st.columns(4)
 m1.metric("Items with P checked", f"{checked_p} / {total_items}")
 m2.metric("Items with C checked", f"{checked_c} / {total_items}")
-m3.metric("High priority flags",  high_pri_count,
-          delta=str(high_pri_count) if high_pri_count else None,
-          delta_color="inverse")
-m4.metric("Subject",              subject_label.split(" — ")[0])
+m3.metric(
+    "High priority flags",
+    high_pri_count,
+    delta=str(high_pri_count) if high_pri_count else None,
+    delta_color="inverse",
+)
+m4.metric("Subject", subject_label.split(" — ")[0])
 
 st.divider()
 
@@ -138,17 +138,17 @@ st.divider()
 # mid-render and keeps the form fast.
 
 # Pre-populate state dicts
-p_vals:    dict[int, bool] = {}
-c_vals:    dict[int, bool] = {}
+p_vals: dict[int, bool] = {}
+c_vals: dict[int, bool] = {}
 notes_vals: dict[int, str] = {}
-hp_vals:   dict[int, bool] = {}
+hp_vals: dict[int, bool] = {}
 
 for item_num in MAP_ITEMS:
     entry = existing.get(item_num)
-    p_vals[item_num]     = entry.p_value     if entry else False
-    c_vals[item_num]     = entry.c_value     if entry else False
-    notes_vals[item_num] = entry.notes       if entry and entry.notes else ""
-    hp_vals[item_num]    = entry.high_priority if entry else False
+    p_vals[item_num] = entry.p_value if entry else False
+    c_vals[item_num] = entry.c_value if entry else False
+    notes_vals[item_num] = entry.notes if entry and entry.notes else ""
+    hp_vals[item_num] = entry.high_priority if entry else False
 
 # ---------------------------------------------------------------------------
 # Section rendering helper
@@ -164,13 +164,14 @@ SECTION_ORDER = [
 ]
 
 SECTION_COLORS = {
-    "Social History":  "#e3f2fd",
+    "Social History": "#e3f2fd",
     "Medical History": "#fce4ec",
-    "Partners":        "#e8f5e9",
-    "Clusters":        "#fff8e1",
-    "Risk Reduction":  "#f3e5f5",
-    "Other":           "#f5f5f5",
+    "Partners": "#e8f5e9",
+    "Clusters": "#fff8e1",
+    "Risk Reduction": "#f3e5f5",
+    "Other": "#f5f5f5",
 }
+
 
 def render_section(
     section_name: str,
@@ -186,7 +187,8 @@ def render_section(
     """
     color = SECTION_COLORS.get(section_name, "#f5f5f5")
     section_items = {
-        num: meta for num, meta in items.items()
+        num: meta
+        for num, meta in items.items()
         if meta["section"] == section_name and meta["label"]
     }
 
@@ -194,18 +196,13 @@ def render_section(
         return p_vals, c_vals, notes_vals, hp_vals
 
     checked_in_section = sum(
-        1 for num in section_items
-        if p_vals.get(num) or c_vals.get(num)
+        1 for num in section_items if p_vals.get(num) or c_vals.get(num)
     )
     total_in_section = len(section_items)
 
-    label = (
-        f"**{section_name}** — "
-        f"{checked_in_section}/{total_in_section} items active"
-    )
+    label = f"**{section_name}** — {checked_in_section}/{total_in_section} items active"
 
     with st.expander(label, expanded=True):
-
         # Column headers
         hdr = st.columns([0.5, 3.5, 0.6, 0.6, 0.6, 2.5])
         hdr[0].caption("#")
@@ -299,11 +296,16 @@ st.divider()
 col_save, col_clear, _ = st.columns([1, 1, 5])
 
 with col_save:
-    save_clicked = st.button("💾  Save MAP sheet", type="primary", use_container_width=True)
+    save_clicked = st.button(
+        "💾  Save MAP sheet", type="primary", use_container_width=True
+    )
 
 with col_clear:
-    clear_clicked = st.button("✕  Clear all", use_container_width=True,
-                               help="Uncheck all items for this subject")
+    clear_clicked = st.button(
+        "✕  Clear all",
+        use_container_width=True,
+        help="Uncheck all items for this subject",
+    )
 
 if save_clicked:
     saved_count = 0
@@ -360,7 +362,8 @@ if clear_clicked:
 # ---------------------------------------------------------------------------
 
 active_items = {
-    num: e for num, e in existing.items()
+    num: e
+    for num, e in existing.items()
     if (e.p_value or e.c_value or e.high_priority) and num > 0
 }
 
@@ -371,24 +374,26 @@ if active_items:
     rows = []
     for num, entry in sorted(active_items.items()):
         meta = MAP_ITEMS.get(num, {})
-        rows.append({
-            "#":           num,
-            "Section":     meta.get("section", "—"),
-            "Item":        meta.get("label", "—"),
-            "P":           "✓" if entry.p_value else "",
-            "C":           "✓" if entry.c_value else "",
-            "Hi-pri":      "!" if entry.high_priority else "",
-            "Notes":       entry.notes or "",
-        })
+        rows.append(
+            {
+                "#": num,
+                "Section": meta.get("section", "—"),
+                "Item": meta.get("label", "—"),
+                "P": "✓" if entry.p_value else "",
+                "C": "✓" if entry.c_value else "",
+                "Hi-pri": "!" if entry.high_priority else "",
+                "Notes": entry.notes or "",
+            }
+        )
 
     st.dataframe(
         pd.DataFrame(rows),
         use_container_width=True,
         hide_index=True,
         column_config={
-            "#":      st.column_config.NumberColumn("#", width="small"),
-            "P":      st.column_config.TextColumn("P", width="small"),
-            "C":      st.column_config.TextColumn("C", width="small"),
+            "#": st.column_config.NumberColumn("#", width="small"),
+            "P": st.column_config.TextColumn("P", width="small"),
+            "C": st.column_config.TextColumn("C", width="small"),
             "Hi-pri": st.column_config.TextColumn("Hi-pri", width="small"),
         },
     )

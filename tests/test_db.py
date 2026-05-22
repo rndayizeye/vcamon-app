@@ -1,36 +1,37 @@
 # tests/test_db.py
 
-import pytest
 from datetime import date
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.db.database import Base
-from app.db.models import Case, Partner, MAPEntry, CasePartnerRelationship
+from app.db.models import MAPEntry, Partner
 from app.db.queries import (
     create_case,
-    get_case_by_id,
-    update_case,
-    delete_case,
-    search_cases,
-    get_all_cases,
-    create_partner,
-    get_partners_for_case,
-    upsert_map_entry,
-    get_map_entries,
-    get_case_partner_relationship,
     create_case_partner_relationship,
-    update_case_partner_relationship,
-    delete_case_partner_relationship,
-    get_reports_for_relationship,
+    create_partner,
     create_relationship_report,
+    delete_case,
+    delete_case_partner_relationship,
     delete_relationship_report,
+    get_all_cases,
+    get_case_by_id,
+    get_case_partner_relationship,
+    get_map_entries,
+    get_partners_for_case,
+    get_reports_for_relationship,
+    search_cases,
+    update_case,
+    update_case_partner_relationship,
+    upsert_map_entry,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def db():
@@ -38,7 +39,9 @@ def db():
     Fresh in-memory SQLite database for each test.
     Tears down automatically — no cleanup needed.
     """
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}
+    )
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
     session = Session()
@@ -55,15 +58,17 @@ def sample_case(db):
 @pytest.fixture
 def sample_partner(db, sample_case):
     """Partner attached to sample_case."""
-    return create_partner(db, case_id=sample_case.id, partner_number=1, name="Smith, John")
+    return create_partner(
+        db, case_id=sample_case.id, partner_number=1, name="Smith, John"
+    )
 
 
 # ---------------------------------------------------------------------------
 # Case CRUD
 # ---------------------------------------------------------------------------
 
-class TestCaseCRUD:
 
+class TestCaseCRUD:
     def test_create_case_persists(self, db):
         case = create_case(db, patient_name="Doe, Jane")
         assert case.id is not None
@@ -137,10 +142,12 @@ class TestCaseCRUD:
 # Partner CRUD
 # ---------------------------------------------------------------------------
 
-class TestPartnerCRUD:
 
+class TestPartnerCRUD:
     def test_create_partner_links_to_case(self, db, sample_case):
-        partner = create_partner(db, case_id=sample_case.id, partner_number=1, name="Smith, John")
+        partner = create_partner(
+            db, case_id=sample_case.id, partner_number=1, name="Smith, John"
+        )
         assert partner.case_id == sample_case.id
         assert partner.partner_number == 1
 
@@ -164,8 +171,8 @@ class TestPartnerCRUD:
 # Relationship CRUD
 # ---------------------------------------------------------------------------
 
-class TestRelationshipCRUD:
 
+class TestRelationshipCRUD:
     def test_create_relationship_persists(self, db, sample_case, sample_partner):
         rel = create_case_partner_relationship(
             db,
@@ -173,15 +180,19 @@ class TestRelationshipCRUD:
             partner_id=sample_partner.id,
             exposure_first_date=date(2024, 1, 1),
             exposure_last_date=date(2024, 1, 15),
-            sex_types='["Anal LX", "Oral LX"]',
+            exposure_modalities='["Anal LX", "Oral LX"]',
         )
         assert rel.id is not None
         assert rel.exposure_first_date == date(2024, 1, 1)
-        assert rel.sex_types == '["Anal LX", "Oral LX"]'
+        assert rel.exposure_modalities == '["Anal LX", "Oral LX"]'
 
-    def test_get_relationship_returns_correct_record(self, db, sample_case, sample_partner):
+    def test_get_relationship_returns_correct_record(
+        self, db, sample_case, sample_partner
+    ):
         create_case_partner_relationship(
-            db, sample_case.id, sample_partner.id,
+            db,
+            sample_case.id,
+            sample_partner.id,
             exposure_first_date=date(2024, 1, 1),
         )
         fetched = get_case_partner_relationship(db, sample_case.id, sample_partner.id)
@@ -199,15 +210,17 @@ class TestRelationshipCRUD:
         rel = create_case_partner_relationship(db, sample_case.id, sample_partner.id)
         rel_id = rel.id
         assert delete_case_partner_relationship(db, rel_id) is True
-        assert get_case_partner_relationship(db, sample_case.id, sample_partner.id) is None
+        assert (
+            get_case_partner_relationship(db, sample_case.id, sample_partner.id) is None
+        )
 
 
 # ---------------------------------------------------------------------------
 # RelationshipReport CRUD
 # ---------------------------------------------------------------------------
 
-class TestRelationshipReportCRUD:
 
+class TestRelationshipReportCRUD:
     def test_create_report_persists(self, db, sample_case, sample_partner):
         rel = create_case_partner_relationship(db, sample_case.id, sample_partner.id)
         report = create_relationship_report(
@@ -216,7 +229,7 @@ class TestRelationshipReportCRUD:
             reporter="OP",
             exposure_first_date=date(2024, 1, 1),
             exposure_last_date=date(2024, 1, 15),
-            sex_types='["Anal LX"]',
+            exposure_modalities='["Anal LX"]',
         )
         assert report.id is not None
         assert report.reporter == "OP"
@@ -226,7 +239,7 @@ class TestRelationshipReportCRUD:
         rel = create_case_partner_relationship(db, sample_case.id, sample_partner.id)
         create_relationship_report(db, rel.id, reporter="OP")
         create_relationship_report(db, rel.id, reporter="Partner")
-        
+
         reports = get_reports_for_relationship(db, rel.id)
         assert len(reports) == 2
         assert {r.reporter for r in reports} == {"OP", "Partner"}
@@ -235,49 +248,69 @@ class TestRelationshipReportCRUD:
         rel = create_case_partner_relationship(db, sample_case.id, sample_partner.id)
         report = create_relationship_report(db, rel.id, reporter="OP")
         report_id = report.id
-        
+
         assert delete_relationship_report(db, report_id) is True
         assert len(get_reports_for_relationship(db, rel.id)) == 0
 
-    def test_relationship_delete_cascades_to_reports(self, db, sample_case, sample_partner):
+    def test_relationship_delete_cascades_to_reports(
+        self, db, sample_case, sample_partner
+    ):
         rel = create_case_partner_relationship(db, sample_case.id, sample_partner.id)
         create_relationship_report(db, rel.id, reporter="OP")
-        
+
         rel_id = rel.id
         delete_case_partner_relationship(db, rel_id)
-        
+
         # Verify no reports left for this relationship
         from app.db.models import RelationshipReport
-        assert db.query(RelationshipReport).filter(RelationshipReport.relationship_id == rel_id).count() == 0
+
+        assert (
+            db.query(RelationshipReport)
+            .filter(RelationshipReport.relationship_id == rel_id)
+            .count()
+            == 0
+        )
 
 
 # ---------------------------------------------------------------------------
 # MAP entries
 # ---------------------------------------------------------------------------
 
-class TestMAPEntries:
 
+class TestMAPEntries:
     def test_upsert_creates_new_entry(self, db, sample_case):
-        entry = upsert_map_entry(db, sample_case.id, item_number=1, p_value=True, c_value=False)
+        entry = upsert_map_entry(
+            db, sample_case.id, item_number=1, p_value=True, c_value=False
+        )
         assert entry.id is not None
         assert entry.p_value is True
         assert entry.c_value is False
 
     def test_upsert_updates_existing_entry(self, db, sample_case):
-        upsert_map_entry(db, sample_case.id, item_number=1, p_value=False, c_value=False)
-        updated = upsert_map_entry(db, sample_case.id, item_number=1, p_value=True, c_value=True)
+        upsert_map_entry(
+            db, sample_case.id, item_number=1, p_value=False, c_value=False
+        )
+        updated = upsert_map_entry(
+            db, sample_case.id, item_number=1, p_value=True, c_value=True
+        )
         assert updated.p_value is True
         assert updated.c_value is True
         # Only one row should exist
-        count = db.query(MAPEntry).filter(
-            MAPEntry.case_id == sample_case.id,
-            MAPEntry.item_number == 1,
-        ).count()
+        count = (
+            db.query(MAPEntry)
+            .filter(
+                MAPEntry.case_id == sample_case.id,
+                MAPEntry.item_number == 1,
+            )
+            .count()
+        )
         assert count == 1
 
     def test_get_map_entries_returns_dict_keyed_by_item(self, db, sample_case):
         upsert_map_entry(db, sample_case.id, item_number=5, p_value=True, c_value=False)
-        upsert_map_entry(db, sample_case.id, item_number=12, p_value=False, c_value=True)
+        upsert_map_entry(
+            db, sample_case.id, item_number=12, p_value=False, c_value=True
+        )
         entries = get_map_entries(db, sample_case.id)
         assert 5 in entries
         assert 12 in entries
@@ -287,10 +320,16 @@ class TestMAPEntries:
     def test_map_entries_scoped_to_op_vs_partner(self, db, sample_case, sample_partner):
         upsert_map_entry(db, sample_case.id, item_number=1, p_value=True, c_value=False)
         upsert_map_entry(
-            db, sample_case.id, item_number=1, p_value=False, c_value=True,
+            db,
+            sample_case.id,
+            item_number=1,
+            p_value=False,
+            c_value=True,
             partner_id=sample_partner.id,
         )
         op_entries = get_map_entries(db, sample_case.id, partner_id=None)
-        partner_entries = get_map_entries(db, sample_case.id, partner_id=sample_partner.id)
+        partner_entries = get_map_entries(
+            db, sample_case.id, partner_id=sample_partner.id
+        )
         assert op_entries[1].p_value is True
         assert partner_entries[1].c_value is True

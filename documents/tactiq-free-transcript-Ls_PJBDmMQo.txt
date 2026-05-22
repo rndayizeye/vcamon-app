@@ -1,0 +1,3070 @@
+# tactiq.io free youtube transcript
+# VCA Training
+# https://www.youtube.com/watch/Ls_PJBDmMQo
+
+00:00:00.080 but we can go ahead and get started um
+00:00:02.960 once again welcome everyone my name is
+00:00:04.960 talia i'm the manager of program
+00:00:06.799 operations at ncsd and we are so so
+00:00:09.840 happy to be um working with emily today
+00:00:13.519 on this vca training for you all um
+00:00:16.640 so i will just do a brief intro for um
+00:00:21.199 emily and i kick it over to her before i
+00:00:23.039 do though i have a few um housekeeping
+00:00:26.160 notes so while emily is presenting
+00:00:29.199 we'll ask that questions go in the chat
+00:00:32.159 and then we'll get to them at the end of
+00:00:33.360 the presentation
+00:00:34.640 there will be a brief break between the
+00:00:36.960 presentation and our activities um so
+00:00:39.680 you'll have time to go get more water
+00:00:41.520 use the restroom whatever you might need
+00:00:43.200 to do
+00:00:44.480 today's session is being recorded so
+00:00:46.399 you'll get a copy of the recording after
+00:00:48.640 the fact
+00:00:49.920 so if you miss something don't worry you
+00:00:52.640 can always go back and watch it again um
+00:00:55.680 and then also we'll just be launching a
+00:00:58.320 brief poll at the end of today's session
+00:01:01.520 to get gather your feedback about
+00:01:04.559 how you think today went
+00:01:06.640 so
+00:01:07.439 without further ado i'm going to
+00:01:08.960 introduce emily and then throw it over
+00:01:11.600 so emily is the std program manager at
+00:01:14.080 the bellflower clinic in the marion
+00:01:16.080 county public health department
+00:01:18.400 and emily is a great friend of ncsd's
+00:01:20.400 and we're very grateful
+00:01:22.080 that she is working with us today on
+00:01:24.400 this training
+00:01:25.920 so emily the floor is yours
+00:01:28.960 all right hi everybody
+00:01:31.439 um let me get my screen shared so
+00:01:35.360 what we're gonna do today
+00:01:37.200 is the first half of our training is
+00:01:40.400 going to be
+00:01:42.240 a learning portion so
+00:01:45.119 i'm going to go over some basic things
+00:01:48.000 about syphilis and dis work and then
+00:01:50.880 we're going to talk about
+00:01:52.560 vca of course and then the second half
+00:01:55.040 of our session today
+00:01:56.799 is going to be a practice
+00:01:59.119 session
+00:02:00.159 i hope you all have brought all your
+00:02:01.759 materials so that you can practice in
+00:02:03.600 real time but if you're unable to
+00:02:05.840 practice in real time today that's not a
+00:02:08.160 problem
+00:02:09.199 like talia has mentioned you'll be able
+00:02:11.120 to watch with recording again and then
+00:02:13.280 you'll have my contact information after
+00:02:15.120 today you are always welcome to contact
+00:02:17.360 me should you have any additional
+00:02:19.280 questions or concerns
+00:02:21.440 um talia and leo from ncsd will be
+00:02:24.560 monitoring the chat for me today since
+00:02:26.640 i'm in screen sharing mode i won't
+00:02:28.640 exactly be able to see everything that
+00:02:30.319 you might be saying initially and we
+00:02:32.720 will address all your questions towards
+00:02:35.200 the beginning of our practice session
+00:02:38.800 so
+00:02:39.840 totally i've already given you a nice
+00:02:41.360 introduction um to who i am just to give
+00:02:44.000 you a little bit more information about
+00:02:45.360 myself
+00:02:46.959 i have been with the marion county
+00:02:48.400 public health department since november
+00:02:50.239 of 2021 in indianapolis
+00:02:53.280 indianapolis indiana
+00:02:55.760 prior to that though i worked with the
+00:02:57.920 indiana department of health from 2017
+00:03:00.400 until late 2021
+00:03:02.400 i served as a disease intervention
+00:03:04.000 specialist for three of those years in
+00:03:06.560 the lafayette indiana
+00:03:08.400 area managing syphilis and hiv and then
+00:03:10.959 for the remainder of my time with
+00:03:12.800 indiana department of health i served as
+00:03:14.640 the subject matter expert for simplest
+00:03:17.200 case management and disease intervention
+00:03:18.959 specialist training
+00:03:20.640 i also served on the dis advisory board
+00:03:23.120 for ncsd from 2017 to 2020
+00:03:26.560 and in the fall of 2020 i actually
+00:03:28.560 presented at std engage which was
+00:03:30.879 virtual at that time
+00:03:32.400 on simplest outbreak plans and how my
+00:03:34.480 state responded to a syphilis outbreak
+00:03:36.480 in a rural area of indiana
+00:03:38.879 i have also received my vca trainer
+00:03:40.959 certification from the cdc in 2019
+00:03:44.080 and my public health education uh comes
+00:03:46.720 from the university of evansville where
+00:03:48.239 i got my undergraduate degree in 2014
+00:03:50.959 and i currently am two semesters away
+00:03:53.040 from getting my master's of public
+00:03:54.560 health at the university of indianapolis
+00:04:01.200 so one of the first things we're going
+00:04:02.560 to talk about today is the origins of
+00:04:04.560 syphilis
+00:04:05.760 the first major outbreak of syphilis
+00:04:07.519 occurred in 1495 in the european nation
+00:04:10.239 during the first italian war
+00:04:12.239 five million people died as a result of
+00:04:14.159 the disease with each country blaming
+00:04:16.238 the other for bringing it across the
+00:04:17.918 borders
+00:04:19.040 though much of the literature from that
+00:04:20.639 time points to christopher columbus as
+00:04:22.560 being the individual who brought the
+00:04:24.320 bacteria back to europe
+00:04:26.320 geroloma frequestoro an italian
+00:04:28.960 physician was the first person to coin
+00:04:31.280 the word syphilis in 1530
+00:04:33.919 in his book entitled syphilis or the
+00:04:36.400 french disease in which he tells a
+00:04:38.560 mythos story of how syphilis came to be
+00:04:42.080 fast forward a few hundred years in a
+00:04:43.759 couple of centuries and we come to the
+00:04:45.600 world war eras in american history
+00:04:48.320 american soldiers were returning home
+00:04:50.000 from overseas with rates of venereal
+00:04:52.000 disease that were not seen again until
+00:04:54.840 1990. public health spending for the
+00:04:57.120 nation was reduced to just 60 000
+00:04:59.759 in 1926
+00:05:01.440 and this paved the way for the worst
+00:05:03.039 syphilis outcomes to date
+00:05:05.520 in 1932 the tuskegee study of untreated
+00:05:08.639 syphilis began 600 black men were
+00:05:11.520 studied from 1932 until 1972.
+00:05:15.199 399 men had syphilis 201 did not
+00:05:19.759 the men were told they were receiving
+00:05:21.360 treatment for bad blood and were given
+00:05:23.360 other incentives such as free meals or
+00:05:25.360 medical care for their participation in
+00:05:27.039 the study
+00:05:28.400 the men who had syphilis were not
+00:05:30.080 informed that their ailment was syphilis
+00:05:32.320 and their informed consent was not
+00:05:34.080 gathered at any point during the study
+00:05:37.039 in 1972 the associated press reported on
+00:05:40.240 this study and as a result the assistant
+00:05:42.560 secretary for health and scientific
+00:05:44.240 affairs ordered an ad hoc advisory panel
+00:05:47.199 to review the study
+00:05:48.800 in october of 1972 the study was ceased
+00:05:52.080 as it was determined to be ethically
+00:05:53.919 unjustified with the results of the
+00:05:56.319 study not proportionate to the burden
+00:05:58.400 carried by the infected men
+00:06:01.039 in 1973 a 10 million
+00:06:03.840 lawsuit was filed and settled out of
+00:06:05.600 court for the survivors and their
+00:06:07.199 spouses
+00:06:08.639 by 1975 the department of health and
+00:06:11.039 human services established the tuskegee
+00:06:13.440 health benefit program where survivors
+00:06:16.000 of the study their spouses and their
+00:06:17.759 children were entitled to
+00:06:19.360 government-provided health and medical
+00:06:20.960 care
+00:06:22.319 as of 2022 there are no remaining
+00:06:25.280 survivors or spouses of survivors still
+00:06:27.520 alive but 10 children of survivors
+00:06:30.000 continue to receive medical benefits
+00:06:31.759 under this program
+00:06:34.240 syphilis rage reached their peak in 1947
+00:06:37.759 just one year after the centers for
+00:06:39.759 disease control and prevention were
+00:06:41.199 officially established
+00:06:43.280 at the time syphilis rates were
+00:06:44.960 averaging about 500 000 cases or more
+00:06:47.360 per year during the world war eras with
+00:06:49.759 case rates twice as high as tuberculosis
+00:06:52.400 and case rates 100 times higher than
+00:06:54.560 polio
+00:06:56.080 roughly 18 of all heart disease deaths
+00:06:58.639 can be attributed to long-term side
+00:07:00.400 effects of syphilis and about 20 percent
+00:07:03.199 of all institutionalized patients have
+00:07:05.280 tertiary syphilis or what we would call
+00:07:07.759 late clinical manifestations today
+00:07:11.120 during the world war eras about 60 000
+00:07:13.599 babies each year were born with syphilis
+00:07:16.639 syphilis infections during that time
+00:07:18.560 primarily affected heterosexual couples
+00:07:21.520 in 1980s in the 1990s men who have sex
+00:07:24.800 with men became the primarily affected
+00:07:26.720 group
+00:07:27.919 the lowest rates of syphilis in modern
+00:07:29.759 american history
+00:07:31.360 occurred in 2000 and 2001 with about 6
+00:07:35.039 000 cases of syphilis reported each year
+00:07:38.639 this has been the lowest rate of
+00:07:39.840 syphilis since 1941.
+00:07:42.720 for reference in 2020 there were nearly
+00:07:45.400 135 000 cases of syphilis
+00:07:49.280 and the two images you see on this slide
+00:07:51.199 here are syphilis propaganda material
+00:07:53.919 that was distributed during the world
+00:07:55.680 war ii era
+00:07:57.120 to warn american soldiers who were going
+00:07:59.039 overseas to not have sex with women
+00:08:02.240 that they met
+00:08:03.599 because women were the sources of
+00:08:05.120 infection according to the american
+00:08:06.720 government
+00:08:07.919 i enjoy these propagandas because it is
+00:08:10.720 a stark reminder of how stigma
+00:08:14.160 came from the federal government and how
+00:08:16.000 we have learned how
+00:08:17.919 stigma impacts std and std testing in
+00:08:21.120 the modern age
+00:08:26.800 so um a brief note on the history of
+00:08:29.599 partner services in the 1930s the act of
+00:08:33.360 contacting sex partners of an infected
+00:08:35.599 person was called contact tracing
+00:08:38.320 a term we are all very familiar with at
+00:08:40.159 this point in time
+00:08:42.000 when this when syphilis was endemic in
+00:08:44.080 the united states health department
+00:08:46.000 staff members contacted persons
+00:08:47.760 diagnosed with syphilis
+00:08:49.440 and ensured they were treated and then
+00:08:51.120 they would investigate the sex partners
+00:08:52.880 to determine the source of infection
+00:08:55.360 in the 1930s this service was very
+00:08:57.519 beneficial because it created
+00:08:59.040 relationships between local health
+00:09:00.720 departments and key community
+00:09:02.560 stakeholders
+00:09:03.839 it also ensured that newly diagnosed
+00:09:05.760 persons were receiving treatment
+00:09:08.800 in the 1970s partner services evolved to
+00:09:11.839 include gonorrhea due to the rising
+00:09:13.920 gonorrhea rates of the time
+00:09:15.920 when the hiv epidemic began in the 1980s
+00:09:18.959 partner services evolved to hiv partner
+00:09:22.000 counseling and referral services or pcrs
+00:09:25.680 which you may still hear
+00:09:27.680 to this day from some public health
+00:09:29.279 folks
+00:09:30.560 with syphilis rates declining slightly
+00:09:32.640 in this time period and hiv rates rising
+00:09:36.000 a lot of partner services efforts were
+00:09:37.839 focused on communities facing the hiv
+00:09:39.920 epidemic
+00:09:41.200 during the 2000s the syphilis
+00:09:43.200 elimination effort was active with the
+00:09:45.040 cdc until 2013 when simplest rates began
+00:09:48.560 to hit new rises
+00:09:51.040 as of 2008 the cdc classifies classifies
+00:09:54.640 this public health activity as partner
+00:09:56.640 services for almost all diseases
+00:09:59.680 we have heard the term contact tracing
+00:10:01.519 resurfaced during the coca-19 pandemic
+00:10:04.320 but is there a difference between
+00:10:05.839 contact tracing and partner services
+00:10:08.800 according to the cdc partner services is
+00:10:11.519 a broad term that describes services
+00:10:13.600 offered to persons infected with std
+00:10:16.079 their partners and their at-risk
+00:10:17.760 associates in social contacts
+00:10:20.399 this service focuses on providing
+00:10:22.880 i'm sorry this service focuses on
+00:10:24.800 preventing disease transmission and
+00:10:26.720 reduce and reducing suffering from
+00:10:28.720 disease complications
+00:10:30.880 on the other side of this coin contract
+00:10:32.959 tracing is defined as the physical
+00:10:34.800 action of identifying and locating
+00:10:37.040 sexual partners to refer to to refer
+00:10:40.000 them for care and treatment
+00:10:42.560 with these definitions in mind the
+00:10:44.320 difference you could note between these
+00:10:45.920 two terms is that partner services
+00:10:47.760 includes broad social service actions
+00:10:50.399 such as going beyond the direct sexual
+00:10:52.560 partners to find associates and social
+00:10:54.720 contacts
+00:10:55.839 whereas contact tracing focuses on
+00:10:58.000 direct exposures and referring them to
+00:11:00.000 care
+00:11:01.040 in partner services we also conduct
+00:11:03.600 extensive case analysis whereas contact
+00:11:06.399 tracing may not engage in such extensive
+00:11:09.040 analysis
+00:11:13.600 i wanted to highlight original
+00:11:15.200 interviews as part of this learning
+00:11:16.959 session to conduct visual case analysis
+00:11:20.240 successfully
+00:11:21.600 we have to have been able to conduct a
+00:11:23.440 thorough and meaningful original
+00:11:25.120 interview with our infected patient
+00:11:27.920 without an original interview visual
+00:11:30.079 case analysis becomes difficult to
+00:11:32.000 complete
+00:11:33.120 it isn't impossible because we may have
+00:11:35.279 means to gather information through
+00:11:36.800 electronic medical records hospital
+00:11:38.880 reports or past interviews but not
+00:11:41.680 having a current interview will make the
+00:11:43.279 task a bit more difficult to complete
+00:11:46.800 now we all have experiences
+00:11:49.279 getting patients to agree to interview
+00:11:51.200 has become difficult as the years go by
+00:11:53.360 especially in the face of the kobit 19
+00:11:55.279 pandemic
+00:11:56.639 many patients have had syphilis multiple
+00:11:58.560 times before and they don't want to
+00:12:00.480 participate in the disease intervention
+00:12:02.160 process again
+00:12:03.839 some patients hold fear about government
+00:12:05.920 entities contacting them about their
+00:12:07.440 health information
+00:12:08.800 or feel angered that their std
+00:12:10.560 information is known to a government
+00:12:12.160 worker
+00:12:13.519 some patients may be nonchalant
+00:12:15.200 altogether not understanding their
+00:12:16.880 responsibility to receive treatment and
+00:12:18.800 to inform their partners of this
+00:12:20.800 exposure to disease
+00:12:22.880 conducting an original interview can
+00:12:24.560 sometimes feel like finding gold at the
+00:12:26.639 end of the rainbow
+00:12:28.959 so when we do get a patient who is
+00:12:30.480 cooperative we want to maximize our time
+00:12:33.040 with them to get as much information as
+00:12:34.720 we can
+00:12:35.920 something i wanted to highlight in this
+00:12:37.279 section was the practice of applying
+00:12:39.680 some basic public health theories to our
+00:12:42.160 interviewing work to collect meaningful
+00:12:44.320 information from the patient but most
+00:12:46.480 importantly these public health theories
+00:12:48.880 help you spark the change process within
+00:12:51.120 the patient and possibly motivate them
+00:12:53.760 to divulge information about their
+00:12:55.680 sexual network
+00:12:57.360 the health belief model and the theory
+00:12:59.360 of recent action and planned behavior
+00:13:01.200 can show us a framework in which
+00:13:02.800 patients are making health related
+00:13:04.160 decisions
+00:13:05.440 and the transtheoretical model helps us
+00:13:07.360 understand how patients move through
+00:13:09.360 health-related change
+00:13:11.920 understanding these frameworks can aid
+00:13:13.600 us in disease intervention
+00:13:15.600 and we can listen for cues of resistance
+00:13:18.079 find the pathways that invigorate the
+00:13:19.839 patient to feel motivated to change
+00:13:21.680 their behaviors and debunk social or
+00:13:24.320 societalness that the patient may hold
+00:13:26.880 for the sake of time today i won't be
+00:13:28.880 diving into these theories but please
+00:13:31.040 feel free to contact me outside of this
+00:13:32.959 training if you want more information
+00:13:34.880 about these public health theories
+00:13:37.519 the next item i want to go over is
+00:13:39.120 narratively snake
+00:13:40.959 storytelling is a meaning making process
+00:13:43.920 when someone tells us a story they are
+00:13:46.320 choosing what details they want to
+00:13:48.079 include what experiences they want to
+00:13:50.240 share
+00:13:51.040 and they are also reflecting on what the
+00:13:52.880 events meant to them
+00:13:54.959 we tell stories to make sense of
+00:13:56.720 ourselves and our world so when we do
+00:13:59.120 have a chance to get an original
+00:14:00.720 interview completed we really want to
+00:14:03.199 listen to our patient's story and we
+00:14:05.279 want to search for the meaning in their
+00:14:07.040 stories
+00:14:08.320 sometimes a patient's story can draw
+00:14:10.480 your attention to information that may
+00:14:12.240 be critical to their care
+00:14:14.959 for the moment you're in the interview
+00:14:17.040 shift away from the symptoms or the std
+00:14:19.279 itself and focus on the whole person
+00:14:21.519 sitting in front of you
+00:14:23.040 this connection will help you build
+00:14:24.480 rapport and extend empathy to your
+00:14:26.720 patient
+00:14:28.480 active listening skills are an inherent
+00:14:30.800 part of narrative listening
+00:14:33.040 once you invite your patient to tell
+00:14:34.560 their story you must demonstrate that
+00:14:36.560 you're hearing them
+00:14:38.160 active listening actions typically
+00:14:40.000 involve things like maintaining
+00:14:41.600 appropriate eye contact
+00:14:43.600 showing interest in the story with
+00:14:45.279 nodding or positive affirmation
+00:14:47.839 asking open-ended questions to encourage
+00:14:50.160 the patient to continue
+00:14:52.000 and choosing language that offers
+00:14:53.839 validation and visibility
+00:14:56.399 on the subject of language
+00:14:58.399 listen to what phrases slang or
+00:15:00.959 metaphors your patient is using to
+00:15:02.880 discuss their sexual practices
+00:15:05.519 are there any hints about health beliefs
+00:15:07.519 or behaviors in those language choices
+00:15:10.320 use your critical thinking skills in the
+00:15:12.000 moment to pick up on new meanings
+00:15:15.600 i'm going to share a couple of real-life
+00:15:17.360 examples with you of how narrative
+00:15:19.279 listening was applied to a patient case
+00:15:22.079 and ended up saving patients lives
+00:15:25.680 an older adult with renal failure was
+00:15:28.079 speaking to his social worker about end
+00:15:30.000 of life care
+00:15:31.600 while telling his story he shared a
+00:15:33.759 photograph of his two cats
+00:15:36.240 he mentioned that one of his cats had
+00:15:38.720 died a hard death in a vetted in a
+00:15:40.880 veterinary clinic
+00:15:42.399 while the other had an easy death at
+00:15:44.720 home
+00:15:45.920 by sharing his feelings about his pet
+00:15:47.839 step
+00:15:48.720 he revealed his personal fears about
+00:15:50.959 dying in an inpatient setting
+00:15:53.519 the client's story allowed the social
+00:15:55.600 worker to tailor his care plan to meet
+00:15:57.680 his needs and his values
+00:15:59.920 so that his hospice care occurred in his
+00:16:02.160 home
+00:16:03.040 and he had less fear of dying
+00:16:06.320 the other story i want to share with you
+00:16:08.079 is that a woman talked to her physical
+00:16:10.079 therapist about the recent fall she was
+00:16:12.320 having
+00:16:13.680 her story was chaotic and almost
+00:16:15.600 uncomprehensive incomprehensible to the
+00:16:18.000 physical therapist
+00:16:19.680 and she struggled to pull together a
+00:16:21.120 coherent account of her recent falls
+00:16:24.240 however the physical therapist listened
+00:16:26.320 intently and let the patient continue
+00:16:28.480 with her story
+00:16:30.160 towards the end of the story the patient
+00:16:32.480 made a strange comment
+00:16:34.399 that she had a feeling of something
+00:16:36.320 accumulating in her brain
+00:16:39.279 the therapist shared this comment with
+00:16:40.959 the rest of the patient's care team
+00:16:43.199 and the patient's neurologist was able
+00:16:44.959 to order more testing
+00:16:47.120 it was discovered that the patient had a
+00:16:49.040 chronic subdural hematoma which required
+00:16:51.519 immediate surgery
+00:16:53.279 the act of narrative listening saved
+00:16:55.360 this patient's life
+00:17:02.399 one of the um lessons we're going to get
+00:17:05.119 into before we jump into information
+00:17:07.439 about vca is notes on partner
+00:17:09.599 elicitation
+00:17:11.839 so
+00:17:13.439 we can complete a vca without partners
+00:17:17.919 but a vca without partners is kind of
+00:17:20.959 like movie popcorn without the butter
+00:17:23.839 it's edible but it's not really doing
+00:17:26.079 that much for us
+00:17:27.599 and we may even question why we bought
+00:17:29.360 it in the first place if it's not going
+00:17:31.039 to come with the movie popcorn theater
+00:17:32.960 butter
+00:17:35.280 partner elicitation is a hallmark of
+00:17:37.200 disease intervention specialist work it
+00:17:39.440 is this action of identifying sex
+00:17:41.600 partners getting them tested and
+00:17:44.000 offering treatment that embodies the
+00:17:45.919 public health mission
+00:17:47.840 it is why the dif workforce is
+00:17:49.919 considered the backbone of public health
+00:17:52.799 if we do not have a trained workforce
+00:17:55.039 with capable social skills and the
+00:17:57.200 ability to blend into communities and be
+00:17:59.760 accepted by gatekeepers our nation would
+00:18:02.320 be overcome with transmittable disease
+00:18:05.200 it is your ability to get people to
+00:18:06.960 spill the tea so to speak that keeps our
+00:18:09.440 nation healthy from std
+00:18:12.320 to successfully conduct visual case
+00:18:14.400 analysis and to have successful
+00:18:16.320 identification of source and spread
+00:18:18.320 relationships
+00:18:19.760 and to meet the mission of disease
+00:18:21.200 intervention
+00:18:22.400 partners must be elicited from the
+00:18:24.559 original infected patient
+00:18:26.960 interrupting the chain of transmission
+00:18:28.880 happens when when we reach sexual
+00:18:31.120 partners before they have developed
+00:18:33.200 symptoms of disease this is called
+00:18:35.360 primary disease intervention
+00:18:38.720 the name first methodology is the model
+00:18:41.440 that the cdc recommends dis adhered to
+00:18:44.320 when collecting sexual partner or
+00:18:46.640 syringe sharing partner information
+00:18:49.600 the foundation which you see on the left
+00:18:51.679 side of your screen today
+00:18:53.440 collects our patients number of sex
+00:18:55.200 partners or syringe partners in the
+00:18:57.280 interview period
+00:18:58.880 the behaviors they engage in such as the
+00:19:00.960 type of sex or how are they sharing
+00:19:03.360 needles with somebody
+00:19:05.039 and where they have sex or where they
+00:19:07.120 share share syringes with others
+00:19:10.880 and then you'll notice on the right side
+00:19:12.480 of the screen we have five main category
+00:19:15.120 of the data collection
+00:19:17.600 this is the name of the partner
+00:19:19.679 the sexual or syringe exposure
+00:19:21.919 information
+00:19:23.280 the locating information of the partner
+00:19:26.000 the clustering opportunities that are
+00:19:28.000 present
+00:19:29.039 and lastly the physical description of
+00:19:31.200 the partners
+00:19:33.280 and you may be asking yourself
+00:19:35.520 why is it called the name first
+00:19:37.919 methodology
+00:19:40.000 this is because if our time is limited
+00:19:42.320 in an interview which it can often be
+00:19:44.799 either due to our own time constraints
+00:19:47.120 produced due to the patient's time
+00:19:49.360 constraints
+00:19:50.559 we want to collect the names of the
+00:19:52.640 partners first
+00:19:54.720 in order to build the sexual network
+00:19:57.919 you can always conduct a re-interview to
+00:20:00.160 gather information that you may have
+00:20:01.840 missed
+00:20:03.120 but getting the names first allows you
+00:20:05.600 to build the sexual network and allows
+00:20:07.840 your disease intervention team to start
+00:20:09.760 recognizing people or patterns of
+00:20:11.840 disease which enables you and your team
+00:20:14.480 to provide targeted services to specific
+00:20:17.520 groups or areas
+00:20:25.039 okay so we are finally on to the good
+00:20:27.919 stuff
+00:20:28.960 i appreciate you learning with me or
+00:20:31.039 refreshing on some of your history
+00:20:32.960 lessons
+00:20:34.400 i find that it's easier to buy into
+00:20:36.799 completing visual case analysis
+00:20:39.120 when you can view it as a key component
+00:20:41.440 of public health action in your disease
+00:20:43.440 intervention process
+00:20:45.600 my ultimate goal is to help you feel
+00:20:47.760 like vca is a critical part of your work
+00:20:50.960 and to enjoy the task of the mystery
+00:20:53.440 solving game
+00:20:54.880 rather than viewing it as a tedious task
+00:20:57.200 that you just need to mark off a
+00:20:58.720 checklist
+00:21:00.559 check out the example of uca on the
+00:21:02.400 slide here
+00:21:04.000 who else but a dis could look at this
+00:21:07.039 translated and then be able to return a
+00:21:09.440 story of infection
+00:21:11.760 vca is a coded language that only a few
+00:21:14.640 people understand and in my opinion
+00:21:17.520 knowing how to complete mvca by hand
+00:21:20.159 will give you an edge in the disease
+00:21:22.000 intervention field in the coming years
+00:21:25.039 since our skills are translatable to a
+00:21:26.880 variety of diseases
+00:21:28.799 your ability to draw a visual framework
+00:21:31.200 of infectious networks can help end an
+00:21:33.520 outbreak of disease in your community
+00:21:39.520 simply put
+00:21:40.880 vca is an epidemiological tool for
+00:21:43.520 partner services providers to analyze a
+00:21:45.760 case
+00:21:46.640 to determine what and where disease
+00:21:48.400 intervention needs to occur
+00:21:50.400 and to determine the most likely story
+00:21:52.320 of transmission and to create a plan of
+00:21:54.559 action for future tasks
+00:21:57.120 it is a visual framework that is
+00:21:58.799 initiated in the post interview analysis
+00:22:01.200 step up for the case management process
+00:22:04.080 it is a tool used to systematically
+00:22:06.240 document the social
+00:22:07.880 epidemiological and medical information
+00:22:10.559 of your patient's syphilis infection
+00:22:13.840 a vca allows you to compare information
+00:22:16.320 about related cases to determine if
+00:22:18.240 commonalities exist
+00:22:20.240 to highlight informational gaps or
+00:22:21.840 conflicting information
+00:22:23.679 and presents evidence to verify source
+00:22:26.000 spread relationships
+00:22:32.000 there are some key components that we
+00:22:34.080 need to be aware of prior to conducting
+00:22:36.480 visual case analysis
+00:22:39.039 out of these one of the most important
+00:22:41.280 is the duration of stages of syphilis
+00:22:43.520 and their symptoms
+00:22:45.520 because the rules of conducting visual
+00:22:47.760 case analysis are based on the natural
+00:22:50.240 history of syphilis
+00:22:51.919 we need to be familiar with the minimum
+00:22:54.480 average and maximum durations of the
+00:22:56.720 incubation period and stages of syphilis
+00:22:59.600 and their symptoms
+00:23:01.760 knowing the minimum average and maximum
+00:23:04.000 durations of sibling stages and their
+00:23:05.919 specific symptoms will enable you to
+00:23:08.080 determine if your patient's story of
+00:23:10.559 disease transmission is truthful
+00:23:13.520 our patients may like to lie to us but
+00:23:15.840 syphilis never lies that's why it's my
+00:23:18.159 favorite disease
+00:23:20.400 the basic assumptions and criteria for
+00:23:22.720 related cases provide us with
+00:23:24.559 information in order to make the most
+00:23:26.400 informed decision decisions
+00:23:28.559 about disease transmission and it is
+00:23:30.960 based on the natural history of syphilis
+00:23:34.080 the ghosting hierarchy provides us a
+00:23:36.080 framework to conduct ghosting or a
+00:23:38.559 technique that helps us identify source
+00:23:41.039 and spread relationships
+00:23:47.840 so on this slide there's a chart that
+00:23:50.400 showcases the minimum average and
+00:23:52.640 maximum durations of the incubation
+00:23:54.480 period and different stages of syphilis
+00:23:58.000 remember
+00:23:59.039 an incubation period is the time frame
+00:24:01.200 that starts once a person has been
+00:24:02.880 exposed and ends when they develop their
+00:24:05.200 own symptoms
+00:24:07.360 a latency period is the time frame in
+00:24:09.679 which a patient has no active signs or
+00:24:11.840 symptoms of syphilis
+00:24:13.600 but is still considered infected if they
+00:24:15.840 have not been treated with penicillin
+00:24:19.279 knowing these durations of time will aid
+00:24:21.600 you in making an informed and educated
+00:24:24.000 decision about your patient's disease
+00:24:25.760 history
+00:24:27.120 for example perhaps during the original
+00:24:29.679 interview your patient says their body
+00:24:31.600 rash lasted for four months
+00:24:34.799 based on the natural history of syphilis
+00:24:37.520 you know that a generalized body rash
+00:24:39.760 typically does not last more than
+00:24:41.760 approximately six weeks
+00:24:43.919 so your patient's rash may not be
+00:24:45.840 sympathetic after all
+00:24:48.159 this changes the way we look at
+00:24:50.000 source-spread relationships of this
+00:24:51.600 patient as well
+00:24:56.240 you will also notice that as we add
+00:24:58.480 together the maximum durations
+00:25:01.120 our final outcome is the interview
+00:25:03.120 period we abide by for stage of the
+00:25:05.360 syphilis
+00:25:06.960 we begin the interview period prior to
+00:25:09.279 the onset of symptoms in order to
+00:25:11.440 maximize the time frame in which we are
+00:25:13.279 looking for partners
+00:25:15.200 for example in primary syphilis
+00:25:18.240 our interview period of four months and
+00:25:20.559 one week comes from adding together the
+00:25:23.200 maximum durations of the incubation
+00:25:25.520 period and the maximum duration of an
+00:25:28.159 untreated shaker
+00:25:30.159 in secondary syphilis our interview
+00:25:32.400 period of eight months and one week is
+00:25:34.799 derived from adding together the maximum
+00:25:37.279 duration of the incubation period
+00:25:39.679 the maximum duration of an untreated
+00:25:41.679 shanker
+00:25:42.720 the maximum duration of the latency
+00:25:44.640 period and the maximum duration of
+00:25:46.960 untreated secondary symptoms
+00:25:49.679 you will have a copy of these slides if
+00:25:51.679 you have not checked your email
+00:25:54.320 it should be sitting there for you
+00:25:56.480 i have color coded this here to help you
+00:25:58.880 visualize how to add together maximum
+00:26:02.000 durations in order to get your interview
+00:26:03.919 periods
+00:26:09.760 the basic assumptions and criteria for
+00:26:12.720 related cases helps keep us on track for
+00:26:15.600 constructing the most logical and
+00:26:17.600 informed course of disease transmission
+00:26:21.039 the criteria for related cases tells us
+00:26:23.520 that cases that are being linked
+00:26:25.039 together must meet the following
+00:26:27.919 one sex partner must be infectious at
+00:26:30.320 the time of sexual contact
+00:26:32.799 primary shaker sites must be compatible
+00:26:35.360 with the type of sex reported
+00:26:37.600 and that there must be a reasonable
+00:26:39.440 course of disease
+00:26:41.360 for example
+00:26:43.039 a partner must have a shanker mucous
+00:26:45.360 patches or candy loma lada during sexual
+00:26:48.640 contact for transmission to occur
+00:26:51.600 a primary shaker on the penis means
+00:26:54.159 there was a sex partner with a primary
+00:26:56.000 shaker in the vagina rectum or mouth
+00:26:59.200 and the disease progression must make
+00:27:01.440 sense
+00:27:02.640 if a patient reports developing a shank
+00:27:05.120 three days after sexual contact with a
+00:27:08.080 one-time partner
+00:27:09.679 that partner is unlikely to be the
+00:27:11.840 source of disease
+00:27:14.400 the basic assumptions enable us to
+00:27:16.480 conduct ghosting or the technique used
+00:27:19.360 to attempt to find the source and spread
+00:27:21.440 relationships
+00:27:23.279 the basic assumptions tell us that
+00:27:25.360 syphilis is acquired from someone in the
+00:27:27.520 primary stage of disease at the time of
+00:27:29.679 sexual exposure
+00:27:31.600 that the patient had a three-week
+00:27:33.360 incubation period or 21 days
+00:27:36.559 that the patient had a three week long
+00:27:38.399 shanker
+00:27:40.080 and that the patient had no more than
+00:27:42.080 four weeks in their latency period
+00:27:43.919 between the primary and secondary stages
+00:27:46.080 of syphilis
+00:27:48.399 what you'll notice about the basic
+00:27:49.840 assumptions is that they follow the
+00:27:51.679 average duration of stages and symptoms
+00:27:53.679 of syphilis that we just covered
+00:27:56.320 by using average durations during
+00:27:58.240 ghosting
+00:27:59.440 especially on patients who have no
+00:28:00.960 verified signs or symptoms of syphilis
+00:28:03.200 we create the most logical story of
+00:28:04.960 disease transmission based on the
+00:28:06.720 natural history of syphilis
+00:28:13.679 so ghosting you heard me mention that a
+00:28:15.760 couple times now is a term that is used
+00:28:18.399 to describe the act of finding
+00:28:20.399 source-spread relationships within the
+00:28:22.320 visual case analysis
+00:28:24.559 especially as it relates to partners who
+00:28:26.559 have no verified signs and symptoms of
+00:28:28.640 syphilis
+00:28:30.320 ghosting combines symptom information
+00:28:32.399 from your original infected patient and
+00:28:34.480 the basic information about typical
+00:28:36.480 syphilis symptoms
+00:28:38.080 and it helps you develop a reasonable
+00:28:39.840 course of disease for the sex partner
+00:28:41.600 who does not have symptoms
+00:28:44.080 this enables dis to create a likely
+00:28:46.399 source spread relationships in the
+00:28:48.159 absence of confirmed signs and symptoms
+00:28:52.880 ghosting plays a critical role in
+00:28:54.880 disease transmission stories because
+00:28:56.960 syphilis symptoms are often of short
+00:28:58.880 duration and frequently go unnoticed by
+00:29:01.600 the infected person
+00:29:03.919 ghosting allows cis to identify time
+00:29:06.480 periods where more intense disease
+00:29:08.320 intervention should occur
+00:29:10.320 for example through ghosting you
+00:29:13.200 determine a partner was likely exposed
+00:29:15.360 to syphilis in january but they had not
+00:29:17.679 reported any sex partners to you during
+00:29:19.600 that time
+00:29:21.200 with this new information about disease
+00:29:23.279 transmission you can conduct a
+00:29:25.120 re-interview and inquire about sex
+00:29:27.760 partners during the month of january
+00:29:31.760 lastly ghosting gives you the dis
+00:29:35.520 evidence to present to an original
+00:29:37.840 patient who may not be truthful with you
+00:29:39.760 about their partners or exposures
+00:29:42.640 syphilis pathologically tells the truth
+00:29:45.360 we know for a fact when people develop
+00:29:47.520 shakers after exposure
+00:29:49.679 and we know for a fact when that means
+00:29:51.440 they were exposed by a sex partner
+00:29:54.159 seeing this evidence physically in a vca
+00:29:56.960 and showing it to your original patient
+00:29:59.279 may encourage them to tell you the truth
+00:30:02.880 so since ghosting is the act of finding
+00:30:05.679 the source and spread relationships the
+00:30:08.240 ghosting hierarchy exists to guide those
+00:30:10.799 decisions so that they are the most
+00:30:12.559 informed and accurate
+00:30:14.880 the best disease transmission story will
+00:30:17.360 be created when there is an existing
+00:30:19.600 primary shaker on our original patient
+00:30:22.080 or a sex partner
+00:30:24.240 the second best story can be created
+00:30:26.480 from recall of a historical shanker
+00:30:30.399 and we should always try our best to
+00:30:32.159 have patients recall symptoms on either
+00:30:34.399 themselves or a partner
+00:30:36.640 because this gives us the best
+00:30:38.080 opportunity to identify the timeline of
+00:30:40.080 transmission
+00:30:42.240 knowing when people have their primary
+00:30:44.000 shakers also gives us an opportunity at
+00:30:46.559 finding the disease network and stopping
+00:30:49.039 the spread of sibilance before others
+00:30:50.880 develop signs and symptoms
+00:30:54.080 you can find source spread relationships
+00:30:56.240 by using a ghosted primary shanker or a
+00:30:59.039 shaker that the dis is making an
+00:31:00.880 educated guess about
+00:31:03.120 a ghosted shanker is one that is not
+00:31:05.440 confirmed or denied by a patient or sex
+00:31:07.600 partner but is estimated to have
+00:31:09.760 occurred based on the natural history of
+00:31:11.600 syphilis and what we know about disease
+00:31:13.360 transmission
+00:31:15.039 this produces a logical disease
+00:31:16.960 transmission story but it may not be as
+00:31:19.440 accurate as stories based on existing or
+00:31:21.919 historical shankers
+00:31:24.799 creating source-spread relationships
+00:31:26.559 from secondary symptoms is not
+00:31:28.320 impossible but it is difficult to do
+00:31:32.159 this will almost always require us to
+00:31:34.080 accept the average duration of stages is
+00:31:36.159 what each patient or partner went
+00:31:37.679 through
+00:31:38.559 so this may not produce the most
+00:31:40.080 accurate story of disease transmission
+00:31:42.880 ghosting from a secondary symptom
+00:31:44.559 requires a lot of educated guesswork and
+00:31:47.679 therefore it's not preferable to conduct
+00:31:49.840 visual case analysis with
+00:31:52.080 however if it's the only symptom you
+00:31:54.080 have it's a good place to start
+00:32:00.720 source spread analysis combined with
+00:32:03.039 ghosting helps determine missing or
+00:32:05.440 conflicting information and sexual
+00:32:07.360 exposures identifies time periods where
+00:32:10.000 disease transmission likely occurred
+00:32:12.559 helps you determine which intervention
+00:32:14.399 activities you should focus on and also
+00:32:16.799 helps you create the source spread
+00:32:18.240 hypothesis of your original infected
+00:32:20.480 patient
+00:32:21.840 this analysis typically occurs after
+00:32:23.840 partner follow-up has been initiated
+00:32:26.320 and it is the diss's chance to present a
+00:32:28.720 story of disease transmission to their
+00:32:30.559 supervisor their peer or to another
+00:32:33.279 public health agent
+00:32:35.039 you are developing the how and why while
+00:32:37.760 documenting the who what when and where
+00:32:40.080 of that story
+00:32:42.640 a source is defined as somebody who is
+00:32:45.039 an infected person who transmitted
+00:32:47.360 disease to an uninfected person
+00:32:50.240 a spread is defined as an uninfected
+00:32:52.960 person who acquired disease from an
+00:32:55.360 infected person
+00:32:57.200 this can get a little complicated
+00:32:58.640 sometimes
+00:32:59.919 patients can be both sources and spreads
+00:33:02.640 at the same time
+00:33:04.399 for example
+00:33:05.840 johnny had the primary shaker
+00:33:08.240 he had sex with his girlfriend heather
+00:33:10.399 who then developed a primary shanker
+00:33:12.320 about a month later
+00:33:15.840 in this scenario
+00:33:17.440 johnny is heather's source and heather
+00:33:19.919 is a spread from johnny's infection
+00:33:23.039 we conduct a dis investigation and
+00:33:25.440 johnny named samuel another partner he
+00:33:27.760 has sex with
+00:33:29.600 through visual case analysis we were
+00:33:31.679 able to determine that samuel was the
+00:33:33.679 first person to have a shanker
+00:33:35.760 and he accepted johnny
+00:33:37.760 making samuel the source of the
+00:33:39.440 infection and johnny a spread from
+00:33:42.240 samuel's infection
+00:33:44.880 so through visual case analysis we have
+00:33:47.279 determined johnny's source of infection
+00:33:49.440 and who he spread his infection to
+00:33:57.679 source threat analysis narratives can
+00:33:59.679 largely be broken down into these key
+00:34:02.240 pieces of information
+00:34:04.799 first we need to identify the critical
+00:34:07.200 period of our original patient
+00:34:09.918 which is the time frame we believe our
+00:34:11.918 patient became infected or could have
+00:34:14.079 infected somebody else
+00:34:16.480 then we need to identify which partners
+00:34:19.359 fall into this critical period
+00:34:22.079 after we've done this we need to
+00:34:23.599 identify who we believe is the source of
+00:34:26.079 our original patient's infection
+00:34:28.480 and then we need to identify who we
+00:34:30.239 believe our original patient gave the
+00:34:32.639 infection to
+00:34:35.359 this is then justified using the
+00:34:37.280 evidence you have gathered over the
+00:34:38.639 course of the investigation
+00:34:40.800 this could include the ghosting you've
+00:34:42.480 completed to determine to determine the
+00:34:44.719 story of disease transmission
+00:34:46.960 it could include partner outcomes so
+00:34:49.040 what was their testing and treatment
+00:34:50.639 statuses
+00:34:52.320 you probably have interview notes that
+00:34:54.239 you will likely refer to for your
+00:34:55.839 evidence
+00:34:57.599 and finally upload or document your vca
+00:35:00.720 as it is required by your jurisdiction
+00:35:07.040 this is an example of a source spread
+00:35:09.599 analysis using our previous
+00:35:11.920 scenario that we just went through with
+00:35:13.760 johnny and heather
+00:35:15.680 now of course this is an ideal public
+00:35:18.320 health scenario real life probably does
+00:35:20.960 not happen like this for most of us
+00:35:24.000 your source spread analysis may be
+00:35:25.839 shorter or longer than this or you may
+00:35:28.400 need more details or descriptions of
+00:35:30.560 evidence
+00:35:32.000 you should take the time to review your
+00:35:33.680 jurisdictions policies on interview
+00:35:35.599 documentation to make sure you're
+00:35:37.359 meeting any documentation requirements
+00:35:39.839 or any requirements as your supervisor
+00:35:42.079 or director may want them
+00:35:45.359 and remember as a dis documentation is
+00:35:48.800 your friend
+00:35:50.240 your source spread analysis informs your
+00:35:52.480 dis teams and your surveillance staff of
+00:35:55.359 the disease networks in your community
+00:35:58.400 thorough and well documented source
+00:36:00.320 threat analyses lead to well-done
+00:36:02.480 disease intervention
+00:36:04.640 source spread information is also what
+00:36:06.800 you would share during times of simplest
+00:36:08.720 outbreaks to the outbreak preparedness
+00:36:10.480 coordinator or outbreak surveillance
+00:36:12.640 teams
+00:36:14.240 it is critical you practice the skill of
+00:36:16.960 source spread analysis even if you
+00:36:19.119 aren't doing a vca
+00:36:20.880 so that you can offer informed disease
+00:36:23.440 transmission opinions that further your
+00:36:25.599 agency's public health mission and
+00:36:27.839 accomplish the goal of primary disease
+00:36:29.839 intervention
+00:36:31.680 which i described to you earlier as we
+00:36:34.160 want to reach people before they develop
+00:36:36.800 symptoms of syphilis
+00:36:39.520 and you'll notice um i've color coded
+00:36:41.760 this again
+00:36:43.200 um so in case you want to go back and
+00:36:45.280 refer to these slides after working on
+00:36:47.200 vcas
+00:36:48.640 um i've given you color codes here and
+00:36:50.800 then i've color coded that information
+00:36:52.640 here as well so that way it helps you
+00:36:54.320 kind of separate and keep in mind what
+00:36:56.800 those key pieces of information are
+00:37:02.079 so now that we've gotten a lot of good
+00:37:03.760 background information about some of the
+00:37:05.520 skills we're going to apply today at vca
+00:37:08.320 i wanted to talk to you about the seven
+00:37:10.400 key pieces of information that we put
+00:37:12.640 into a vca chart
+00:37:15.680 you'll see on the bottom left corner
+00:37:17.440 here we have an example of the vca
+00:37:19.599 pocket assistant
+00:37:21.680 this is a handy-dandy little tool
+00:37:24.400 that can always help us remember what we
+00:37:26.400 need to put on our vca
+00:37:28.480 i am seven years deep into my std
+00:37:30.960 prevention career and i still rely on
+00:37:33.200 this little guy
+00:37:34.800 i have highlighted the first four items
+00:37:37.119 that the slide covers so you'll see on
+00:37:39.520 our chart here
+00:37:41.520 we have the months of the year the
+00:37:43.280 patient name
+00:37:44.720 the reason for examination and the
+00:37:46.720 medical history and on the next slide
+00:37:49.359 we're going to cover symptoms
+00:37:51.280 critical period and exposure dates
+00:37:55.200 first we always document the months of
+00:37:57.520 the year and the upper most row of boxes
+00:38:00.800 here at the top of the screen
+00:38:03.760 we always start on the right side of the
+00:38:06.079 boxes
+00:38:07.760 so always come to the end and count
+00:38:10.000 backwards to the third box from the
+00:38:12.079 right side of the page
+00:38:13.839 so we go one two three here's our third
+00:38:17.119 box
+00:38:19.119 this box is where you will document the
+00:38:21.200 current month or the month where your
+00:38:23.359 patient get testing and treatment
+00:38:25.520 in case you're completing a vca at a
+00:38:27.440 later date
+00:38:29.200 using our past example of johnny and
+00:38:31.200 heather our current month was march of
+00:38:33.359 2020
+00:38:34.640 which is why the third box from the
+00:38:36.640 right has the number three unit to
+00:38:38.720 represent march
+00:38:41.119 in the boxes following the three we put
+00:38:44.400 four and five to represent the months of
+00:38:47.119 april and may
+00:38:49.200 you will see that i have
+00:38:51.040 cy beside these months and that is to
+00:38:53.839 indicate that it is the current year
+00:38:56.880 so what comes after may
+00:38:58.960 well june
+00:39:00.800 but where do we put the rest of our
+00:39:02.480 months since we have now run out of
+00:39:04.400 boxes on the right side of the page
+00:39:08.000 you will see we go now to the left side
+00:39:10.480 of the page and we continue putting in
+00:39:12.640 the months of the year until we reach
+00:39:15.599 all 12 months
+00:39:17.839 you will notice that
+00:39:19.839 these
+00:39:21.040 months here have l y or last year next
+00:39:24.800 to them
+00:39:26.000 and that's because this portion of the
+00:39:27.920 vca up until december
+00:39:30.480 represents last year
+00:39:33.920 we need space
+00:39:35.920 to do our vca because we always focus on
+00:39:38.800 the time period before our patients
+00:39:41.760 develop symptoms
+00:39:43.839 so in order to give ourselves plenty of
+00:39:46.079 time to see the history of transmission
+00:39:48.240 in this patient
+00:39:49.599 we always push the current month at the
+00:39:52.320 end of the vca so that we can focus on
+00:39:55.359 the periods prior to symptomology
+00:40:00.240 so once we have our months labeled we
+00:40:02.640 add in the name of our patient
+00:40:05.440 and we also put in the reason for exam
+00:40:09.520 there is an official list from the cdc
+00:40:11.839 called the method of case detection
+00:40:14.400 that your jurisdictions may want you to
+00:40:16.480 use
+00:40:17.599 some of these reasons could include
+00:40:19.599 screening
+00:40:20.800 self-referral patient referred partner
+00:40:24.079 health department referred partner or
+00:40:26.160 cluster related
+00:40:28.079 in our example johnny was a
+00:40:30.000 self-referral due to him noticing the
+00:40:32.000 sore on his penis which is why we have
+00:40:34.160 listed self-referral here
+00:40:37.520 after we have documented our patient's
+00:40:39.200 name and our reason for exam
+00:40:41.520 we will start writing in the patient's
+00:40:43.200 relevant medical history
+00:40:45.839 items that should be included would be
+00:40:47.920 any past simplest testing in the
+00:40:49.839 previous 12 months whether reactive or
+00:40:52.240 non-reactive
+00:40:54.079 any past hiv or chlamydia gonorrhea
+00:40:56.880 testing results
+00:40:58.480 and any treatments given to the patient
+00:41:00.480 for std
+00:41:02.000 are treatments that incidentally treated
+00:41:04.079 syphilis
+00:41:05.119 such as a person receiving doxycycline
+00:41:07.680 for a different infection
+00:41:11.200 we are also going to include our t-bar
+00:41:13.920 or our treatment bar as part of
+00:41:16.079 documenting the medical history but more
+00:41:18.560 on the treatment bar in just a moment
+00:41:22.000 in our previous example
+00:41:24.240 we didn't specify if johnny had any
+00:41:26.240 relevant medical history
+00:41:28.160 but for the sake of showing you how to
+00:41:29.680 do this documentation
+00:41:31.440 i have added in some non-reactive
+00:41:33.200 syphilis testing for the previous year
+00:41:36.560 you will see medical history goes on the
+00:41:38.720 line labeled history so we have drawn an
+00:41:41.760 arrow and we have pointed and we have
+00:41:44.160 also written the date
+00:41:45.680 you can see we have
+00:41:47.520 our t-bar coming off of this history
+00:41:49.520 line as well
+00:41:52.160 you will also see that the history line
+00:41:54.560 is divided by tiny slashes
+00:41:57.440 if you look to the left of the chart
+00:41:59.680 each flash represents one week
+00:42:03.680 for example the start of the box means
+00:42:06.880 day one
+00:42:08.480 the next slash means day seven
+00:42:11.520 and then day fourteen
+00:42:13.599 day twenty one and day 28.
+00:42:17.280 so yes that means as we move farther
+00:42:19.839 along the vca chart
+00:42:21.920 day 28 and day 1 will often share the
+00:42:25.359 same line
+00:42:27.680 you don't necessarily have to document
+00:42:29.680 these numbers on your vca while you're
+00:42:31.839 working however if you're new to bca it
+00:42:34.800 may be beneficial to remind yourself
+00:42:37.440 of how time is divided along the history
+00:42:39.760 line
+00:42:42.319 now let's go back to our treatment bar
+00:42:44.560 or t-bar
+00:42:46.800 this is a critical piece of your vca as
+00:42:49.520 it acts as the anchor point for your
+00:42:51.680 original patient's infection
+00:42:54.640 in our previous example johnny was
+00:42:57.119 tested on 3a 2020.
+00:42:59.920 we draw a big t around the day eight in
+00:43:03.599 the month of march
+00:43:05.200 so if we know that first slash right
+00:43:07.119 there is day seven day eight is just
+00:43:09.200 after that
+00:43:10.319 you have a nice big bold t there
+00:43:14.079 on the top of the t-bar we put the date
+00:43:16.319 the patient was tested
+00:43:18.400 to the left of the t-bar we document the
+00:43:20.880 stage of syphilis we currently believe
+00:43:22.800 the patient is in
+00:43:24.880 to the right of the t-bar we document
+00:43:27.200 the patient's testing and treatment
+00:43:28.800 information as we know it
+00:43:32.720 so
+00:43:33.599 let's pause for a moment
+00:43:35.599 all of the information we are currently
+00:43:38.000 looking at on this example vca
+00:43:40.880 is numbers one through four of our seven
+00:43:43.839 key pieces of information
+00:43:47.760 and you'll notice
+00:43:49.119 that we have documented everything in
+00:43:51.920 a black ink or black pencil and that
+00:43:54.880 correlates with the color
+00:43:56.960 of the numbers next to our facts
+00:43:59.599 so this will just help you to remember
+00:44:01.599 when do i use the colors when do i use
+00:44:03.680 red when do i use blue
+00:44:05.839 you can always refer to your vca pocket
+00:44:08.079 assistant to know which colors to apply
+00:44:10.640 to what fact
+00:44:17.680 and so now we're going to look at how we
+00:44:20.480 document the remaining in our pieces of
+00:44:22.800 key information
+00:44:24.560 so this would cover our symptoms our
+00:44:26.720 exposure dates and our critical period
+00:44:31.680 to indicate symptoms on a vca
+00:44:34.240 we draw a red rectangle for the length
+00:44:37.359 of time the symptom was and then we
+00:44:39.440 label it with the appropriate label
+00:44:42.480 for example our scenario with johnny and
+00:44:45.200 heather is that johnny had a shaker for
+00:44:47.520 three days prior to coming to our clinic
+00:44:50.640 so that shaker was projected to have
+00:44:52.400 began around three five
+00:44:54.640 which is why we have our red rectangle
+00:44:56.880 here starting around three five and
+00:44:59.359 going up to the date of treatment
+00:45:02.800 we have also listed
+00:45:05.480 p-e-n-l-x which is an abbreviation for
+00:45:08.400 penile lesion
+00:45:10.400 the cdc partner services modules have an
+00:45:14.240 abbreviation sheet for
+00:45:16.960 penile illusion vaginal lesion etc etc
+00:45:20.319 if you would like a copy of that we can
+00:45:22.240 certainly get that to you
+00:45:24.240 you can also use whatever documentation
+00:45:27.119 or abbreviations you're familiar with in
+00:45:29.599 your jurisdiction
+00:45:32.880 the next thing we document after we have
+00:45:34.800 documented symptoms is the critical
+00:45:36.720 period or the time frame in which we
+00:45:39.119 believe johnny was exposed and became
+00:45:41.200 infected
+00:45:42.880 because johnny had primary syphilis our
+00:45:45.440 critical period is 90 days
+00:45:48.240 or the maximum amount of time the
+00:45:50.160 incubation period could have lasted
+00:45:53.040 to help anchor our critical period we
+00:45:55.440 will also be adding designations of the
+00:45:57.599 10-day
+00:45:59.359 day and 90 day marks
+00:46:02.640 this will give us visualization that the
+00:46:04.640 time periods where johnny was most
+00:46:06.880 likely exposed to syphilis
+00:46:10.480 this is when we take our blue pen or
+00:46:12.240 pencil and we draw a blue line on the
+00:46:15.440 underside of the history bar
+00:46:18.000 and we started the data treatment and we
+00:46:20.160 go backwards 90 days
+00:46:23.440 from the date of the onset of the
+00:46:25.040 symptom
+00:46:26.240 so for our patient here we count 90 days
+00:46:29.359 backwards from march 4th
+00:46:31.599 which takes us to december 5th of the
+00:46:34.079 previous year
+00:46:35.760 you can count on the vca
+00:46:37.839 um so if our symptoms started here we
+00:46:40.640 can go one
+00:46:42.400 two
+00:46:43.440 three
+00:46:44.640 or since you know each slash represents
+00:46:47.200 one week you can count back the
+00:46:49.440 appropriate number of weeks or days to
+00:46:51.520 reach 90 days
+00:46:54.079 we're at our 90 day mark we draw a
+00:46:56.400 triangle that faces toward the t-bar
+00:46:59.599 this is our anchor it indicates to us it
+00:47:01.920 is the beginning of the period in which
+00:47:04.240 we believe johnny was explo exposed
+00:47:06.800 syphilis
+00:47:09.280 our next task is to place our 10 day and
+00:47:12.240 21 day marks
+00:47:14.640 we count back 10 days from the onset of
+00:47:17.119 the symptom which takes us to 224.
+00:47:21.040 we place another triangle here and we
+00:47:23.520 point it in the opposite direction
+00:47:25.680 towards the 90 day mark
+00:47:28.319 and then we count back an additional 11
+00:47:31.200 days from that 10 day mark to create our
+00:47:34.160 21 day mark
+00:47:36.880 this is the time period the 21 day mark
+00:47:39.839 is the time period which we believe
+00:47:41.760 johnny was exposed this is our average
+00:47:44.800 duration
+00:47:46.160 of incubation
+00:47:50.079 however please do remember
+00:47:52.400 that not everybody develops a syphilis
+00:47:55.280 shanker within 21 days of being exposed
+00:47:59.280 that is the majority of the time for
+00:48:01.040 most people but johnny could have been
+00:48:03.200 exposed all the way up until december
+00:48:06.319 and this entire time period we could
+00:48:09.040 consider
+00:48:10.559 for him we can consider his exposure
+00:48:15.359 lastly once we've done all this good
+00:48:17.440 stuff and we have partner information we
+00:48:20.400 need to add sexual exposure information
+00:48:23.440 you see there's a dotted line here
+00:48:25.520 that's just under history
+00:48:27.680 and there's another line for a partner
+00:48:30.960 that matches this one and is right above
+00:48:33.599 that medical history
+00:48:35.760 this is where you would show sexual
+00:48:38.079 exposure information
+00:48:40.160 we don't actually have a partner
+00:48:41.599 documented here
+00:48:43.119 but i wanted to show you how you would
+00:48:45.040 document sexual exposure history
+00:48:49.599 okay so let's pause i saw a lot of chats
+00:48:52.319 pop up
+00:48:53.520 um
+00:48:54.880 and if we have any questions about the
+00:48:56.559 information i presented i would love to
+00:48:59.599 take some of those
+00:49:05.520 um i'm sorry marissa i can't make it any
+00:49:07.920 larger but you should have a copy from
+00:49:10.079 talia if you need to look at a bigger
+00:49:12.000 version
+00:49:15.520 so so the blue the blue arrows um
+00:49:19.440 those are from the um the vca pocket
+00:49:22.800 assistant
+00:49:23.920 that is from the incubation period
+00:49:26.880 yes you are correct so the blue arrows
+00:49:29.599 represent
+00:49:31.040 our 90
+00:49:32.880 21 and 10 day marks
+00:49:35.920 so let's go back to this slide here
+00:49:40.240 would that be the same for sec a
+00:49:41.760 secondary sore or we always just start
+00:49:44.480 with a a primary source we always start
+00:49:48.000 with a primary source so based on
+00:49:50.960 assumptions yeah we always start with a
+00:49:53.920 primary sword because our basic
+00:49:55.920 assumptions tell us that people acquire
+00:49:58.960 syphilis from others when they have a
+00:50:01.040 primary shanker
+00:50:03.200 now you all are educated and you're
+00:50:04.800 smart bis so you know that there are
+00:50:06.880 infectious symptoms of secondary
+00:50:09.839 but for the sake of the training today
+00:50:12.160 we're focusing on the primary shaker
+00:50:15.520 and so to expand on that question you
+00:50:17.760 had about the triangles
+00:50:19.760 those represent the minimum average and
+00:50:22.640 maximum durations of the incubation
+00:50:25.200 period
+00:50:26.400 so the minimum amount of time somebody
+00:50:28.800 could be exposed and then develop their
+00:50:30.880 own simplest anchors 10 days
+00:50:33.520 the average amount of time from once
+00:50:35.599 somebody is exposed to developing a
+00:50:37.359 shanker's 21 days
+00:50:39.520 the maximum amount of time from the time
+00:50:42.160 somebody is exposed to when they develop
+00:50:44.319 their own shaker is 90 days
+00:50:47.359 and we want this information because it
+00:50:49.040 tells us
+00:50:50.559 this is likely the time period that our
+00:50:53.440 patient was exposed to simplest
+00:50:56.240 so it helps us focus on what sex
+00:50:58.720 partners did you have between december
+00:51:01.520 5th
+00:51:02.640 and
+00:51:04.000 february 24th
+00:51:06.319 and these triangles represent our
+00:51:08.800 maximum
+00:51:10.160 average and minimum durations
+00:51:14.240 so i have a
+00:51:15.520 question i have a patient like he has
+00:51:17.680 secondary symptoms and doesn't recall
+00:51:19.839 any primary would i just use this chart
+00:51:22.720 to estimate when i think
+00:51:25.280 his primary was even just
+00:51:29.520 okay that's good so we're actually going
+00:51:31.520 to get into that in our practice session
+00:51:34.160 um so we will actually go over that very
+00:51:36.240 scenario you're talking about okay
+00:51:39.520 um okay let me look here does anybody
+00:51:42.480 else have any questions or thoughts that
+00:51:44.720 you would like to address right now
+00:51:46.640 before we take a break
+00:51:58.800 i'm not hearing any additional unmutes
+00:52:01.280 and i'm also
+00:52:02.800 not seeing anything pop up in the chat
+00:52:06.000 so we're going to take probably about a
+00:52:08.880 it's 2 54 now um so we'll go ahead and
+00:52:11.839 take a break control 305.
+00:52:14.720 while we're taking a break um please get
+00:52:16.880 your items set up so you will need a vca
+00:52:19.920 charge
+00:52:21.200 you will need a copy of your vca
+00:52:22.880 assistant which talia has dropped in the
+00:52:24.880 chat for you
+00:52:26.559 you will need your colored pens or
+00:52:28.240 pencils and those include black red
+00:52:31.200 green orange and blue
+00:52:33.440 antalya will also give you a copy of the
+00:52:35.920 vca exercises we're going to be going
+00:52:38.400 over
+00:52:39.920 i will screen share those exercises at
+00:52:41.760 first so that we can read them together
+00:52:44.000 but then once i transfer my camera to um
+00:52:46.960 practicing you will need to look at
+00:52:48.559 those exercises on your own
+00:52:51.920 um all right so please take a break we
+00:52:53.920 will reconvene at 305.
+01:03:58.640 okay everyone um we are concluding our
+01:04:02.799 break and we are going to be moving on
+01:04:05.200 to the
+01:04:06.559 activity portion of our learning session
+01:04:09.520 today
+01:04:10.799 uh initially i'm going to share my
+01:04:13.039 screen and we're going to review
+01:04:15.920 the practice exercise one together
+01:04:19.280 and then i will be unsharing my screen
+01:04:22.160 and transferring back to my video to
+01:04:25.520 start working on this with you
+01:04:28.000 again if you can follow along in real
+01:04:30.240 time i highly encourage you to do so um
+01:04:33.119 but if you're not prepared to do that
+01:04:35.119 today that is okay
+01:04:36.720 come back for this training and practice
+01:04:38.880 in your own time
+01:04:42.079 so talia has shared um the exercises via
+01:04:46.480 email and in the chat so if you don't
+01:04:48.559 mind please go ahead and get your
+01:04:51.599 practice exercise one open
+01:04:55.039 and right now uh we are going to go
+01:04:58.400 through this practice exercise together
+01:05:00.799 and then we will start um to do the vca
+01:05:03.359 in real time
+01:05:05.839 so
+01:05:06.720 carmela came into our std clinic on 3 28
+01:05:11.280 22
+01:05:12.559 due to a lesion present on her labia
+01:05:15.280 that was not showing any signs of
+01:05:17.200 healing
+01:05:18.640 the lesion had been present for 12 days
+01:05:20.960 before she came into the std clinic
+01:05:24.319 upon physical examination the physician
+01:05:27.119 describes the lesion in carmella's
+01:05:28.880 medical record as underrated
+01:05:31.280 reported as painless and located on the
+01:05:33.839 left labial tissue the physician
+01:05:37.119 conducts a brief sexual history
+01:05:39.119 questionnaire with carmela
+01:05:40.880 and then determines that syphilis
+01:05:42.400 testing needs to be ordered
+01:05:44.720 carmela agrees to have syphilis hiv
+01:05:47.760 chlamydia and gonorrhea testing done
+01:05:49.920 that day
+01:05:52.079 during the appointment carmela reported
+01:05:54.319 to the physician she tried using a
+01:05:56.240 cortico uh corticosteroid cream on the
+01:05:59.039 lesion but had no relief during the
+01:06:01.119 previous 12 days
+01:06:03.280 the physician suspects that carmela has
+01:06:05.520 primary syphilis due to her symptom
+01:06:07.520 presentation and orders bicyllin
+01:06:09.680 treatment to occur the same day
+01:06:12.480 crimeless test results come back from
+01:06:14.319 the lab the next day on 3 29 22
+01:06:18.480 and were as follows
+01:06:20.240 she had a reactive rpr of 1-32
+01:06:24.160 a reactive treponema pallidum eia
+01:06:27.760 a negative hiv-1 antibody and a negative
+01:06:31.520 chlamydia gonorrhea math test
+01:06:35.359 carmela also received bicillin 2.4
+01:06:38.160 million units one dose on three eight
+01:06:41.200 twenty two
+01:06:42.960 she schedules a future appointment to
+01:06:44.880 have her rpr drawn again in three months
+01:06:48.559 upon further review of carmella's std
+01:06:50.799 history it is discovered that she had a
+01:06:53.119 negative hiv rapid test
+01:06:55.680 and a negative chlamydia gonorrhea urine
+01:06:58.079 screening on 11 12 20 21
+01:07:01.839 her reason for testing at that time was
+01:07:04.240 annual screening with her reproductive
+01:07:06.079 health physician
+01:07:08.000 during that visit in november carmella
+01:07:10.559 reported to her physician that she has
+01:07:12.480 sex with men exclusively
+01:07:15.280 carmela reported participating in
+01:07:17.200 vaginal and oral sex with her male
+01:07:19.200 partner
+01:07:20.799 she has reported one male partner in the
+01:07:22.720 last three years a boyfriend she has
+01:07:24.960 been living with recently
+01:07:29.119 she feels stays at home and she does not
+01:07:31.280 believe there are any additional sex
+01:07:32.960 partners in their relationship and she
+01:07:35.200 is not currently pregnant
+01:07:37.920 so our first exercise
+01:07:40.559 is to plot the facts including the
+01:07:43.200 critical period of carmelus syphilis
+01:07:45.599 infection
+01:07:46.720 onto our chart
+01:07:49.200 so i'm going to stop sharing my screen
+01:07:51.599 and what i need you guys to do is if you
+01:07:54.480 hover over my name
+01:07:56.640 go ahead and hit those three little dots
+01:08:00.640 and what you're going to want to do is
+01:08:02.480 pin my video
+01:08:05.280 and when you pin my video it should take
+01:08:07.440 up your whole screen so you can see me
+01:08:09.280 work on the vca
+01:08:12.160 now i must admit to you
+01:08:14.319 um
+01:08:15.920 that
+01:08:16.719 my camera is not the best so it does
+01:08:19.520 look a little
+01:08:21.359 blurry here um i will do my best to make
+01:08:24.719 sure i show you all
+01:08:26.640 um
+01:08:27.439 up close what i'm working on and what
+01:08:29.120 we're doing um so i really really
+01:08:31.679 apologize i have such a bad camera
+01:08:35.439 all right my friends so what we're going
+01:08:37.279 to do
+01:08:38.399 is first we need to make sure we have
+01:08:39.839 our vca chart we have our colored
+01:08:42.080 pencils here
+01:08:45.359 we've got our pocket assistant if we
+01:08:47.120 need it
+01:08:48.319 and we also have a copy of our exercise
+01:08:50.399 beside us
+01:08:52.719 our first task is to plot our facts
+01:08:56.158 so if we remember from our presentation
+01:08:58.960 our seven key pieces of information
+01:09:02.399 are right here on our vca pocket
+01:09:04.560 assistant
+01:09:06.479 so we're going to plot this information
+01:09:08.640 about carmilla
+01:09:11.520 so the first thing we need to do is we
+01:09:13.839 need to add our month of the year
+01:09:17.040 carmela tested in march so that means
+01:09:19.520 i'm going to go to the third box
+01:09:22.080 and if we remember we count we go one
+01:09:24.560 two three we're gonna place a three here
+01:09:28.319 then we go four
+01:09:30.080 five
+01:09:32.399 six
+01:09:33.759 7
+01:09:36.080 8
+01:09:37.279 9
+01:09:38.880 10
+01:09:40.479 11
+01:09:41.679 12
+01:09:42.640 1
+01:09:43.520 2
+01:09:44.640 and now we have all 12 months on rbca if
+01:09:48.158 it helps you
+01:09:49.359 you can say cy and you can say ly
+01:09:53.439 so that you remember i'm sorry that
+01:09:55.760 wouldn't be a last year
+01:09:57.679 this would be a last year
+01:09:59.679 if it helps you remember that the time
+01:10:01.440 period has changed you don't have to
+01:10:03.440 however
+01:10:05.440 the next item on our plotting the facts
+01:10:07.840 once we have our months listed is that
+01:10:10.239 we need to document
+01:10:12.640 our patient's name and the reason for
+01:10:15.520 their exam
+01:10:18.239 so what we're going to do now is we come
+01:10:20.480 up here to this section where it says
+01:10:24.400 patient and reason for exam on our vca
+01:10:28.239 and so we're going to write carmella
+01:10:33.199 and she came in because she had a
+01:10:35.760 shanker present on her labia
+01:10:38.080 this is a self referral
+01:10:41.920 so we've taken care of facts one two and
+01:10:44.400 three
+01:10:45.679 now the next thing we need to do is we
+01:10:47.760 need to plot our medical history
+01:10:50.560 so if you go back and you look at your
+01:10:53.520 practice exercise
+01:10:55.360 we were told that on november 12th
+01:10:59.920 so that would be about right in the
+01:11:02.000 middle here because this is seven days
+01:11:04.480 14 days
+01:11:06.320 so right in the middle here
+01:11:08.960 carmela had negative hiv
+01:11:12.880 and she had negative ctgc or chlamydia
+01:11:15.840 gonorrhea screening
+01:11:17.679 we're also going to write the date there
+01:11:20.480 it doesn't have to be pretty
+01:11:22.719 this is for you
+01:11:24.840 all okay great talia is helping you all
+01:11:27.760 get the
+01:11:29.760 um get the video
+01:11:31.360 done
+01:11:32.640 okay great
+01:11:33.840 yeah please pin my video that way it
+01:11:36.480 takes up your whole screen
+01:11:39.840 okay so we have some of those medical
+01:11:42.159 facts now i'll bring that closer so that
+01:11:44.480 you can see that
+01:11:46.640 so you can see we have negative hiv
+01:11:49.040 negative chlamydia gonorrhea with the
+01:11:51.600 date that that testing occurred
+01:11:54.880 the other relevant medical information
+01:11:57.280 for us would be
+01:11:58.960 carmella's treatment
+01:12:01.199 and her syphilis testing
+01:12:03.440 so that's when we are going to develop
+01:12:05.120 our t-bar
+01:12:06.880 we know that carmelo was tested on the
+01:12:08.960 28th and if we remember
+01:12:11.520 the last line represents the last day
+01:12:14.320 and the first day so our t-bar is going
+01:12:16.800 to go right here
+01:12:19.120 we're going to make that nice and bold
+01:12:20.800 so that it stands out to us
+01:12:23.760 we're going to put the date carmelo was
+01:12:26.000 tested
+01:12:27.040 we put that on the top of the t-bar
+01:12:30.960 we bring that up for you
+01:12:34.840 all okay so there's that
+01:12:41.120 and then on the left side of the t-bar
+01:12:43.360 we put the stage of syphilis we believe
+01:12:45.360 carmella to be in which is primary or
+01:12:48.840 710. the next information we document on
+01:12:52.080 the right side of the t-bar here will be
+01:12:54.239 her rpr results she she had an rpr of
+01:12:57.280 1-32
+01:12:59.360 she had a positive eia
+01:13:02.159 and she got bick
+01:13:04.400 2.4
+01:13:06.320 times 1.
+01:13:08.640 it isn't revealed in this exercise i
+01:13:11.040 don't think but carmella oh it is i did
+01:13:13.440 put it in there she had a negative hiv
+01:13:15.840 so we can write that off to the side in
+01:13:18.400 a negative ctgc or chlamydia gonorrhea
+01:13:21.120 testing
+01:13:22.719 i'm hoping
+01:13:26.560 um you all will be able to see that let
+01:13:29.440 me pull that up for you
+01:13:31.199 so that's what our t-bar looks like
+01:13:33.840 we have our pertinent information there
+01:13:37.840 so that takes us through
+01:13:40.159 facts one through four
+01:13:42.320 so we've done the months of the year the
+01:13:44.480 name of the patient the reason for exam
+01:13:47.679 and her relevant medical history
+01:13:50.480 you don't need to include information
+01:13:52.480 that's not relevant to the std infection
+01:13:56.640 the next thing we're going to do is
+01:13:57.920 document symptoms and that means we grab
+01:14:00.480 our red pencil
+01:14:03.199 and if you remember what we do is we
+01:14:05.360 draw the duration of the symptoms
+01:14:07.760 carmella said her lesion
+01:14:10.080 had lasted for 12 days prior to her
+01:14:12.640 coming in so that means the onset of her
+01:14:15.600 lesion was march 16th
+01:14:18.320 my red box is going to start here
+01:14:20.400 because she had her lesion while she was
+01:14:22.400 in clinic
+01:14:23.600 and if we know this is day 14
+01:14:26.320 day 16 is right around here
+01:14:29.679 so now we have our
+01:14:31.520 uh symptom box
+01:14:33.840 we're going to document it
+01:14:35.840 as
+01:14:37.000 vglx or vaginal lesion
+01:14:41.280 checking the chat
+01:14:43.199 okay
+01:14:44.239 talia is helping
+01:14:46.000 troubleshoot some of the video issues i
+01:14:48.480 appreciate all of you being so patient
+01:14:51.520 so there's our symptom
+01:14:53.679 you can see we've drawn it for the
+01:14:55.120 duration that the patient reported
+01:14:58.960 and we don't have any other symptoms to
+01:15:00.560 document so now we can put that aside
+01:15:03.679 the last thing we needed to document was
+01:15:06.320 our critical period
+01:15:09.199 so we take our blue pencil now
+01:15:12.719 and we look at the symptom
+01:15:15.280 so we first need to determine what is 90
+01:15:18.239 days
+01:15:19.280 backwards from the symptom
+01:15:22.000 the symptom onset is designated as march
+01:15:24.719 16th so we count three months or 90 days
+01:15:28.640 we go
+01:15:30.000 let's see we're just after the 14 day
+01:15:32.000 mark so we go one
+01:15:34.560 two
+01:15:36.239 three
+01:15:37.440 or you can just physically count which
+01:15:39.360 would be 12 16. you can count on the vca
+01:15:42.480 so one two three
+01:15:44.800 or you can just count so what we're
+01:15:46.560 going to do now is we draw our anchor
+01:15:49.120 point
+01:15:50.560 this is the 90-day mark
+01:15:53.760 this is the maximum duration of the
+01:15:56.400 incubation period
+01:15:58.719 and so now what we're going to do is
+01:16:01.040 under that history line you just draw
+01:16:03.120 yourself a nice blue line
+01:16:06.960 until up to the date of treatment and as
+01:16:09.440 summer was asking in the chat
+01:16:11.840 the reason why we go up to the date of
+01:16:13.920 treatment is because the patient is
+01:16:15.600 considered infectious while a shanker is
+01:16:17.840 present
+01:16:18.960 so until they receive penicillin and
+01:16:20.719 have been adequately treated they are
+01:16:22.880 considered infectious
+01:16:25.840 now that we have our anchor point here
+01:16:28.239 we can see our time period
+01:16:30.719 this is the time period in which we
+01:16:32.800 believe carmella was exposed to syphilis
+01:16:36.000 i'll bring that up closer for you all so
+01:16:38.080 you can see
+01:16:40.159 and now we need to add our 10 day and
+01:16:42.320 our 21 day marks
+01:16:45.120 so remember
+01:16:46.480 10 days is the minimum amount of time
+01:16:50.080 carmella could have been exposed and
+01:16:51.679 developed a shanker
+01:16:53.600 10 days from 316 would be 3 6. so that's
+01:16:58.640 going to come just before the 7 day mark
+01:17:02.080 and we draw
+01:17:03.520 our triangle
+01:17:04.800 facing out
+01:17:06.480 or facing the opposite direction of the
+01:17:08.400 90-day one
+01:17:10.800 and then we need to do our 21-day so we
+01:17:13.600 count back an additional 11 days
+01:17:16.400 which will take us to
+01:17:17.880 223.
+01:17:19.600 so that's going to be
+01:17:21.120 right about this area here
+01:17:24.719 it doesn't need to be exact on a bca
+01:17:27.440 you're not going to get them exact
+01:17:29.120 because of the space is so scrunched as
+01:17:32.080 long as you're in the general general
+01:17:34.320 area it will be fine
+01:17:36.960 what i often do myself is i will write
+01:17:40.239 the dates
+01:17:42.159 um so that way i can constantly keep in
+01:17:44.960 mind
+01:17:46.080 what
+01:17:46.960 my incubation period is
+01:17:49.280 so this would have been 12 16
+01:17:52.480 this would have been 223
+01:17:55.040 this would have been 3 6.
+01:17:57.360 you don't have to do that stuff but if
+01:17:59.520 it helps you visualize where those
+01:18:01.760 triangles should be
+01:18:03.199 please do it
+01:18:05.600 so this is our critical period we've
+01:18:07.440 documented our symptoms
+01:18:09.280 the last fact that we're supposed to
+01:18:11.360 plot on this vca
+01:18:13.440 is sexual exposure information
+01:18:16.800 at this point in time we have not
+01:18:18.800 interviewed carmela yet so we don't know
+01:18:20.800 if she has sexual partners we need to
+01:18:22.960 put on the vca
+01:18:25.600 so let's review what we have done
+01:18:29.520 you have now plotted your original
+01:18:32.000 patient on a vca
+01:18:34.640 sometimes if you don't have sexual
+01:18:36.480 partner this will be all you do on a vca
+01:18:40.159 and i hope that was way less
+01:18:41.840 intimidating than what your partner
+01:18:43.600 services modules make it out to be
+01:18:47.120 i'm going to switch back over to my
+01:18:49.520 share screen and we're going to look at
+01:18:51.199 the practice exercise
+01:18:53.280 does anybody have any questions about
+01:18:55.600 what we have done so far
+01:19:04.960 not seeing any chats pop up
+01:19:07.120 all right
+01:19:08.400 so continuing on
+01:19:10.640 now that we have plotted the facts of
+01:19:12.480 our infection on our bca
+01:19:14.960 oh wait there might be a question
+01:19:18.159 we're gonna get to that sharon we're
+01:19:20.159 moving on to that next part you are
+01:19:22.000 ahead of the game my friend
+01:19:25.760 all right
+01:19:26.960 so a dis calls carmella for an interview
+01:19:30.640 on 3 31 22.
+01:19:33.679 two days after the lab results returned
+01:19:36.480 for positive syphilis
+01:19:38.640 carmela answers the phone and she was
+01:19:40.719 able to conduct an original interview
+01:19:42.640 with the dc with the dis
+01:19:44.800 at that time
+01:19:46.239 during the interview carmelo reports one
+01:19:48.800 male sex partner to the dis let's review
+01:19:51.520 the information
+01:19:53.600 so we gathered our foundation from
+01:19:55.199 carmela she reports one partner in the
+01:19:58.080 interview period
+01:19:59.520 and the interview period for primary
+01:20:01.520 syphilis is four months in one week
+01:20:04.480 we get that interview period from adding
+01:20:06.639 the maximum durations of the incubation
+01:20:09.120 period and the maximum durations of an
+01:20:11.600 untreated shrinker
+01:20:13.760 carmella reports that she has oral sex
+01:20:16.000 both giving and receiving and she has
+01:20:18.639 vaginal sex with her male partner
+01:20:21.360 carmela reports that she has sex at home
+01:20:23.679 or in hotels when she travels
+01:20:26.880 she gave us the name of her partner and
+01:20:28.719 that is johannes york
+01:20:30.960 she reports her first sexual exposure or
+01:20:34.080 her fse as january 1st 2018.
+01:20:38.719 she reports her last sexual exposure or
+01:20:41.520 lse with johannes as 3 14 2022
+01:20:47.199 they have sex approximately two to three
+01:20:49.520 times per week so this would be their
+01:20:51.199 frequency
+01:20:53.360 she reports that they have vaginal and
+01:20:55.120 oral sex
+01:20:56.800 she tells us that johannes and she live
+01:20:58.719 together he can be reached by cell phone
+01:21:01.679 he works at the great harvest bread
+01:21:03.199 company and he uses facebook and
+01:21:05.280 instagram and they met each other
+01:21:07.199 through friends
+01:21:08.880 carmela lets us know that she doesn't
+01:21:10.639 have any social contacts or associates
+01:21:12.800 that we could pursue at this time for
+01:21:14.239 clustering
+01:21:15.679 and then she tells us that johannes is a
+01:21:17.679 white male who's about six foot
+01:21:20.000 he's blonde with brown eyes his hair is
+01:21:22.000 very short and then she notes some
+01:21:23.679 specific characteristics about him that
+01:21:26.239 would help us identify him in the field
+01:21:32.159 so the partner was notified by the dis
+01:21:34.239 to come into the std clinic for testing
+01:21:36.320 and preventative treatment the partner
+01:21:38.400 comes to the std clinic on 4 6 20 22.
+01:21:42.400 review the labs and treatments below
+01:21:45.199 so johannes was tested and he had an rpr
+01:21:48.560 of one to 256.
+01:21:50.719 he had a positive eia
+01:21:52.880 and he received by still in that day
+01:21:55.760 johannes also presented to the std
+01:21:57.840 clinic with a palmer planter rash that
+01:22:00.239 he reported having last 25 days at that
+01:22:03.120 time period
+01:22:05.199 our next exercise is going to be
+01:22:08.480 do we need to plot this partner on the
+01:22:11.040 vca and if yes we're going to complete
+01:22:13.920 that now
+01:22:15.520 we should plot the facts of the case the
+01:22:17.520 exposure dates and do all the
+01:22:19.199 appropriate labeling
+01:22:21.120 so my question for you all is
+01:22:23.520 do we need to put johannes on this vca
+01:22:27.760 and why
+01:22:32.560 is there any reason we wouldn't
+01:22:36.080 you tell me
+01:22:37.520 is there a reason why you would not plot
+01:22:39.280 the partner
+01:22:42.719 well he's her sexual partner so i'm
+01:22:44.400 thinking we do need to plot him
+01:22:46.639 you are absolutely correct ms sharon so
+01:22:49.040 he is the sexual partner
+01:22:51.760 and cecilia has also said he might be
+01:22:54.239 the source and he has secondary syphilis
+01:22:57.360 so you all are correct
+01:22:58.960 we do need to put johannes on our vca
+01:23:01.360 because he is a sexual partner and he
+01:23:03.600 has tested positive for syphilis that is
+01:23:06.639 the key designation here on a bca
+01:23:09.840 we only put partners who have tested
+01:23:12.239 positive for syphilis on a vca
+01:23:15.199 if we have sex partners who are negative
+01:23:17.360 we do not plot them on a vca because
+01:23:19.440 they are not in the disease network
+01:23:22.960 so
+01:23:24.080 i'm going to stop sharing my screen and
+01:23:25.920 we're going to switch back to video you
+01:23:27.920 may need to read pin me
+01:23:30.560 hopefully you won't have to
+01:23:33.280 so just to
+01:23:35.199 confirm we have carmela on here
+01:23:38.159 we have all of our good information
+01:23:40.639 and now we're going to do the same thing
+01:23:42.320 for johannes
+01:23:44.800 so we have our black uh pen here now and
+01:23:48.080 we go to this first section here labeled
+01:23:50.159 partner so if you notice it says patient
+01:23:53.360 and then partner
+01:23:55.280 so we're going to come here this is
+01:23:56.960 where we write johannes name
+01:24:00.480 and johannes was a health department
+01:24:03.199 referred partner meaning the dis
+01:24:05.920 notified him of his exposure
+01:24:08.480 so we're going to write help the
+01:24:10.560 referred
+01:24:12.400 or whatever variation he would like to
+01:24:14.159 put there
+01:24:15.360 we already have our months of the year
+01:24:16.960 so we don't need to add any of that
+01:24:19.920 and now we need to plot what we know
+01:24:22.480 about johannes
+01:24:24.000 at this point in time we have not
+01:24:25.760 conducted an interview with johannes yet
+01:24:28.480 so we're only going to plot what we know
+01:24:30.560 which is his simplest testing
+01:24:32.400 information
+01:24:34.239 johanna's tested on four six
+01:24:37.920 and so what we're going to do
+01:24:39.760 is we're going to come to 4-6 right here
+01:24:42.080 on johannes history section
+01:24:44.880 so that would be the month of april
+01:24:47.280 day six would be right about here
+01:24:50.639 we're going to make a big t-bar nice and
+01:24:52.560 dark so it stands out
+01:24:54.560 we're going to write 4 6
+01:24:56.840 22. i'm sorry yes this is 22.
+01:25:01.360 then on the left side of the t-bar if
+01:25:03.040 you recall we're going to put the stage
+01:25:04.560 of syphilis
+01:25:06.400 and johannes presented with the palmer
+01:25:08.639 plantar rash which we know to be
+01:25:10.480 secondary syphilis as cecilia mentioned
+01:25:13.360 so we're going to write 720 for
+01:25:15.520 secondary syphilis
+01:25:17.600 then we're going to document the
+01:25:19.760 syphilis information as we know it
+01:25:22.480 he had an rpr of 1-256
+01:25:26.159 he had a positive eia
+01:25:28.560 and he received bic 2.4
+01:25:31.679 times one
+01:25:34.000 at this time this is all we know
+01:25:36.960 so if we look here
+01:25:39.120 we can see there's our basic medical
+01:25:41.040 information
+01:25:42.480 for johannes so he's our health
+01:25:44.480 department referred partner
+01:25:46.239 and we have our t-bar so far
+01:25:49.040 since we plotted what we know about his
+01:25:51.360 medical information
+01:25:53.600 now we are going to get our red pencil
+01:25:55.920 and we're going to document johannes's
+01:25:57.600 symptoms
+01:25:59.600 johannes presented to the clinic with a
+01:26:01.760 palmer planter rash that he reported
+01:26:04.000 having lasted for 25 days at the time of
+01:26:06.400 his visit this would make the onset of
+01:26:09.199 the rash around march 12th
+01:26:12.239 so we are going to start our red box
+01:26:14.719 here
+01:26:15.600 we're going to find march 12th which
+01:26:17.360 will be right about here
+01:26:20.000 and we are going to draw
+01:26:23.280 our symptom box
+01:26:25.520 and then we're going to put p
+01:26:27.199 p
+01:26:28.000 rash
+01:26:29.199 palmer planter rash
+01:26:32.080 so you all see that there
+01:26:35.120 the rash lasting 25 days as reported by
+01:26:37.920 the patient
+01:26:40.159 the next thing we need to do is we need
+01:26:42.239 to put johannes critical period on here
+01:26:45.440 so we get our blue pencil
+01:26:48.000 and the critical period for secondary
+01:26:50.480 syphilis is eight months and one week
+01:26:54.480 so that means for eight months and one
+01:26:56.560 week we go backwards to
+01:26:59.840 july 15th of the previous year
+01:27:03.280 and if you remember eight months and one
+01:27:05.920 week comes from adding the maximum
+01:27:08.400 durations of the incubation period
+01:27:11.040 an untreated shrinker the latency period
+01:27:14.719 and an untreated body rash
+01:27:17.360 so because this goes beyond what our
+01:27:21.600 um what our i'm sorry it goes right here
+01:27:24.080 actually
+01:27:25.120 so we can come to july
+01:27:28.320 and july 15th would be right about here
+01:27:32.400 hopefully you all can see that you can
+01:27:35.199 and then we make our blue line
+01:27:37.440 and we draw it all the way down
+01:27:43.440 and this is the time period in which
+01:27:45.760 johannes could have been exposed to
+01:27:47.600 syphilis
+01:27:49.120 developed a shanker went through a
+01:27:51.040 latency period and then got a palmer
+01:27:54.080 planter rash
+01:27:55.600 assuming he went through the maximum
+01:27:58.400 durations of everything
+01:28:00.960 emily got a quick question in the chat
+01:28:02.880 and also would you mind um yep perfect
+01:28:05.679 uh
+01:28:06.719 so sharon asked if you can go over how
+01:28:08.639 you got that eight month period for
+01:28:10.400 secondary again i sure can yeah
+01:28:14.480 let me go back to our presentation
+01:28:24.639 okay
+01:28:27.120 so let's come back here
+01:28:30.560 here we go
+01:28:32.560 thanks a little bit
+01:28:35.840 so sharon for your question how did we
+01:28:37.920 come to that eight months in one week so
+01:28:40.480 what we did was we added the maximum
+01:28:43.600 duration of the incubation period
+01:28:46.639 the maximum duration of an untreated
+01:28:49.120 primary shanker
+01:28:50.960 the maximum duration of a latency period
+01:28:54.080 and the maximum duration of untreated
+01:28:56.159 secondary symptoms
+01:28:58.080 this gives us eight months and one week
+01:29:01.920 might be easier to see it this way in
+01:29:03.600 this chart down here
+01:29:05.440 so if we add up
+01:29:07.280 all of these maximums
+01:29:10.080 we get eight months and one week
+01:29:13.199 this represents the total amount of time
+01:29:15.920 that this person could have been exposed
+01:29:17.760 to syphilis and developed syphilis
+01:29:19.760 themselves
+01:29:22.239 does that answer your question
+01:29:27.040 yes
+01:29:28.239 you just add up all those maximums down
+01:29:30.239 there
+01:29:31.040 yes ma'am we do
+01:29:32.639 okay gotcha
+01:29:34.719 on the vca pocket assistant it's saying
+01:29:37.600 for secondary syphilis begins six and a
+01:29:39.840 half months prior to the onset of
+01:29:41.440 secondary symptoms as given by the
+01:29:43.280 patient
+01:29:44.639 um
+01:29:49.600 summer that is a great question so
+01:29:52.639 six and a half months comes from adding
+01:29:55.120 the averages
+01:29:56.960 comes from adding the averages
+01:30:00.000 eight months and one week is preferred
+01:30:02.239 by the cdc so that pocket assistant is a
+01:30:04.880 little outdated
+01:30:06.800 um
+01:30:08.800 yeah yeah
+01:30:10.320 um gail bolin when she was over the
+01:30:12.800 department of std prevention at cdc
+01:30:15.600 wanted disease intervention specialist
+01:30:17.360 staff to focus on that eight months and
+01:30:19.679 one week in order to find the maximum
+01:30:22.159 number of people who could have been
+01:30:24.239 exposed to syphilis or the maximum
+01:30:26.800 number of people that exposed our
+01:30:28.719 patient to syphilis
+01:30:30.639 some dis especially if they've been bis
+01:30:33.360 for a long period of time like myself
+01:30:35.920 that six and a half months will still
+01:30:37.520 stick in your mind it took me quite some
+01:30:40.000 time to get used to the eight months and
+01:30:42.000 one week but as long as you remind
+01:30:44.239 yourself that it's just maximum
+01:30:45.920 durations versus average we always want
+01:30:48.239 to do maximum in order to maximize our
+01:30:50.800 disease intervention capability
+01:30:53.440 does that answer
+01:30:54.960 everybody's concern or question about
+01:30:57.120 the six and a half months
+01:31:01.600 okay great perfect
+01:31:04.880 all right
+01:31:06.400 great questions everybody i really
+01:31:08.320 appreciate your participation
+01:31:10.800 so i'm going to give you a close-up of
+01:31:12.800 what this looks like now
+01:31:14.800 so we have johannes's critical period
+01:31:17.679 listed here
+01:31:19.440 so this gives us a visual of when
+01:31:21.600 johannes could have been exposed to
+01:31:23.679 syphilis
+01:31:25.360 the last thing we need to do now that we
+01:31:27.199 have a sex partner on our vca
+01:31:30.400 is add our exposure dates so we're going
+01:31:32.960 to use our green pencil for this
+01:31:36.159 and if you can see here
+01:31:38.639 this line here
+01:31:42.480 here we go this line here
+01:31:46.480 and this line here the one right above
+01:31:49.520 the one right above medical history for
+01:31:51.360 johannes
+01:31:52.800 this is where we are going to be
+01:31:54.320 documenting sexual exposure
+01:31:58.000 so
+01:31:58.800 the two partners report that their last
+01:32:01.520 sexual exposure to each other was on 3
+01:32:04.880 14 22
+01:32:07.199 so we're going to come this line
+01:32:08.480 represents carmella so we're going to
+01:32:10.719 find last sexual exposure we're going to
+01:32:13.520 draw a green arrow down
+01:32:15.840 and then we're going to johannes reports
+01:32:17.600 the same now you may have partners in
+01:32:20.480 original patients who report different
+01:32:22.480 exposure periods that's fine
+01:32:24.560 you just document what each partner has
+01:32:26.239 said
+01:32:27.040 thankfully we live in an ideal public
+01:32:29.199 health world in this scenario
+01:32:31.199 and our two partners reported the same
+01:32:33.040 exposure dates so it's going to make our
+01:32:34.880 life a little bit easier
+01:32:37.520 you can see i'm writing last sexual
+01:32:39.600 exposure 314
+01:32:42.639 and then what i'm going to do here i'm
+01:32:44.239 going to have to turn it sideways
+01:32:49.600 so that i can color in but what i'm
+01:32:51.280 going to do is i'm going to color all
+01:32:52.719 the way back
+01:32:54.719 and typically we use dotted lines here
+01:33:02.960 and they report that their first sexual
+01:33:05.040 exposure was back in
+01:33:07.760 so we're going to color this line all
+01:33:10.000 the way back
+01:33:11.440 since it the date of time precedes our
+01:33:14.000 chart
+01:33:15.199 and we can just draw like a little arrow
+01:33:17.679 and then you can write that first sexual
+01:33:20.840 exposure was in january of 2014.
+01:33:25.280 so that's what it looks like for
+01:33:26.480 johannes and since they report the same
+01:33:29.360 sexual exposure
+01:33:31.120 we're gonna do the same for carmela
+01:33:33.920 so we're gonna just write
+01:33:36.880 1 1 14.
+01:33:39.440 i'm sorry i gotta turn it sideways so i
+01:33:41.120 can color here
+01:33:43.760 then we just color in this line
+01:33:48.080 and using a nice bold color for sexual
+01:33:50.800 exposure will aid us when we're trying
+01:33:53.120 to figure out source spread and you'll
+01:33:55.040 see here in just a little bit
+01:33:57.120 how we're going to be using this
+01:33:58.719 visualization of sexual exposure to make
+01:34:01.840 decisions about who gave syphilis to you
+01:34:06.159 so this is what
+01:34:08.560 a bca looks like when you have plotted
+01:34:11.840 the facts of a case
+01:34:14.639 so we have all of our pertinent medical
+01:34:16.480 information
+01:34:18.400 and we have our critical periods and our
+01:34:20.639 sexual exposures
+01:34:22.800 i think we had one more question pop up
+01:34:24.800 let me open up the chat
+01:34:32.400 cecilia asks for carmella we use the
+01:34:35.440 incubation period maximum duration
+01:34:38.960 and she's asking when would we use the
+01:34:41.600 primary syphilis maximum period of five
+01:34:44.320 weeks
+01:34:45.679 so cecilia that five weeks refers to how
+01:34:48.400 long an untreated shanker can last
+01:34:52.320 for a person and primary syphilis like
+01:34:54.639 our client carmela we really need to
+01:34:57.040 focus on the incubation period she came
+01:35:00.400 to us with an active lesion
+01:35:03.199 and so we don't necessarily need to
+01:35:06.080 worry about how long her lesion is going
+01:35:08.239 to last
+01:35:09.360 because we need to focus on this time
+01:35:11.440 period here
+01:35:12.880 we know for a fact that people develop a
+01:35:15.199 shanker within 90 days of being exposed
+01:35:18.800 and so this is really when we need to
+01:35:20.639 figure out who is carmilla having sex
+01:35:22.960 with so that's why we use the incubation
+01:35:25.360 period here
+01:35:27.199 we really utilize the maximum duration
+01:35:30.000 of a primary shanker
+01:35:32.000 when we're trying to get
+01:35:34.719 interview periods nailed down
+01:35:37.920 for primary syphilis or for
+01:35:40.960 secondary syphilis as we saw on our
+01:35:42.800 chart so it does come into play but we
+01:35:45.119 don't necessarily need to use it for our
+01:35:47.119 patient here
+01:35:48.560 does that make sense
+01:35:57.119 okay thank you cecilia i appreciate you
+01:35:59.040 confirming
+01:36:00.400 does anybody have any questions before
+01:36:02.400 we move on to part two of this exercise
+01:36:07.520 is all of this making sense to you no
+01:36:09.840 question is a bad question i'm here to
+01:36:12.000 teach you
+01:36:13.040 because i want you to know this critical
+01:36:15.199 skill inside and out
+01:36:24.239 okay i'm not seeing anything come up for
+01:36:26.239 the moment so i'm gonna share my screen
+01:36:29.280 we're gonna move on to exercise two so
+01:36:32.000 if you would like to go ahead and open
+01:36:34.000 up exercise two
+01:36:36.400 actually we're going to go back to
+01:36:38.080 exercise one because i forgot there's
+01:36:39.600 some questions i want to ask you all
+01:36:43.119 okay
+01:36:44.080 so
+01:36:45.280 based on what we have so far
+01:36:48.480 and we're not going to spend a whole
+01:36:49.679 bunch of time on this because i want to
+01:36:51.119 be able to finish out the exercises
+01:36:53.119 today and we've got about 20 minutes
+01:36:54.719 left
+01:36:56.320 so based on what we know so far
+01:36:58.960 are there any missing gaps
+01:37:01.360 or are there any missing information or
+01:37:03.600 gaps of information in the case
+01:37:07.199 what are your inferences so far about
+01:37:09.600 source spread analysis and what evidence
+01:37:12.159 do you have to support that claim
+01:37:15.360 how does the information that you've
+01:37:17.040 gathered here
+01:37:18.880 gonna inform your re-interview with your
+01:37:21.760 original patient
+01:37:24.000 and what next steps are we gonna take as
+01:37:26.719 a dis
+01:37:28.639 so you may unmute you may put in the
+01:37:30.480 chat whatever you are most comfortable
+01:37:32.239 with
+01:37:33.119 i just want to get some
+01:37:34.719 critical thought from you guys and see
+01:37:36.560 you what are you thinking right now
+01:37:38.000 about this case
+01:37:46.000 uh he somebody is not telling a partner
+01:37:49.119 and probably johannes because it looks
+01:37:51.600 like he had syphilis longer than
+01:37:53.280 carmella did
+01:37:55.199 that's a really good influence here
+01:37:59.360 yeah i agree with you so it does seem
+01:38:01.600 like there's another partner in here
+01:38:03.040 somewhere
+01:38:05.920 does anybody else have any additional
+01:38:07.520 thoughts what do you think so far about
+01:38:09.040 this case
+01:38:18.239 fedelene says who infected johannes he
+01:38:20.880 might be a source that is a great
+01:38:22.880 question we should be asking ourselves
+01:38:25.360 um so i would count that as one of our
+01:38:27.440 priority actions next is who is johannes
+01:38:30.960 source he already has a palmer planter
+01:38:33.360 rash
+01:38:34.400 and what we know with the natural
+01:38:35.920 history of syphilis
+01:38:37.679 it looks like there's somebody else
+01:38:39.199 involved in this situation
+01:38:44.719 vivian is asking they have primary and
+01:38:47.600 secondary symptoms at the same time
+01:38:50.800 so vivian sometimes people can have
+01:38:54.080 primary and secondary symptoms in one
+01:38:56.560 person at the same time
+01:38:58.639 it doesn't happen often we mostly see
+01:39:00.960 that in people who are living
+01:39:03.119 with hiv unsuppressed or other
+01:39:05.760 complicated medical issues
+01:39:08.080 but somebody can develop a shanker and
+01:39:10.320 have a body rash at the same time
+01:39:12.880 it's also a good question to ask
+01:39:14.480 yourself
+01:39:15.600 the partner has a body rash and our
+01:39:18.880 original patient has a lesion so we need
+01:39:21.600 to do some more digging into that
+01:39:26.400 what happens if we can't get the info
+01:39:28.000 from johannes
+01:39:29.440 that's a great question
+01:39:31.440 so if johannes refused our interview
+01:39:34.719 we're kind of stuck at the moment
+01:39:36.800 we might be able to convince him to
+01:39:38.960 share information
+01:39:40.639 since he has a female partner who has
+01:39:42.719 the ability to become pregnant
+01:39:44.800 we might want to convince him to share
+01:39:47.119 partner information and inform him of
+01:39:49.360 the risk of congenital syphilis to his
+01:39:51.600 girlfriend
+01:39:52.960 so we can use our std motivators or
+01:39:55.600 chart c-h-a-r-t
+01:39:58.800 so we can remind johannes about the
+01:40:00.480 complications the risk of hiv infection
+01:40:04.239 the asymptomatic nature of syphilis
+01:40:07.199 the reinfection risk and how syphilis is
+01:40:10.480 transmitted between people
+01:40:12.320 so we can motivate him to give us
+01:40:14.080 information by confronting him with what
+01:40:16.000 we know about syphilis
+01:40:19.600 and destiny said well we haven't
+01:40:21.920 interviewed johannes yet so we're unsure
+01:40:23.760 about his p ones you're right about that
+01:40:26.239 we haven't interviewed him yet so he
+01:40:27.840 might give us some good info
+01:40:30.320 and thomas said we should try for a
+01:40:32.400 re-interview thomas i like that train of
+01:40:34.800 thought i think that might be a good um
+01:40:37.600 task to do for carmella
+01:40:40.800 all right you all i really really
+01:40:42.639 appreciate your participation so now
+01:40:45.440 we're gonna move on to exercise two
+01:40:48.960 i'm going to share my screen again
+01:40:54.320 and frederene also says we need to react
+01:40:56.480 carmella you guys are on the right track
+01:40:58.480 here those are all the things that i
+01:41:00.159 would recommend to my own dis team
+01:41:04.080 so
+01:41:05.199 let me
+01:41:06.320 make this digger there we go
+01:41:14.080 all right friends now we're moving on to
+01:41:16.000 exercise two
+01:41:18.800 so johannes has tested positive for
+01:41:21.199 syphilis on four six twenty two
+01:41:24.480 he comes into the std clinic for testing
+01:41:26.639 and preventative treatment after being
+01:41:28.400 notified by a disease intervention
+01:41:29.920 specialist at the county health
+01:41:31.040 department that he may have been exposed
+01:41:33.040 to syphilis
+01:41:34.400 during that appointment johannes also
+01:41:36.239 had a negative hiv-1 antibody test
+01:41:39.280 a negative urine chlamydia gonorrhea mat
+01:41:42.480 testing
+01:41:44.080 johannes presented to the std clinic
+01:41:46.080 with a rash on his hands and feet when
+01:41:48.080 the rash was pointed out to johannes he
+01:41:50.080 said he had noticed it but he thought it
+01:41:52.159 was related to his seasonal allergies
+01:41:54.719 he had not tried any over-the-counter
+01:41:56.239 medications to deal with it
+01:41:58.400 johannes told us that the rash had been
+01:42:00.159 present for about 25 days
+01:42:02.719 the physician orders johannes to receive
+01:42:04.639 bicylin that day and diagnoses him with
+01:42:07.760 secondary syphilis based on his symptom
+01:42:09.840 presentation and known exposure
+01:42:13.119 he receives bicylin 2.4 million units
+01:42:15.920 times one dose on 4622
+01:42:19.199 he schedules a future appointment to
+01:42:20.960 have his rpr drawn again in three months
+01:42:23.840 upon further review of johannes's std
+01:42:26.560 history
+01:42:27.679 it is discovered that he previously
+01:42:29.600 reports having sex with both men and
+01:42:31.760 women and was last tested in august of
+01:42:34.159 2021.
+01:42:36.080 at that time johannes was negative for
+01:42:38.320 chlamydia and gonorrhea and he had urine
+01:42:40.719 and rectal samples done
+01:42:42.800 he had a negative hiv-1 antibody test
+01:42:46.239 and he had a negative rpr
+01:42:49.199 his reason for testing on august 10th
+01:42:51.199 was listed as routine screening of man
+01:42:53.440 who has sex with men
+01:42:55.840 at that visit he reported having oral
+01:42:58.159 and vaginal sex with one female partner
+01:43:00.880 and oral and anal sex with male partners
+01:43:04.080 he reports living at home with his
+01:43:05.440 girlfriend and he feels safe at home and
+01:43:08.000 he reports his girlfriend is not
+01:43:09.920 pregnant
+01:43:12.480 so
+01:43:13.199 let's review johannes vca
+01:43:15.760 what do we need to add to it given the
+01:43:18.159 information we have discovered during
+01:43:20.400 our pre-interview analysis
+01:43:23.520 so going back here
+01:43:25.440 what information
+01:43:27.600 should we add to our vca
+01:43:30.960 dashini says the non-reactive rpr i
+01:43:33.920 completely agree with that
+01:43:36.880 so
+01:43:37.679 since that was in august we're gonna
+01:43:39.920 come back to august
+01:43:42.639 and my writing's kind of in the way here
+01:43:45.199 but i'm gonna do my best so
+01:43:48.000 we're gonna draw a little arrow i'll
+01:43:50.719 bring it out to the side over here
+01:43:53.679 and he had a non-reactive
+01:43:56.480 rpr
+01:43:58.800 on 8 21
+01:44:02.719 21.
+01:44:04.960 he also had negative hiv
+01:44:08.000 he had negative chlamydia gonorrhea
+01:44:10.960 so we're gonna document that relevant
+01:44:12.880 medical history and lori said hiv
+01:44:14.960 results great job lori that's absolutely
+01:44:17.040 correct
+01:44:18.159 so this is relevant to our std history
+01:44:21.199 can anybody tell me why
+01:44:23.119 knowing that non-reactive rpr matters in
+01:44:25.840 this case
+01:44:36.000 he got it from somebody he had sex with
+01:44:38.400 between this date and his first
+01:44:41.199 incubation
+01:44:43.119 you are absolutely correct so thomas and
+01:44:45.520 sarah and ernesto
+01:44:47.440 all of you had said in this share and
+01:44:49.040 you have all said it narrows down the
+01:44:50.880 time of exposure
+01:44:52.639 it shortens the incubation period
+01:44:54.719 absolutely correct guys
+01:44:56.639 this shortens the time frame in which
+01:44:58.880 we're looking
+01:45:00.480 for exposures that johannes may have had
+01:45:03.600 since we know he was definitely negative
+01:45:06.080 for syphilis in august which means he
+01:45:08.400 had no syphilis
+01:45:10.239 in the time period beforehand that means
+01:45:13.199 johannes was exposed after august 21st
+01:45:17.360 up until our date of treatment because
+01:45:19.520 right now we're not sure when he may
+01:45:21.360 have acquired syphilis
+01:45:23.119 so it shortens our interview period by a
+01:45:25.360 little bit
+01:45:26.560 and so we can focus on the partners that
+01:45:28.480 johannes had from august
+01:45:31.760 all the way on
+01:45:33.760 great job all right
+01:45:36.960 and thomas says it also helps with
+01:45:38.480 ghosting dashini says it can help ghost
+01:45:40.800 a primary lesion absolutely you guys are
+01:45:44.000 right on the money today
+01:45:46.560 all right so going back to our exercise
+01:45:49.040 two let me bring that back up for you
+01:45:51.040 all
+01:45:54.000 vivian is asking what was the reason he
+01:45:56.159 was tested did he have signs and
+01:45:57.840 symptoms at that time
+01:45:59.840 so per our exercise and what we read was
+01:46:03.360 that johannes was notified by the dis to
+01:46:06.639 come in
+01:46:07.600 so that's why he was tested and he did
+01:46:09.840 have his palmer planter rash at the time
+01:46:12.159 of testing
+01:46:15.199 all right
+01:46:16.560 so now johannes returns to the clinic
+01:46:19.360 and speaks to the dis on 4 11 22
+01:46:23.040 4 days after his positive labs have
+01:46:25.199 resulted
+01:46:26.639 during the interview johannes becomes
+01:46:28.960 distraught
+01:46:30.159 he has been in a relationship for three
+01:46:32.000 years with his girlfriend so the news of
+01:46:33.920 testing positive for syphilis is an
+01:46:35.679 upset for him
+01:46:37.280 he is initially hesitant to discuss his
+01:46:39.280 sexual partners
+01:46:40.880 however after you confront him about his
+01:46:43.199 sexual partners from august and inform
+01:46:46.080 him of the risk of congenital syphilis
+01:46:48.320 he begins to give you information
+01:46:52.639 and we can look at our foundation
+01:46:54.880 johannes reports three sexual partners
+01:46:57.199 within the interview period
+01:46:59.199 he participates in oral sex both giving
+01:47:01.600 and receiving he has anal sex both
+01:47:04.320 insertive and receptive
+01:47:06.800 and he also has vaginal sex with his
+01:47:08.719 female partners
+01:47:10.719 he has sex at home hotels in cars and
+01:47:14.320 bars
+01:47:15.920 and thomas is asking what was the reason
+01:47:17.920 for testing from august of 2021
+01:47:21.040 in our exercise he was tested at that
+01:47:24.719 time for
+01:47:26.960 let me move the chat here routine
+01:47:28.800 screening so he was known as a man who
+01:47:32.480 has sex with men to his provider and so
+01:47:34.960 his provider was conducting an annual
+01:47:36.960 screening for syphilis
+01:47:39.520 again this is an ideal public health
+01:47:41.440 world we wish everybody was like that
+01:47:45.440 you guys are asking wonderful questions
+01:47:47.040 i really appreciate your time
+01:47:49.360 so johannes has given us two additional
+01:47:52.239 partners besides carmela
+01:47:54.480 we have ryan williams
+01:47:56.719 who
+01:47:57.520 uh johannes has sex with at least twice
+01:47:59.760 per week but he last had sex with in
+01:48:01.920 december
+01:48:03.280 and he has another partner anthony moore
+01:48:05.520 who he has sex with less frequently
+01:48:08.560 he met ryan at a bar and he met anthony
+01:48:12.239 on grindr
+01:48:13.840 and then we have our physical
+01:48:15.040 descriptions of our two male partners
+01:48:16.960 here
+01:48:20.880 johannes was very adamant that carmella
+01:48:23.199 could not know about his additional sex
+01:48:25.119 partners who both are male
+01:48:27.600 you reassured him that legally you
+01:48:29.520 cannot tell carmilla his private health
+01:48:31.360 information
+01:48:32.560 but you did take the opportunity to
+01:48:34.159 remind him that he is putting carmela at
+01:48:36.159 risk by not informing her of his
+01:48:38.320 additional sex partners
+01:48:40.239 you asked johannes if he remembers
+01:48:41.840 seeing any sores on his partner and
+01:48:43.840 showed him the cdc picture cards
+01:48:46.320 johannes explains that his longtime sex
+01:48:48.320 partner ryan
+01:48:49.679 had a sore on his mouth around christmas
+01:48:52.000 the last time they had sex
+01:48:54.159 another thing you can do as a bis is you
+01:48:56.320 can trigger people to remember things by
+01:48:58.239 holidays birthdays
+01:49:00.400 special events
+01:49:01.920 um typically people will have sex on
+01:49:04.080 their birthdays around christmas for
+01:49:06.000 valentine's day etc etc so always take
+01:49:08.960 the opportunity to say who did you have
+01:49:11.199 sex with around christmas time or who
+01:49:13.440 did you have sex with around valentine's
+01:49:15.040 day people will remember those dates
+01:49:17.280 because they were specifically seeking
+01:49:19.040 out sex around that time
+01:49:22.159 johannes remembers this because ryan
+01:49:24.080 wouldn't let him kiss him stating it was
+01:49:26.159 a cold sore
+01:49:27.840 but ryan did perform oral sex on
+01:49:29.920 johannes while the sore was present
+01:49:32.560 johannes did not recall any other
+01:49:34.480 partners with symptoms
+01:49:37.040 you call the two male partners the next
+01:49:38.960 day and inform them of their exposure to
+01:49:41.119 syphilis they both agree to come to the
+01:49:43.520 std clinic to be screened and to receive
+01:49:45.679 preventative treatment
+01:49:47.520 we're going to look at their lab below
+01:49:49.840 so ryan had a positive rpr of 164 he had
+01:49:53.679 a positive eia he received bicillin that
+01:49:56.719 day and he had no active signs and
+01:49:59.280 symptoms of syphilis at that time
+01:50:01.760 we already have carmela's information
+01:50:03.599 since she was previously tested and his
+01:50:05.920 second perfect partner anthony
+01:50:08.480 had a non-reactive rpr and he refused
+01:50:11.119 treatment at that time
+01:50:12.960 he also had no active signs and symptoms
+01:50:16.560 so our last exercise of the afternoon
+01:50:19.679 which partners need to be added to the
+01:50:21.679 vca
+01:50:22.880 and why
+01:50:34.480 scrolling up thomas
+01:50:40.080 laurie says we need to add ryan
+01:50:42.880 frederien says we need to add both mary
+01:50:45.599 sharon
+01:50:46.719 say ryan ernesto says both thomas says
+01:50:49.679 no to anthony and cecilia says ryan
+01:50:53.040 so it seems like the general consensus
+01:50:54.960 is that we need to add ryan to the vca
+01:50:57.679 why is that
+01:51:08.159 exactly cecilia says positive serology
+01:51:11.280 sharon says ryan is positive anthony is
+01:51:13.520 not
+01:51:14.480 that's correct
+01:51:15.920 ryan is positive so he's part of this
+01:51:18.800 disease network
+01:51:20.800 anthony has non-reactive testing at this
+01:51:23.599 time
+01:51:24.960 so therefore we do not add him to the
+01:51:27.599 vca right now
+01:51:31.199 all right so we have that covered the
+01:51:34.080 next question before we add ryan to the
+01:51:36.080 vca
+01:51:37.280 at this point in time because ryan had
+01:51:39.280 no signs and symptoms
+01:51:41.280 how are we going to stage ryan's
+01:51:42.960 syphilis case and why
+01:51:52.800 cecilia says 7 30 or early syphilis
+01:51:56.880 frederalene says 7 30 tanya says 7 30.
+01:52:01.520 all right the general consensus scott
+01:52:03.440 and ernesto also agree it is a 7 30
+01:52:07.119 and why is it at 7 30 you guys
+01:52:13.440 laurie says it's a 7 55 okay thomas says
+01:52:16.560 no signs and symptoms sharon says 7 30
+01:52:19.440 with no active signs and symptoms uh-huh
+01:52:21.520 uh-huh
+01:52:24.560 great job okay
+01:52:26.080 yes frederlene is correct contact you an
+01:52:28.400 early case dashanice you got it correct
+01:52:30.800 cecilia way to go
+01:52:32.880 exactly vivian
+01:52:34.400 so ryan is connected to a 720
+01:52:38.159 that makes ryan a 730 he is connected to
+01:52:42.000 an early case great job folks
+01:52:46.800 okay so the next thing we're going to do
+01:52:48.800 um i'm going to try my best to keep us
+01:52:51.360 on time here but you all are being so
+01:52:53.920 awesome and participating i love it
+01:52:56.400 so now we're going to repeat this
+01:52:57.840 process and we're going to add ryan to
+01:52:59.760 this dca
+01:53:01.440 now that we're having more than one
+01:53:02.880 partner we need to indicate who is a sex
+01:53:05.280 partner to who so what we need to do is
+01:53:08.080 we need to draw an arrow from carmella
+01:53:10.880 to johannes
+01:53:12.639 you can use these little brackets over
+01:53:14.480 here um i personally
+01:53:16.880 don't like those little brackets so i
+01:53:19.119 like to just draw an arrow
+01:53:21.280 and now we need to draw an arrow from
+01:53:23.199 johannes
+01:53:24.880 to ryan to indicate that johannes and
+01:53:27.440 ryan are sex partners
+01:53:30.400 and so we're going to write ryan here
+01:53:33.040 ryan's reason for exam was he was a
+01:53:35.840 health department referred partner
+01:53:38.880 the dis called him and brought him in
+01:53:41.520 for testing
+01:53:42.960 i'm going to just keep that short and
+01:53:44.400 right health depth there so you guys can
+01:53:47.119 see that
+01:53:48.400 we have our arrows indicating who our
+01:53:50.560 sex partners are
+01:53:52.560 and again only positive partners go on a
+01:53:55.199 vca
+01:53:56.480 even though carmella and ryan are not
+01:53:59.040 sex partners they are part of the same
+01:54:01.199 deni disease network
+01:54:03.440 by way of johannes
+01:54:05.760 and so now we're going to add in um our
+01:54:08.480 medical information so ryan let me just
+01:54:11.440 go back up my
+01:54:15.119 backs of my case here
+01:54:18.000 ryan was tested on 4 15 so we're going
+01:54:21.199 to come down to april
+01:54:23.520 we're going to come down to ryan's line
+01:54:25.280 over here
+01:54:27.440 day 15 will be right about here
+01:54:33.679 say 4 15 22
+01:54:36.560 at this time ryan is a 7 30
+01:54:40.239 and so we know he has an rpr
+01:54:42.880 of 1 to 64.
+01:54:46.480 positive eia
+01:54:49.119 we are probably going to go over by a
+01:54:50.719 few minutes i hope you all can stay if
+01:54:52.800 you cannot please watch the rest of this
+01:54:54.960 recording
+01:54:56.639 we also have big 2.4
+01:54:59.599 so that's what we know about ryan we
+01:55:01.520 don't have any other additional
+01:55:02.960 information about ryan at this time
+01:55:07.760 so now what we need to do
+01:55:09.920 is
+01:55:11.440 we would document symptoms but ryan does
+01:55:14.239 not have any symptoms
+01:55:16.560 so we're not going to draw any red tri
+01:55:18.639 or red rectangles here we will grab our
+01:55:20.960 blue pencil next
+01:55:22.800 and we will do our critical period for
+01:55:24.639 ryan which is one year
+01:55:27.360 for 7 30 and 7 55 your critical period
+01:55:31.520 is one year
+01:55:33.760 and so you're going to just draw a blue
+01:55:35.920 line
+01:55:37.360 all the way down
+01:55:38.590 [Music]
+01:55:42.320 so you can extend that out for yourself
+01:55:44.719 and say it goes back
+01:55:46.400 to 4 15 21.
+01:55:52.960 okay
+01:55:54.239 so now we have done that
+01:55:56.400 we add our sexual exposure information
+01:55:58.639 with our green pencil
+01:56:02.320 and they report their sexual exposure
+01:56:05.199 well as we know it from johannes at this
+01:56:07.119 point in time
+01:56:08.639 this will be the line that refers to
+01:56:10.400 johannes this is the line that refers to
+01:56:13.199 ryan
+01:56:14.960 they first had sex back in
+01:56:18.320 2014
+01:56:21.040 and so we're going to draw that
+01:56:24.639 all the way out kind of like we did for
+01:56:26.400 this one here we'll start it back here
+01:56:29.760 so 1 1 14
+01:56:32.320 so they've been having sex since 2014
+01:56:35.920 and then their last sexual exposure was
+01:56:38.800 reported
+01:56:40.560 we write first sexual exposure here
+01:56:43.119 their last sexual exposure was reported
+01:56:45.520 on 12 27 so if we come to december
+01:56:49.040 we come down to about day 27
+01:56:51.920 it's gonna end right here
+01:56:56.080 we can say last sexual exposure
+01:56:59.520 12 27
+01:57:01.920 and forgive me you need to turn sideways
+01:57:04.480 and then we're just going to color in
+01:57:07.199 our sexual exposure information
+01:57:17.760 okay
+01:57:19.599 so now
+01:57:20.880 now that we have all the facts of our
+01:57:22.560 face plotted
+01:57:24.800 what all do you think we need to do now
+01:57:33.040 what are the next steps in this case
+01:57:34.960 what are your inferences
+01:57:37.520 have we done enough to determine who is
+01:57:39.679 a source and who has a spread yet
+01:57:47.599 we're saying we need to interview ryan i
+01:57:49.840 absolutely agree with that we need to
+01:57:51.679 call ryan and speak to him
+01:57:54.639 and we need to talk to him
+01:57:57.040 um like i said i'm probably gonna go
+01:57:59.280 over forgive me
+01:58:01.360 um if you can't stay for the remainder
+01:58:03.520 of this i promise i only need like 10
+01:58:05.440 more minutes of your time that's fine
+01:58:07.679 but please do watch the rest of this
+01:58:09.280 recording if you have to hop off at this
+01:58:11.040 point in time
+01:58:12.800 so
+01:58:13.599 we need to figure out
+01:58:15.520 who is the source and who is the spread
+01:58:18.480 in our scenario
+01:58:20.639 part of the ways we can do that is by
+01:58:22.880 using ghosting
+01:58:25.280 so sharon we're going to touch on one of
+01:58:27.040 the questions you had earlier
+01:58:29.520 and we need our orange pencil so you're
+01:58:32.480 going to grab your orange colored pencil
+01:58:36.159 we said earlier that ghosting was a
+01:58:38.639 technique that we use to determine who
+01:58:41.119 is the source and who is a spread
+01:58:44.880 this is going to give us the most
+01:58:46.320 educated guess as to how disease was
+01:58:48.639 transmitted between these individuals in
+01:58:51.040 this network
+01:58:53.119 we have somebody who has an active
+01:58:55.280 lesion and if you remember our ghosting
+01:58:57.760 hierarchy
+01:58:59.119 we are going to get the best story of
+01:59:01.040 transmission by starting with a primary
+01:59:04.639 and existing primary lesion
+01:59:07.840 carmela has an existing primary lesion
+01:59:12.080 we need to figure out
+01:59:14.080 who gave syphilis to who
+01:59:17.599 so one of the first things that we're
+01:59:19.119 gonna do is we're gonna say
+01:59:21.840 okay
+01:59:23.040 what if carmella
+01:59:24.800 gave syphilis to johannes
+01:59:27.760 so carmela has an active lesion
+01:59:30.880 we go in the middle of her lesion and
+01:59:33.199 we're going to draw a dotted orange line
+01:59:36.320 this is why vcas get complicated because
+01:59:38.239 you have to write on top of everything
+01:59:40.560 we're going to draw an orange line down
+01:59:43.040 from the center of that lesion
+01:59:45.760 from the center of this lesion we are
+01:59:48.159 going to draw
+01:59:49.920 a three
+01:59:51.119 we're going to count three weeks
+01:59:53.199 and what we're saying is that
+01:59:55.119 this lesion
+01:59:56.719 gave johannes syphilis and we're going
+01:59:58.800 to see if that makes sense here in a
+02:00:00.320 moment
+02:00:01.679 so we need to draw a little orange
+02:00:03.280 triangle here
+02:00:05.440 if you guys can see
+02:00:08.480 we have started at the center of
+02:00:10.080 carmela's lesion drawn a little orange
+02:00:13.040 triangle on johannes
+02:00:15.280 we're saying that that is the
+02:00:16.480 inoculation point of johannes
+02:00:19.199 so we're going to count three weeks from
+02:00:20.960 this inoculation point to represent an
+02:00:23.360 average incubation period of 21 days
+02:00:26.480 so we go one
+02:00:28.800 two
+02:00:30.159 three and although you can't see it i'm
+02:00:32.400 using the little slashes to count
+02:00:34.960 so each slash represents one week so one
+02:00:38.880 two three
+02:00:40.800 doesn't have to be exact
+02:00:42.880 you're going to draw a dotted line so
+02:00:45.440 again i have to write over what i did
+02:00:47.280 but you see my tiny little dotted line
+02:00:49.920 three weeks after our inoculation point
+02:00:53.520 we're going to count three more weeks to
+02:00:55.520 represent a three-week lesion this is
+02:00:57.599 the average duration of a lesion we are
+02:01:00.000 using our basic assumptions here
+02:01:02.320 we are assuming that there was a
+02:01:04.719 three-week incubation period one two
+02:01:07.199 three and that johannes will have a
+02:01:09.520 three week lesion so we go
+02:01:11.840 one two three be right about here
+02:01:16.719 this is called a spread
+02:01:19.599 lesion
+02:01:20.880 sp
+02:01:23.679 what you are saying by ghosting this
+02:01:26.159 spread lesion you are saying that
+02:01:28.639 carmela
+02:01:29.840 the person with an active lesion
+02:01:32.320 gave syphilis to johannes
+02:01:35.360 and we are projecting that this is when
+02:01:37.760 johannes would have had a lesion
+02:01:41.280 does this make sense for our story
+02:01:46.800 no because he has secondary symptoms you
+02:01:49.920 know
+02:01:51.599 primary
+02:01:52.800 exactly you guys are right on it
+02:01:55.440 so what this tells us is that there is
+02:01:58.320 oops sorry
+02:02:01.440 what this tells us is that there is no
+02:02:03.679 way
+02:02:04.639 carmela is a source
+02:02:06.719 what we have done here is called
+02:02:08.320 ghosting a spread
+02:02:10.480 so a spread lesion
+02:02:12.320 we were trying to tell a story that
+02:02:14.320 carmela was johannes's source
+02:02:17.679 and what we know from seeing this
+02:02:19.599 outline it's not true
+02:02:22.800 so now what we need to try to determine
+02:02:24.719 is
+02:02:25.920 did johannes give syphilis to carmela
+02:02:29.520 since we have ruled out that carmella is
+02:02:31.840 not the source of infection
+02:02:34.960 so what we need to do
+02:02:36.719 is we start
+02:02:38.719 at carmela's
+02:02:41.199 inoculation point this is day 21
+02:02:44.800 this is when we assume
+02:02:46.639 carmela was inoculated by her source
+02:02:50.960 so we are going to
+02:02:52.960 draw another dotted line down to
+02:02:55.599 johannes
+02:02:57.840 and now we have a center right here this
+02:03:00.239 is going to be the center of johannes's
+02:03:02.960 lesion
+02:03:04.400 because we're using our basic
+02:03:05.920 assumptions and lesions last on average
+02:03:08.880 three weeks we are going to make this
+02:03:11.360 box
+02:03:12.320 a three week box so if this is on the
+02:03:14.960 center we go
+02:03:16.639 one and a half so there's one and a half
+02:03:19.119 weeks
+02:03:20.080 and we go one and a half
+02:03:22.960 and then we do another dotted line
+02:03:26.400 this is called a source lesion or
+02:03:30.159 s-o-l-x
+02:03:33.679 so we use our basic assumptions and what
+02:03:35.679 we know about the natural history of
+02:03:37.440 syphilis
+02:03:38.880 and we say we project
+02:03:41.199 this is the time frame that johannes had
+02:03:44.320 a lesion
+02:03:46.880 does this make sense with our story
+02:04:00.880 what do you guys think is johannes a
+02:04:03.199 source for carmilla
+02:04:06.719 makes way more sense
+02:04:08.400 seeing a lot of yeses absolutely i
+02:04:11.280 totally agree with you all
+02:04:13.119 we can verify that this story makes
+02:04:15.599 sense because we can see our
+02:04:17.760 visualization
+02:04:19.440 of sexual exposure
+02:04:21.679 our ghosted lesions occurs in a time
+02:04:24.960 period when they were having sex with
+02:04:27.040 each other
+02:04:28.079 so it makes sense that if johannes had a
+02:04:31.199 lesion here
+02:04:32.639 he would have infected carmela and
+02:04:35.119 carmella developed her lesion
+02:04:36.880 approximately 30 days later
+02:04:39.199 about 21 to 30 days later
+02:04:41.840 so for right now this story makes sense
+02:04:44.480 to us
+02:04:45.920 it sounds like
+02:04:47.520 carmella received syphilis
+02:04:50.840 from johannes so at this point in time
+02:04:54.480 since we're really certain about that
+02:04:57.199 what we can do is you see this left hand
+02:04:59.679 corner this right side column here
+02:05:02.560 this is called your source spread
+02:05:03.840 analysis column when you are done with
+02:05:06.000 your source spread analysis you can make
+02:05:07.840 some designations here
+02:05:09.920 s o means source
+02:05:12.320 sp means spread and remember
+02:05:15.599 source means somebody who was infected
+02:05:18.480 and gave syphilis to an uninfected
+02:05:20.719 person
+02:05:22.000 spread means somebody who was uninfected
+02:05:24.960 and received syphilis from an infected
+02:05:27.360 patient
+02:05:28.800 we know that carmela is a spread
+02:05:32.320 from johannes
+02:05:34.880 right now we know that
+02:05:38.079 johannes is a source
+02:05:40.320 to carmella
+02:05:43.760 and so what we can do now
+02:05:46.320 because ryan doesn't have any symptoms
+02:05:49.040 we don't really know anything about him
+02:05:50.960 yet
+02:05:51.920 we haven't interviewed him that's next
+02:05:53.920 on our list though for our plan of
+02:05:56.239 action
+02:05:57.679 but what we can do is we can take this
+02:06:00.480 ghostly source lesion
+02:06:02.800 and then we can ghost another lesion
+02:06:05.920 onto ryan
+02:06:08.639 now if you remember our hierarchy a
+02:06:11.280 ghosted lesion is our third best choice
+02:06:15.840 but right now it's all we have
+02:06:18.480 and what we do recall
+02:06:20.400 is that johannes thinks
+02:06:23.440 uh ryan had a sore on his mouth around
+02:06:27.040 the last time they had sex with each
+02:06:28.880 other
+02:06:29.760 we don't know for sure though because we
+02:06:31.440 haven't talked to ryan himself yet so
+02:06:33.679 for right now we need to make our best
+02:06:36.000 guess
+02:06:37.520 so we're going to repeat the same
+02:06:38.800 process we just did
+02:06:41.280 so let's say that this is johannes
+02:06:43.520 lesion
+02:06:45.199 we believe
+02:06:46.400 he
+02:06:47.599 gave syphilis to ryan so what we're
+02:06:50.400 gonna do
+02:06:51.679 is we come down
+02:06:53.599 we draw our dotted line
+02:06:56.079 we start at the center of that lesion we
+02:06:58.000 draw our dotted line
+02:06:59.920 and then we make
+02:07:01.760 a
+02:07:02.960 little dot here just for ourselves our
+02:07:05.360 little triangle
+02:07:07.040 this is at the point we expect ryan may
+02:07:10.000 have been inoculated so we go one
+02:07:13.520 two
+02:07:14.320 three
+02:07:15.199 there's our first line
+02:07:16.960 then we go one
+02:07:18.800 two
+02:07:19.599 three there's our second line
+02:07:23.599 so
+02:07:24.480 we have created a spread
+02:07:27.280 lesion
+02:07:28.560 we believe at this point johannes had a
+02:07:31.440 lesion here he gave syphilis to ryan and
+02:07:35.119 then ryan developed a lesion three weeks
+02:07:37.679 after being exposed to johannes
+02:07:40.480 now let's take a close look at this
+02:07:43.040 does this make sense
+02:07:47.199 no because they didn't have sex at that
+02:07:49.440 time period exactly miss sharon they did
+02:07:51.920 not have sexual exposures so if this is
+02:07:54.880 the point in time that johannes had a
+02:07:57.440 sore on his penis
+02:07:59.679 there is no way that he could have given
+02:08:02.719 syphilis to ryan because there are no
+02:08:04.960 sexual exposures great job so since we
+02:08:08.800 have disproven the spread theory we now
+02:08:11.679 need to try to see
+02:08:13.280 is ryan the source to johannes
+02:08:17.440 so what we do is we come to this little
+02:08:19.840 incubation or this little um inoculation
+02:08:22.800 point here
+02:08:24.239 i'm sorry not this inoculation point
+02:08:26.719 we need to go to johannes's inoculator
+02:08:29.840 ghosted lesion and count back three
+02:08:31.679 weeks so one two three
+02:08:34.320 johannes had a guesstimated inoculation
+02:08:37.520 point right here for this lesion
+02:08:40.159 so we come down here draw our dotted
+02:08:42.880 line
+02:08:45.280 and then we
+02:08:47.520 excuse me y'all let me grab a sip of
+02:08:49.040 water real quick
+02:08:54.239 thank you so sorry about that
+02:08:57.440 and so we again
+02:08:59.599 go make our center line here
+02:09:01.840 and we say
+02:09:03.040 one and a half weeks
+02:09:05.360 and then we say one and a half weeks
+02:09:10.639 and we call this
+02:09:12.079 our
+02:09:13.280 source
+02:09:14.320 lesion
+02:09:16.000 so
+02:09:16.719 when we look at this
+02:09:18.960 according to our ghosted lesion
+02:09:21.920 we have estimated that ryan
+02:09:24.800 may have had a lesion in january
+02:09:28.800 does this make sense for our story
+02:09:36.560 yeah he could have had a lesion but it
+02:09:38.560 would have started you know 10 days
+02:09:40.719 before that when they did have sex
+02:09:43.040 around christmas christmas
+02:09:44.960 yes i love that you're critically
+02:09:47.199 thinking sharon so you're absolutely
+02:09:48.960 right
+02:09:50.079 that was my thought as well if um
+02:09:52.800 my one of my dis were to bring a case
+02:09:54.960 like this to me and they said you know
+02:09:56.719 what i do think ryan is a source i would
+02:09:59.599 be apt to agree with them
+02:10:01.679 so although we do have some space oh
+02:10:04.159 gosh i'm not even showing you guys the
+02:10:05.679 right thing here we go
+02:10:07.679 although we do have some space and we
+02:10:09.599 don't necessarily have an overlap of our
+02:10:12.159 sexual exposures
+02:10:14.400 this is close enough
+02:10:16.800 their last sexual exposure being at the
+02:10:18.719 end of december and ryan having or ryan
+02:10:22.320 projected to having a lesion around that
+02:10:24.320 time frame
+02:10:25.760 this is close enough and a very educated
+02:10:28.400 guess that i would accept a dis telling
+02:10:30.800 me
+02:10:32.239 that they believe ryan is the source
+02:10:35.599 i accept that margin of error because
+02:10:38.480 we are using
+02:10:40.000 the third most best option which is a
+02:10:42.400 ghosted lesion
+02:10:43.920 so these are all just educated guesses
+02:10:47.440 but it makes sense with the disease
+02:10:49.840 history that we know so far
+02:10:52.159 johannes also reports seeing a lesion on
+02:10:55.360 brian's mouth around that time
+02:10:58.159 so it's very possible that ryan did have
+02:11:00.800 that lesion back in december early
+02:11:03.599 january etc
+02:11:06.560 okay
+02:11:07.760 that is the end of our story as we know
+02:11:10.320 it
+02:11:11.520 so for now we have agreed that johannes
+02:11:15.840 is a spread
+02:11:17.280 from ryan
+02:11:20.960 and ryan as a source to johannes
+02:11:25.040 now you all are correct our next thing
+02:11:26.880 would be to interview ryan
+02:11:28.800 and see what he's been up to what sex
+02:11:30.639 partners he has
+02:11:32.239 and if he has any positive sex partners
+02:11:34.400 we continue to add them to the cca
+02:11:38.960 that is all i have for you all
+02:11:41.040 i truly appreciate you spending this
+02:11:42.800 time for me with me thank you for
+02:11:45.280 letting me go 15 minutes over and taking
+02:11:47.520 up some of your valuable time
+02:11:50.000 are there any last-minute questions
+02:11:52.560 concerns that i can address for you all
+02:12:03.040 thank you so much emily and while
+02:12:05.760 folks have any last-minute questions
+02:12:08.159 that they put in the chat
+02:12:09.920 i went ahead and launched our brief
+02:12:12.079 evaluation so feel free to
+02:12:14.800 let us know what you thought of today's
+02:12:16.560 session
+02:12:17.679 but
+02:12:18.719 everyone please join me in thanking
+02:12:20.639 emily this is such a fantastic training
+02:12:23.119 um
+02:12:24.079 and we're really grateful for the time
+02:12:26.079 that you took to put this together and
+02:12:27.840 share with us today emily so thank you
+02:12:29.760 so much
+02:12:30.880 um and like i said at the beginning i'll
+02:12:32.880 be sending the recording to you all so
+02:12:34.639 if you missed something or want to go
+02:12:36.159 back and check again
+02:12:37.840 you will be able to
+02:12:41.040 thanks everybody um if you have any
+02:12:43.440 questions for me or if you need
+02:12:45.280 clarification on anything i've written
+02:12:47.440 or provided
+02:12:48.800 please don't hesitate to email me
+02:12:51.440 i am more than happy to have a
+02:12:54.159 one-on-one with you to talk directly
+02:12:56.239 with you
+02:12:57.440 um my email will be on the slide deck
+02:13:00.079 and um it's also on the exercises too so
+02:13:03.840 please contact me if you need anything
+02:13:08.320 great thank you again so much emily and
+02:13:10.960 i hope everyone has a great rest of
+02:13:12.639 their afternoon
+02:13:15.599 all right
+02:13:17.199 i will i'll be in touch soon with the
+02:13:18.880 recording thanks again everyone

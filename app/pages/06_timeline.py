@@ -55,13 +55,13 @@ EVENT_TYPES = [
 
 # Color map for event types
 EVENT_COLORS = {
-    "Treatment":     "#1D9E75",
-    "Lab work":      "#378ADD",
-    "Interview":     "#534AB7",
-    "Re-interview":  "#7F77DD",
-    "Field visit":   "#D85A30",
+    "Treatment": "#1D9E75",
+    "Lab work": "#378ADD",
+    "Interview": "#534AB7",
+    "Re-interview": "#7F77DD",
+    "Field visit": "#D85A30",
     "Phone contact": "#BA7517",
-    "Other":         "#888780",
+    "Other": "#888780",
 }
 
 
@@ -107,10 +107,10 @@ with SessionLocal() as db:
 
 # Build partner lookup
 partner_map: dict[int, str] = {0: f"OP — {case.patient_name}"}
-partner_map.update({
-    p.id: f"Partner {p.partner_number} — {p.name or 'Unnamed'}"
-    for p in partners
-})
+partner_map.update(
+    {p.id: f"Partner {p.partner_number} — {p.name or 'Unnamed'}" for p in partners}
+)
+
 
 # Auto-seed treatment dates from OP + partners if no events yet
 def seed_treatment_dates():
@@ -125,7 +125,8 @@ def seed_treatment_dates():
             key = (case.treatment_date, None)
             if key not in existing_keys:
                 create_timeline_event(
-                    db, case_id,
+                    db,
+                    case_id,
                     event_date=case.treatment_date,
                     event_type="Treatment",
                     notes="Auto-seeded from OP form",
@@ -139,7 +140,8 @@ def seed_treatment_dates():
                 key = (p.treatment_date, p.id)
                 if key not in existing_keys:
                     create_timeline_event(
-                        db, case_id,
+                        db,
+                        case_id,
                         event_date=p.treatment_date,
                         event_type="Treatment",
                         notes=f"Auto-seeded from partner {p.partner_number}",
@@ -176,14 +178,14 @@ st.caption(
 if events:
     dates = [e.event_date for e in events]
     earliest = min(dates)
-    latest   = max(dates)
+    latest = max(dates)
     span_days = (latest - earliest).days
 
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Total events",  len(events))
-    m2.metric("Earliest",      str(earliest))
-    m3.metric("Latest",        str(latest))
-    m4.metric("Span (days)",   span_days)
+    m1.metric("Total events", len(events))
+    m2.metric("Earliest", str(earliest))
+    m3.metric("Latest", str(latest))
+    m4.metric("Span (days)", span_days)
 
 st.divider()
 
@@ -194,7 +196,6 @@ st.divider()
 col_main, col_form = st.columns([3, 1])
 
 with col_main:
-
     if not events:
         st.info(
             "No timeline events yet. Add treatment dates on the OP and Partner "
@@ -205,17 +206,19 @@ with col_main:
         rows = []
         for e in events:
             subject = partner_map.get(e.partner_id or 0, "OP")
-            rows.append({
-                "id":          e.id,
-                "Date":        e.event_date,
-                "Subject":     subject,
-                "Event type":  e.event_type or "Other",
-                "Notes":       e.notes or "",
-                "Year":        e.event_date.year,
-                "Month":       e.event_date.month,
-                "Month name":  month_abbr[e.event_date.month],
-                "Day":         e.event_date.day,
-            })
+            rows.append(
+                {
+                    "id": e.id,
+                    "Date": e.event_date,
+                    "Subject": subject,
+                    "Event type": e.event_type or "Other",
+                    "Notes": e.notes or "",
+                    "Year": e.event_date.year,
+                    "Month": e.event_date.month,
+                    "Month name": month_abbr[e.event_date.month],
+                    "Day": e.event_date.day,
+                }
+            )
         df = pd.DataFrame(rows)
 
         # ── Tab 1: Gantt-style scatter timeline ──────────────────────────
@@ -257,9 +260,7 @@ with col_main:
                 lambda d: f"{d.year}-{str(d.month).zfill(2)}"
             )
             pivot = (
-                df.groupby(["Subject", "YearMonth"])
-                .size()
-                .reset_index(name="Count")
+                df.groupby(["Subject", "YearMonth"]).size().reset_index(name="Count")
             )
 
             if not pivot.empty:
@@ -272,23 +273,25 @@ with col_main:
                     for ym in all_months:
                         val = pivot.loc[
                             (pivot["Subject"] == subj) & (pivot["YearMonth"] == ym),
-                            "Count"
+                            "Count",
                         ]
                         row_vals.append(int(val.iloc[0]) if not val.empty else 0)
                     heat_data.append(row_vals)
 
-                fig2 = go.Figure(data=go.Heatmap(
-                    z=heat_data,
-                    x=all_months,
-                    y=all_subjects,
-                    colorscale=[
-                        [0.0, "#F1EFE8"],
-                        [0.5, "#5DCAA5"],
-                        [1.0, "#085041"],
-                    ],
-                    showscale=True,
-                    hoverongaps=False,
-                ))
+                fig2 = go.Figure(
+                    data=go.Heatmap(
+                        z=heat_data,
+                        x=all_months,
+                        y=all_subjects,
+                        colorscale=[
+                            [0.0, "#F1EFE8"],
+                            [0.5, "#5DCAA5"],
+                            [1.0, "#085041"],
+                        ],
+                        showscale=True,
+                        hoverongaps=False,
+                    )
+                )
                 fig2.update_layout(
                     height=max(250, len(all_subjects) * 50 + 100),
                     xaxis_title="Month",
@@ -311,7 +314,9 @@ with col_main:
                 hide_index=True,
                 column_config={
                     "Date": st.column_config.TextColumn("Date", width="small"),
-                    "Event type": st.column_config.TextColumn("Event type", width="medium"),
+                    "Event type": st.column_config.TextColumn(
+                        "Event type", width="medium"
+                    ),
                 },
             )
 
@@ -383,10 +388,7 @@ with col_form:
                 notes=notes or None,
                 partner_id=partner_id_val,
             )
-        st.success(
-            f"Added: {event_type} on {event_date} "
-            f"for {partner_map[subject_id]}"
-        )
+        st.success(f"Added: {event_type} on {event_date} for {partner_map[subject_id]}")
         st.rerun()
 
     # Legend
@@ -395,7 +397,7 @@ with col_form:
     for etype, color in EVENT_COLORS.items():
         st.markdown(
             f'<span style="background:{color};color:#fff;padding:2px 8px;'
-            f'border-radius:4px;font-size:11px;display:inline-block;'
+            f"border-radius:4px;font-size:11px;display:inline-block;"
             f'margin:2px 0">{etype}</span>',
             unsafe_allow_html=True,
         )
@@ -416,19 +418,26 @@ else:
         latest_lab_val = "—"
         with SessionLocal() as db:
             from app.db.queries import get_lab_results_for_partner
+
             labs = get_lab_results_for_partner(db, p.id)
             if labs:
                 latest = labs[-1]
-                latest_lab_val = f"{latest.test_type}: {latest.titer or latest.result or 'N/A'}"
+                latest_lab_val = (
+                    f"{latest.test_type}: {latest.titer or latest.result or 'N/A'}"
+                )
 
-        status_rows.append({
-            "Partner #":       p.partner_number,
-            "Name":            p.name or "—",
-            "Treatment date":  str(p.treatment_date) if p.treatment_date else "Pending",
-            "Latest Lab":      latest_lab_val,
-            "Treatment":       p.treatment or "—",
-            "Status":          "Treated" if p.treatment_date else "Pending",
-        })
+        status_rows.append(
+            {
+                "Partner #": p.partner_number,
+                "Name": p.name or "—",
+                "Treatment date": str(p.treatment_date)
+                if p.treatment_date
+                else "Pending",
+                "Latest Lab": latest_lab_val,
+                "Treatment": p.treatment or "—",
+                "Status": "Treated" if p.treatment_date else "Pending",
+            }
+        )
 
     status_df = pd.DataFrame(status_rows)
 

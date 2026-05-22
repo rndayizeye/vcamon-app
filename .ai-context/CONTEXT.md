@@ -124,6 +124,14 @@ Implements the 7-step VCA ghosting pipeline.
 Warn margin: `EXPOSURE_WARN_MARGIN_DAYS = 10`
 Min latency to secondary: `MIN_LATENCY_TO_SECONDARY_DAYS = 35`
 
+**Interview Periods (Sum of maximums):**
+- Primary: 4 months, 1 week (Max Incubation + Max Primary)
+- Secondary: 8 months, 1 week (Max Incubation + Max Primary + Max Latency + Max Secondary)
+
+**Clinical Notes:**
+- Generalized body rash typically does not last > ~6 weeks.
+- **Partner Services** (broad social action/prevention) $\neq$ **Contact Tracing** (locating partners for care).
+
 ### Key functions
 - `select_case1()` — rank by hierarchy; earlier onset wins ties
 - `calc_date1()` — inoculation date: `onset − avg_incubation` (primary) or back through full chain (secondary)

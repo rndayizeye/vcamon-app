@@ -31,6 +31,7 @@ def seed_demo_data():
     except Exception as e:
         st.warning(f"Could not seed demo data: {e}")
 
+
 seed_demo_data()
 
 
@@ -46,6 +47,7 @@ def check_password():
         else:
             st.error("Incorrect password.")
     return False
+
 
 if not check_password():
     st.stop()

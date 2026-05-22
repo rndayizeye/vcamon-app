@@ -20,22 +20,18 @@ _Last updated: 2026-05-19 (post-merge)_
 
 ---
 
-## Completed in last merge
+## Completed in last session (2026-05-21)
 
-- [x] **`Optional` import** added to `queries.py` — duplicate `return True` at end of file removed
-- [x] **`LabResultEntry.__repr__`** stub completed
-- [x] **`Case.symptoms` relationship** added to models.py — `get_symptoms_for_case()` now works
-- [x] **`validate_op_form` signature** cleaned up — `lab_1`/`lab_2` args removed; `test_validators.py` updated
-- [x] **Lab vocabulary enums** added to models.py: `NonTreponemalTestType`, `TreponemalTestType`, `NonTreponemalTiter`, `TreponemalTestResult` — used by split lab editor on pages 02 and 03
-- [x] **Split lab editor** on pages 02 and 03 — non-treponemal (left) and treponemal (right) are now separate `st.data_editor` tables with typed selectbox columns
-- [x] **`get_symptom_classification()`** helper added to `clinical.py` — auto-derives Primary/Secondary from symptom type string; called on every save so DB stays in sync without manual input
-- [x] **`Symptom.location` field** added to the engine dataclass — anatomical site of a primary chancre; passed through from the symptom editor to the sex-type compatibility check
-- [x] **`determine_verdict()` overlap annotation** — now accepts `source_criteria`/`spread_criteria` and appends a ⚠ warning when primary-secondary overlap is detected in either scenario
-- [x] **`_natural_order()` improved** — now emits `warn` (not `fail`) for primary-secondary overlap (since latency min = 0 permits it) and hard `fail` for reversed timeline
-- [x] **`_latency_to_secondary()` improved** — distinguishes true overlap (chancre active when secondary appeared) from reversed timeline (secondary before primary onset)
-- [x] **`database.py` schema guard** — `init_db()` now inspects the schema and drops/recreates tables if required columns are missing (handles the old `vcamon.db` → `vcamon_v2.db` migration)
-- [x] **`historical_primary_chancre` auto-derivation** — page 02 now derives this from symptom entries (lesion type + duration + treatment date) instead of a manual radio button
-- [x] **Ghosting analysis pages (07, 09)** refactored — symptom input now uses multi-row `st.data_editor` with `Type`, `Onset Date`, `Duration`, `Location` columns; pre-fills from saved DB records; `_entries_to_rows()` and `_rows_to_symptoms()` helpers added
+- [x] **Range-Based Ghosting Engine**: Refactored `clinical.py` to execute analysis across three ranges (Aggressive, Expected, Conservative) with corresponding confidence levels (Robust, Likely, Possible, Unrelated).
+- [x] **Guardrail System**: Established `PRINCIPLES.md` and `GLOSSARY.md` to enforce architectural purity and public health naming standards.
+- [x] **Slack Integration**: Implemented `app/utils/notifications.py` and environment-based webhooks for task/audit alerts.
+- [x] **Terminology Alignment (Full)**: Completed full sweep to rename `sex_types` to `exposure_modalities`, and `symptom.location` to `symptom.anatomical_site` across UI pages, DB queries, and unit tests to adhere strictly to `GLOSSARY.md`.
+- [x] **Symmetry Verification**: Confirmed all 37 clinical unit tests pass with the new range-based logic and legacy aliases.
+- [x] **Network Analysis**: Moved the network graph from a simple visualizer to an analysis tool using NetworkX. Implemented Centrality calculations, Cluster Detection, and a temporal animation slider for the network graph.
+
+---
+
+## Completed (stable)
 
 ---
 

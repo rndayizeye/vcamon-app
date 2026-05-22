@@ -1,0 +1,7 @@
+FROM qwen2.5-coder:14b
+
+# Expand context window to 32k tokens
+PARAMETER num_ctx 32768
+
+# Set temperature slightly lower for strict code execution accuracy
+PARAMETER temperature 0.2

@@ -35,22 +35,22 @@ from app.utils.clinical import (
 
 # Shared colour palette — matches 08_vca_chart.py
 _C = {
-    "p1_symptom":   "#378ADD",   # blue  — P1 anchor symptom
-    "p1_inoc":      "#1D9E75",   # green — inoculation / D1 / D2
-    "ghosted":      "#EF9F27",   # amber — ghosted lesion window
-    "p2_symptom":   "#E24B4A",   # red   — P2 symptoms
-    "exposure":     "#7F77DD",   # purple — exposure window
-    "pass_band":    "rgba(29,158,117,0.08)",
-    "fail_band":    "rgba(226,75,74,0.08)",
-    "warn_band":    "rgba(239,159,39,0.10)",
-    "grid":         "rgba(180,178,169,0.20)",
+    "p1_symptom": "#378ADD",  # blue  — P1 anchor symptom
+    "p1_inoc": "#1D9E75",  # green — inoculation / D1 / D2
+    "ghosted": "#EF9F27",  # amber — ghosted lesion window
+    "p2_symptom": "#E24B4A",  # red   — P2 symptoms
+    "exposure": "#7F77DD",  # purple — exposure window
+    "pass_band": "rgba(29,158,117,0.08)",
+    "fail_band": "rgba(226,75,74,0.08)",
+    "warn_band": "rgba(239,159,39,0.10)",
+    "grid": "rgba(180,178,169,0.20)",
 }
 
-_Y_P1    = 1.0
-_Y_P2    = 0.0
-_Y_GHOST = 0.0   # ghosted lesion is on P2's row
-_BAR_W   = 8
-_MARK_S  = 12
+_Y_P1 = 1.0
+_Y_P2 = 0.0
+_Y_GHOST = 0.0  # ghosted lesion is on P2's row
+_BAR_W = 8
+_MARK_S = 12
 
 
 def _date_range(items: list) -> tuple[date, date]:
@@ -90,7 +90,8 @@ def _base_layout(title: str, x_range: tuple, p1_label: str, p2_label: str) -> di
         ),
         legend=dict(
             orientation="h",
-            y=1.18, x=0,
+            y=1.18,
+            x=0,
             font=dict(size=10),
             bgcolor="rgba(255,255,255,0.7)",
             tracegroupgap=0,
@@ -104,19 +105,25 @@ def _base_layout(title: str, x_range: tuple, p1_label: str, p2_label: str) -> di
 
 def _grid_lines(fig: go.Figure, x0: date, x1: date):
     for y in [_Y_P1, _Y_P2]:
-        fig.add_shape(type="line",
-                      x0=x0, y0=y, x1=x1, y1=y,
-                      line=dict(color=_C["grid"], width=1, dash="dot"))
+        fig.add_shape(
+            type="line",
+            x0=x0,
+            y0=y,
+            x1=x1,
+            y1=y,
+            line=dict(color=_C["grid"], width=1, dash="dot"),
+        )
 
 
-def _criterion_band(fig: go.Figure, criterion_status: str,
-                    x0: date, x1: date, label: str):
+def _criterion_band(
+    fig: go.Figure, criterion_status: str, x0: date, x1: date, label: str
+):
     """Add a translucent band showing pass/fail/warn for a date window."""
     color = {
         "pass": _C["pass_band"],
         "fail": _C["fail_band"],
         "warn": _C["warn_band"],
-        "na":   "rgba(0,0,0,0)",
+        "na": "rgba(0,0,0,0)",
     }.get(criterion_status, "rgba(0,0,0,0)")
 
     if color == "rgba(0,0,0,0)":
@@ -124,8 +131,10 @@ def _criterion_band(fig: go.Figure, criterion_status: str,
 
     fig.add_shape(
         type="rect",
-        x0=x0, x1=x1,
-        y0=-0.5, y1=1.5,
+        x0=x0,
+        x1=x1,
+        y0=-0.5,
+        y1=1.5,
         fillcolor=color,
         line=dict(width=0),
         layer="below",
@@ -134,7 +143,7 @@ def _criterion_band(fig: go.Figure, criterion_status: str,
 
 def build_scenario_figure(
     result: GhostingResult,
-    scenario: str,                          # "source" or "spread"
+    scenario: str,  # "source" or "spread"
     p1_name: str,
     p2_name: str,
     p1_symptom: Symptom,
@@ -191,63 +200,77 @@ def build_scenario_figure(
 
     # --- P2 exposure window ---
     if p2_exposure and p2_exposure.first and p2_exposure.last:
-        fig.add_trace(go.Scatter(
-            x=[p2_exposure.first, p2_exposure.last],
-            y=[_Y_P2, _Y_P2],
-            mode="lines",
-            line=dict(color=_C["exposure"], width=5, dash="dash"),
-            name="Exposure window",
-            hovertemplate=(
-                f"Exposure: {p2_exposure.first} → {p2_exposure.last}"
-                f"<br>Sex types: {', '.join(p2_exposure.sex_types) or '—'}"
-                "<extra></extra>"
-            ),
-        ))
+        fig.add_trace(
+            go.Scatter(
+                x=[p2_exposure.first, p2_exposure.last],
+                y=[_Y_P2, _Y_P2],
+                mode="lines",
+                line=dict(color=_C["exposure"], width=5, dash="dash"),
+                name="Exposure window",
+                hovertemplate=(
+                    f"Exposure: {p2_exposure.first} → {p2_exposure.last}"
+                    f"<br>Sex types: {', '.join(p2_exposure.sex_types) or '—'}"
+                    "<extra></extra>"
+                ),
+            )
+        )
 
     # --- Ghosted lesion bar ---
-    fig.add_trace(go.Scatter(
-        x=[lesion.onset, lesion.end],
-        y=[_Y_GHOST, _Y_GHOST],
-        mode="lines",
-        line=dict(color=_C["ghosted"], width=_BAR_W, dash="solid"),
-        name=f"Ghosted {'source' if scenario == 'source' else 'spread'} lesion",
-        hovertemplate=(
-            f"Ghosted lesion<br>{lesion.onset} → {lesion.end}<extra></extra>"
-        ),
-    ))
-    fig.add_trace(go.Scatter(
-        x=[lesion.onset, lesion.end],
-        y=[_Y_GHOST, _Y_GHOST],
-        mode="markers",
-        marker=dict(color=_C["ghosted"], symbol="diamond-open", size=10),
-        showlegend=False,
-        hoverinfo="skip",
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=[lesion.onset, lesion.end],
+            y=[_Y_GHOST, _Y_GHOST],
+            mode="lines",
+            line=dict(color=_C["ghosted"], width=_BAR_W, dash="solid"),
+            name=f"Ghosted {'source' if scenario == 'source' else 'spread'} lesion",
+            hovertemplate=(
+                f"Ghosted lesion<br>{lesion.onset} → {lesion.end}<extra></extra>"
+            ),
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[lesion.onset, lesion.end],
+            y=[_Y_GHOST, _Y_GHOST],
+            mode="markers",
+            marker=dict(color=_C["ghosted"], symbol="diamond-open", size=10),
+            showlegend=False,
+            hoverinfo="skip",
+        )
+    )
 
     # --- P1 anchor symptom bar ---
-    p1_dur = p1_symptom.duration_days if p1_symptom.duration_days > 0 else PRIMARY["avg"]
+    p1_dur = (
+        p1_symptom.duration_days if p1_symptom.duration_days > 0 else PRIMARY["avg"]
+    )
     p1_end = p1_symptom.onset + timedelta(days=p1_dur)
-    fig.add_trace(go.Scatter(
-        x=[p1_symptom.onset, p1_end],
-        y=[_Y_P1, _Y_P1],
-        mode="lines",
-        line=dict(color=_C["p1_symptom"], width=_BAR_W, dash="solid"),
-        name=f"{p1_name} — {p1_symptom.type}",
-        hovertemplate=(
-            f"{p1_name}<br>{p1_symptom.type}<br>"
-            f"{p1_symptom.onset} → {p1_end}<extra></extra>"
-        ),
-    ))
-    fig.add_trace(go.Scatter(
-        x=[p1_symptom.onset], y=[_Y_P1],
-        mode="markers",
-        marker=dict(color=_C["p1_symptom"], symbol="triangle-up", size=_MARK_S),
-        showlegend=False,
-        hoverinfo="skip",
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=[p1_symptom.onset, p1_end],
+            y=[_Y_P1, _Y_P1],
+            mode="lines",
+            line=dict(color=_C["p1_symptom"], width=_BAR_W, dash="solid"),
+            name=f"{p1_name} — {p1_symptom.type}",
+            hovertemplate=(
+                f"{p1_name}<br>{p1_symptom.type}<br>"
+                f"{p1_symptom.onset} → {p1_end}<extra></extra>"
+            ),
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[p1_symptom.onset],
+            y=[_Y_P1],
+            mode="markers",
+            marker=dict(color=_C["p1_symptom"], symbol="triangle-up", size=_MARK_S),
+            showlegend=False,
+            hoverinfo="skip",
+        )
+    )
 
     # --- D1 / D2 inoculation marker ---
     from app.utils.clinical import avg_inoculation_date, calc_d2
+
     try:
         if scenario == "source":
             d_point = avg_inoculation_date(p1_symptom)
@@ -256,17 +279,22 @@ def build_scenario_figure(
             d_point = calc_d2(p1_symptom)
             d_label = "D2 (primary midpoint)"
 
-        fig.add_trace(go.Scatter(
-            x=[d_point], y=[_Y_P1],
-            mode="markers",
-            marker=dict(color=_C["p1_inoc"], symbol="diamond", size=_MARK_S),
-            name=d_label,
-            hovertemplate=f"{d_label}: {d_point}<extra></extra>",
-        ))
+        fig.add_trace(
+            go.Scatter(
+                x=[d_point],
+                y=[_Y_P1],
+                mode="markers",
+                marker=dict(color=_C["p1_inoc"], symbol="diamond", size=_MARK_S),
+                name=d_label,
+                hovertemplate=f"{d_label}: {d_point}<extra></extra>",
+            )
+        )
         fig.add_shape(
             type="line",
-            x0=d_point, x1=d_point,
-            y0=-0.5, y1=1.5,
+            x0=d_point,
+            x1=d_point,
+            y0=-0.5,
+            y1=1.5,
             line=dict(color=_C["p1_inoc"], width=1.5, dash="dot"),
         )
     except Exception:
@@ -276,22 +304,27 @@ def build_scenario_figure(
     for s in p2_symptoms:
         s_dur = s.duration_days if s.duration_days > 0 else 28
         s_end = s.onset + timedelta(days=s_dur)
-        fig.add_trace(go.Scatter(
-            x=[s.onset, s_end], y=[_Y_P2, _Y_P2],
-            mode="lines",
-            line=dict(color=_C["p2_symptom"], width=5, dash="solid"),
-            name=f"{p2_name} — {s.type}",
-            hovertemplate=(
-                f"{p2_name}<br>{s.type}<br>"
-                f"{s.onset} → {s_end}<extra></extra>"
-            ),
-        ))
-        fig.add_trace(go.Scatter(
-            x=[s.onset], y=[_Y_P2],
-            mode="markers",
-            marker=dict(color=_C["p2_symptom"], symbol="triangle-up", size=_MARK_S),
-            showlegend=False,
-            hoverinfo="skip",
-        ))
+        fig.add_trace(
+            go.Scatter(
+                x=[s.onset, s_end],
+                y=[_Y_P2, _Y_P2],
+                mode="lines",
+                line=dict(color=_C["p2_symptom"], width=5, dash="solid"),
+                name=f"{p2_name} — {s.type}",
+                hovertemplate=(
+                    f"{p2_name}<br>{s.type}<br>{s.onset} → {s_end}<extra></extra>"
+                ),
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=[s.onset],
+                y=[_Y_P2],
+                mode="markers",
+                marker=dict(color=_C["p2_symptom"], symbol="triangle-up", size=_MARK_S),
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
 
     return fig

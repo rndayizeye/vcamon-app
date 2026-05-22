@@ -11,7 +11,6 @@ After running the analysis the page shows:
   5. Save controls
 """
 
-from datetime import date
 
 import pandas as pd
 import streamlit as st
@@ -101,13 +100,13 @@ def _entries_to_rows(
         # For primary lesions the stored symptom_type IS the anatomical location
         # (e.g. "Anal LX", "Penile LX"). Pass it through so the sex-type
         # compatibility check in the engine can do a real comparison.
-        location = e.symptom_type if e.classification == "Primary" else ""
+        anatomical_site = e.symptom_type if e.classification == "Primary" else ""
         rows.append(
             {
                 "Type": vca_type,
                 "Onset Date": e.onset_date,
                 "Duration": e.duration_days or 0,
-                "Location": location,
+                "Anatomical Site": anatomical_site,
             }
         )
     if historical_chancre and historical_date:
@@ -138,7 +137,7 @@ def _rows_to_symptoms(df) -> list:
         dur = row.get("Duration")
         duration_days = int(dur) if pd.notna(dur) else 0
         loc = row.get("Location")
-        location = (
+        anatomical_site = (
             loc if loc and not (isinstance(loc, float) and pd.isna(loc)) else None
         )
         syms.append(
@@ -146,7 +145,7 @@ def _rows_to_symptoms(df) -> list:
                 type=sym_type,
                 onset=onset_d,
                 duration_days=duration_days,
-                location=location,
+                anatomical_site=anatomical_site,
             )
         )
     return syms
@@ -298,7 +297,7 @@ with col_op:
                 "Duration (days, 0 = avg)", min_value=0, max_value=90, default=0
             ),
             "Location": st.column_config.SelectboxColumn(
-                "Lesion location",
+                "Anatomical site",
                 options=_LOCATION_OPTIONS,
                 help="Anatomical site of a primary chancre. Leave blank for secondary symptoms.",
             ),
@@ -314,7 +313,7 @@ with col_op:
     op_exp_last = st.date_input(
         "Last exposure", value=None, key="op_exp_last", format="MM/DD/YYYY"
     )
-    op_sex_types = st.multiselect(
+    op_exposure_modalities = st.multiselect(
         "Sex type(s) reported by OP",
         options=["Anal LX", "Oral LX", "Vaginal LX", "Penile LX", "Rectal LX"],
         key="op_sex",
@@ -350,7 +349,7 @@ with col_partner:
                 "Duration (days, 0 = avg)", min_value=0, max_value=90, default=0
             ),
             "Location": st.column_config.SelectboxColumn(
-                "Lesion location",
+                "Anatomical site",
                 options=_LOCATION_OPTIONS,
                 help="Anatomical site of a primary chancre. Leave blank for secondary symptoms.",
             ),
@@ -366,7 +365,7 @@ with col_partner:
     p_exp_last = st.date_input(
         "Last exposure", value=None, key="p_exp_last", format="MM/DD/YYYY"
     )
-    p_sex_types = st.multiselect(
+    p_exposure_modalities = st.multiselect(
         "Sex type(s) reported by partner",
         options=["Anal LX", "Oral LX", "Vaginal LX", "Penile LX", "Rectal LX"],
         key="p_sex",
@@ -389,12 +388,20 @@ if run_btn:
     op_symptoms = _rows_to_symptoms(edited_op_sym_df)
     partner_symptoms = _rows_to_symptoms(edited_partner_sym_df)
     op_exposure = (
-        Exposure(first=op_exp_first, last=op_exp_last, sex_types=op_sex_types)
+        Exposure(
+            first=op_exp_first,
+            last=op_exp_last,
+            exposure_modalities=op_exposure_modalities,
+        )
         if op_exp_first and op_exp_last
         else None
     )
     partner_exposure = (
-        Exposure(first=p_exp_first, last=p_exp_last, sex_types=p_sex_types)
+        Exposure(
+            first=p_exp_first,
+            last=p_exp_last,
+            exposure_modalities=p_exposure_modalities,
+        )
         if p_exp_first and p_exp_last
         else None
     )

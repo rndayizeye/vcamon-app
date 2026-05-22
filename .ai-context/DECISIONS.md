@@ -118,3 +118,16 @@ a SQLAlchemy `mapped_column()`.
 or symptom type string. Asking users to set it manually is redundant and error-prone.
 **Implication:** Pages that save `SymptomEntry` rows must call `get_symptom_classification()`
 on each row before writing to DB. Pages 02, 03 already do this.
+
+---
+
+## ADR-011: UI logic decoupled from core engine tasks
+**Status:** Active
+**Decision:** All heavy lifting for data transformations, graphing engines, or network analytics must be isolated in Python utility scripts (`app/utils/network_analysis.py`, etc.) and completely decoupled from Streamlit rendering (`app/pages/*`).
+**Reason:** Prepares the codebase for a React migration without rewriting complex logic.
+**Implication:** Do not import `networkx` or do large data transformations directly in `st` pages.
+
+## ADR-012: Notifications are for Agent-to-Dev communication
+**Status:** Active
+**Decision:** `app/utils/notifications.py` (Slack integration) is explicitly meant as a developer convenience (agent status reporting) and is not wired into the application's business logic.
+**Reason:** The app is a clinical tool, not an event-streaming system. Pinging Slack on every DB change is noisy and out of scope.
