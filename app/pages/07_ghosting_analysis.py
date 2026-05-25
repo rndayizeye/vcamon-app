@@ -11,7 +11,6 @@ After running the analysis the page shows:
   5. Save controls
 """
 
-
 import pandas as pd
 import streamlit as st
 
@@ -36,6 +35,7 @@ from app.utils.clinical import (
     SECONDARY,
     Exposure,
     Symptom,
+    resolve_symptom_timing_for_analysis,
     run_ghosting_analysis,
 )
 from app.utils.ghosting_plot import build_scenario_figure
@@ -97,6 +97,15 @@ def _entries_to_rows(
         vca_type = _CLASSIFICATION_TO_VCA.get(e.classification or "", "")
         if not vca_type:
             continue
+        derived_onset, derived_duration = resolve_symptom_timing_for_analysis(
+            symptom_type=e.symptom_type,
+            anchor_date=e.onset_date,
+            duration_days=e.duration_days,
+            date_kind=getattr(e, "date_kind", None),
+            classification=e.classification,
+        )
+        if not derived_onset:
+            continue
         # For primary lesions the stored symptom_type IS the anatomical location
         # (e.g. "Anal LX", "Penile LX"). Pass it through so the sex-type
         # compatibility check in the engine can do a real comparison.
@@ -104,8 +113,8 @@ def _entries_to_rows(
         rows.append(
             {
                 "Type": vca_type,
-                "Onset Date": e.onset_date,
-                "Duration": e.duration_days or 0,
+                "Onset Date": derived_onset,
+                "Duration": derived_duration,
                 "Anatomical Site": anatomical_site,
             }
         )
@@ -174,7 +183,7 @@ with st.sidebar:
         st.stop()
 
     st.write(f"**#{case.id} — {case.patient_name}**")
-    st.caption(f"Lot: {case.lot or '—'}  |  Manager: {case.case_manager or '—'}")
+    st.caption(f"Diagnosis: {case.lot or '—'}  |  Manager: {case.case_manager or '—'}")
     st.divider()
 
     if st.button("← MAP sheet", use_container_width=True):

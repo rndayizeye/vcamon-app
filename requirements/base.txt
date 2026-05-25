@@ -1,9 +1,12 @@
 streamlit>=1.35
 pandas>=2.0
 sqlalchemy>=2.0
+fastapi>=0.104
+uvicorn>=0.23
+alembic>=1.10
+psycopg2-binary>=2.9
 streamlit-agraph>=0.0.45
 plotly>=5.0
 python-dotenv>=1.0
 pytest>=8.0
 networkx>=3.0
-plotly>=5.0

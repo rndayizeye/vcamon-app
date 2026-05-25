@@ -25,6 +25,7 @@ When introducing new features or refactoring, prefer the **Standard PH Term** ov
 | `Contact Tracing` | **Contact Tracing** | The physical action of identifying and locating sexual partners to refer them for care. |
 | `Name First` | **Name-First Methodology** | CDC-recommended strategy to prioritize name collection to build networks quickly. |
 | `Primary Intervention`| **Primary Disease Intervention** | The goal of reaching partners before they develop symptoms. |
+| `lot` | **Diagnosis / Syphilis Stage Code** | Legacy field name retained for compatibility. It stores the case diagnosis/stage code (for example `700`, `710`, `720`, `730`, `755`) rather than an inventory lot number. Prefer `diagnosis` or `diagnosis_code` in new user-facing text and new code when a breaking rename is not required. |
 
 ---
 

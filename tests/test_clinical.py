@@ -24,6 +24,7 @@ from datetime import date, timedelta
 
 import pytest
 
+from app.db.models import SymptomDateKind, SymptomDurationSource
 from app.utils.clinical import (
     EXPOSURE_WARN_MARGIN_DAYS,
     INCUBATION,
@@ -39,7 +40,9 @@ from app.utils.clinical import (
     calc_date2,
     calc_ghosted_source,
     calc_ghosted_spread,
+    derive_symptom_capture_metadata,
     evaluate_criteria,
+    resolve_symptom_timing_for_analysis,
     run_ghosting_analysis,
     select_case1,
     select_p1,  # both aliases should work
@@ -85,6 +88,57 @@ def johnny_exposure():
         last=date(2020, 2, 25),
         exposure_modalities=["Penile LX"],
     )
+
+
+# ---------------------------------------------------------------------------
+# symptom capture derivation helpers
+# ---------------------------------------------------------------------------
+
+
+class TestSymptomCaptureDerivation:
+    def test_observed_primary_without_duration_assumes_max_duration(self):
+        date_kind, duration_source, derived_ongoing = derive_symptom_capture_metadata(
+            symptom_type="Penile LX",
+            anchor_date=date(2024, 2, 15),
+            duration_days=None,
+            date_kind=SymptomDateKind.OBSERVED_DURING_EXAM,
+            classification="Primary",
+        )
+        onset, duration = resolve_symptom_timing_for_analysis(
+            symptom_type="Penile LX",
+            anchor_date=date(2024, 2, 15),
+            duration_days=None,
+            date_kind=date_kind,
+            classification="Primary",
+        )
+
+        assert date_kind == SymptomDateKind.OBSERVED_DURING_EXAM
+        assert duration_source == SymptomDurationSource.ASSUMED_MAX
+        assert derived_ongoing is True
+        assert duration == PRIMARY["max"]
+        assert onset == date(2024, 2, 15) - timedelta(days=PRIMARY["max"])
+
+    def test_reported_onset_keeps_reported_timing(self):
+        date_kind, duration_source, derived_ongoing = derive_symptom_capture_metadata(
+            symptom_type="Rash",
+            anchor_date=date(2024, 3, 1),
+            duration_days=14,
+            date_kind=SymptomDateKind.ONSET_REPORTED,
+            classification="Secondary",
+        )
+        onset, duration = resolve_symptom_timing_for_analysis(
+            symptom_type="Rash",
+            anchor_date=date(2024, 3, 1),
+            duration_days=14,
+            date_kind=date_kind,
+            classification="Secondary",
+        )
+
+        assert date_kind == SymptomDateKind.ONSET_REPORTED
+        assert duration_source == SymptomDurationSource.REPORTED
+        assert derived_ongoing is False
+        assert onset == date(2024, 3, 1)
+        assert duration == 14
 
 
 # ---------------------------------------------------------------------------

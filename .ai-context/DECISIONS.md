@@ -116,8 +116,9 @@ a SQLAlchemy `mapped_column()`.
 `get_symptom_classification(symptom_type)` at save time, not by user input.
 **Reason:** The classification (Primary/Secondary) is deterministic from the lesion
 or symptom type string. Asking users to set it manually is redundant and error-prone.
-**Implication:** Pages that save `SymptomEntry` rows must call `get_symptom_classification()`
-on each row before writing to DB. Pages 02, 03 already do this.
+**Implication:** Any code path that saves `SymptomEntry` rows must call
+`get_symptom_classification()` before writing to DB. Pages 02, 03 and the FastAPI
+symptom routes already do this.
 
 ---
 
@@ -131,3 +132,27 @@ on each row before writing to DB. Pages 02, 03 already do this.
 **Status:** Active
 **Decision:** `app/utils/notifications.py` (Slack integration) is explicitly meant as a developer convenience (agent status reporting) and is not wired into the application's business logic.
 **Reason:** The app is a clinical tool, not an event-streaming system. Pinging Slack on every DB change is noisy and out of scope.
+
+---
+
+## ADR-013: FastAPI reuses the shared ORM and query layer
+**Status:** Active
+**Decision:** `fastapi_app/` must reuse the shared SQLAlchemy models from `app/db/models.py` and should prefer calling functions from `app/db/queries.py` rather than duplicating CRUD logic in a parallel backend-specific data layer.
+**Reason:** The v1 Streamlit app already contains the stable domain model and most of the tested CRUD surface. Reusing that layer keeps FastAPI migration incremental, avoids schema drift, and preserves the option to run Streamlit and FastAPI in parallel during the transition.
+**Implication:** Do not introduce a second declarative `Base` with duplicated models for FastAPI. New backend routes should stay thin and delegate data access to shared query functions unless there is a strong API-specific reason not to.
+
+---
+
+## ADR-014: Exposure dates are pair-specific, not case-level
+**Status:** Active
+**Decision:** Exposure timing (`exposure_first_date`, `exposure_last_date`, `exposure_modalities`) belongs on `CasePartnerRelationship` and `RelationshipReport`, not on `Case` or the React case form.
+**Reason:** Exposure is defined per OP↔partner pair. Storing or presenting it at the case level becomes ambiguous as soon as one OP has multiple partners.
+**Implication:** Do not add pairwise exposure fields to React case create/edit forms. Future frontend exposure capture must be implemented on partner/relationship screens using the existing FastAPI relationship endpoints.
+
+---
+
+## ADR-015: Symptom timing must preserve provenance
+**Status:** Active
+**Decision:** Symptom rows must capture whether the stored date is a reported onset date or an observation date from exam (`SymptomDateKind`), and whether duration is reported, assumed max, or unknown (`SymptomDurationSource`).
+**Reason:** The field labeled only as “Onset Date” was not expressive enough for real workflows. Users sometimes know only the observation date from exam, and analysis must distinguish reported timing from inferred timing.
+**Implication:** New symptom collection flows use “Onset or observation date” and explicit “Date type”. When a symptom is observed during exam and duration is blank, analysis treats the observation date as the last day of the maximum duration for that symptom class. `ongoing` is derived in these flows instead of being manually entered.

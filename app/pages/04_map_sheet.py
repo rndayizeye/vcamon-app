@@ -57,7 +57,7 @@ with st.sidebar:
         st.stop()
 
     st.write(f"**#{case.id} — {case.patient_name}**")
-    st.caption(f"Lot: {case.lot or '—'}  |  Manager: {case.case_manager or '—'}")
+    st.caption(f"Diagnosis: {case.lot or '—'}  |  Manager: {case.case_manager or '—'}")
 
     st.divider()
     st.subheader("MAP subject")

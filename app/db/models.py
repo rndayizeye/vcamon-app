@@ -129,6 +129,17 @@ class SymptomClassification(str, enum.Enum):
     SECONDARY = "Secondary"
 
 
+class SymptomDateKind(str, enum.Enum):
+    ONSET_REPORTED = "Onset reported"
+    OBSERVED_DURING_EXAM = "Observed during exam (onset unknown)"
+
+
+class SymptomDurationSource(str, enum.Enum):
+    REPORTED = "Reported"
+    ASSUMED_MAX = "Assumed max"
+    UNKNOWN = "Unknown"
+
+
 class TestCategory(str, enum.Enum):
     NON_TREPONEMAL = "Non-treponemal"
     TREPONEMAL = "Treponemal"
@@ -207,7 +218,9 @@ class Case(Base):
 
     # Patient identifiers (OP sheet rows 1-2)
     patient_name: Mapped[str] = mapped_column(String(200), nullable=False)
-    lot: Mapped[str | None] = mapped_column(String(10))  # 700, 710, 720, 730
+    lot: Mapped[str | None] = mapped_column(
+        String(10)
+    )  # legacy diagnosis/stage code: 700, 710, 720, 730, 755
     case_manager: Mapped[str | None] = mapped_column(String(200))
     initial_contact_date: Mapped[date | None] = mapped_column(Date)
 
@@ -425,7 +438,17 @@ class SymptomEntry(Base):
         Enum(SymptomClassification, name="entry_symptom_class_enum")
     )
     onset_date: Mapped[date | None] = mapped_column(Date)
+    date_kind: Mapped[str] = mapped_column(
+        Enum(SymptomDateKind, name="symptom_date_kind_enum"),
+        default=SymptomDateKind.ONSET_REPORTED,
+        nullable=False,
+    )
     duration_days: Mapped[int | None] = mapped_column(Integer)
+    duration_source: Mapped[str] = mapped_column(
+        Enum(SymptomDurationSource, name="symptom_duration_source_enum"),
+        default=SymptomDurationSource.UNKNOWN,
+        nullable=False,
+    )
     ongoing: Mapped[bool] = mapped_column(Boolean, default=False)
 
     case: Mapped["Case | None"] = relationship("Case", back_populates="symptoms")

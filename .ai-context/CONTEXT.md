@@ -23,10 +23,12 @@ Repo: rndayizeye/vcamon-app
 
 | Layer | Technology | Version |
 |---|---|---|
-| UI framework | Streamlit | ≥1.35 |
+| UI framework | Streamlit $\rightarrow$ React (V2 Migration) | ≥1.35 (Streamlit), Vite (React) |
+| API framework | FastAPI | ≥0.104 |
 | ORM | SQLAlchemy | ≥2.0 (declarative, Mapped columns) |
+| Migrations | Alembic | ≥1.10 |
 | Database (current) | SQLite | ./data/vcamon_v2.db (Docker volume) |
-| Database (target) | PostgreSQL via Supabase | v2 migration |
+| Database (target) | PostgreSQL via Supabase | v2 migration underway |
 | Python | 3.11 | |
 | Linter | Ruff | |
 | Tests | Pytest | ≥8.0 |
@@ -65,9 +67,17 @@ vcamon-app/
 │       ├── validators.py          # Pure Python form validation (no Streamlit imports)
 │       ├── clinical.py            # VCA ghosting engine — pure Python, no Streamlit/SQLAlchemy
 │       └── ghosting_plot.py       # Plotly scenario diagram builder
+├── fastapi_app/
+│   ├── main.py                    # FastAPI entry point / app factory
+│   ├── app/
+│   │   ├── db/__init__.py         # FastAPI engine/session wiring using shared Base
+│   │   ├── routers/cases.py       # Initial REST endpoints for cases + partners
+│   │   └── schemas/cases.py       # Pydantic request/response models
+│   └── migrations/                # Alembic env + future revisions
 ├── tests/
 │   ├── test_clinical.py           # Ghosting engine unit tests (slide 17 scenario)
 │   ├── test_db.py                 # CRUD tests using in-memory SQLite
+│   ├── test_fastapi_cases.py      # FastAPI health + case/partner API tests
 │   └── test_validators.py         # Form validation unit tests
 ├── docker/ requirements/ data/
 └── .ai-context/                   # ← YOU ARE HERE
@@ -88,7 +98,7 @@ vcamon-app/
 | `lab_results` | Repeatable lab history per case or partner (split by TestCategory) |
 | `case_partner_relationships` | Exposure window + sex types per OP↔partner pair |
 | `relationship_reports` | Per-reporter evidence for the consensus narrative |
-| `symptom_entries` | Repeatable symptom entries per case or partner |
+| `symptom_entries` | Repeatable symptom entries per case or partner, with date provenance (`date_kind`) and duration provenance (`duration_source`) |
 
 Legacy fields (`lab_1`, `lab_2`, `lab_3`, `lesion_type`, `symptom`) are kept on
 `cases` and `partners` but deprecated — all new writes set them to `None`.
@@ -105,7 +115,7 @@ Legacy fields (`lab_1`, `lab_2`, `lab_3`, `lesion_type`, `symptom`) are kept on
 **Lab vocabulary (UI-only — NOT mapped to DB columns, used in data_editor column_config):**
 - `NonTreponemalTestType` — RPR, VDRL
 - `TreponemalTestType` — TPPA, TP-AB, FTA, FTA-ABS, DFKD, MHA-TP, Other
-- `NonTreponemalTiter` — Neg, Reactive, 1:1 … >1:1024
+- `NonTreponemalTiter` — Non-Reactive, 1:1 … >1:1024
 - `TreponemalTestResult` — Reactive, Non-reactive
 
 The UI-only enums are used via `enum_options(EnumClass)` in the split lab editor
@@ -141,8 +151,8 @@ Min latency to secondary: `MIN_LATENCY_TO_SECONDARY_DAYS = 35`
 - `evaluate_criteria()` — exposure overlap (period intersection), anatomical compatibility, latency, natural order
 - `determine_verdict()` — SOURCE / SPREAD / AMBIGUOUS / UNRELATED + overlap annotation
 - `get_symptom_classification(symptom_type)` → `"Primary"` | `"Secondary"` | `None`
-  Called on every form save; derives classification from the lesion/symptom type string.
-  Do NOT remove — pages 02, 03, 07, 09 all depend on it.
+  Called on every form/API save; derives classification from the lesion/symptom type string.
+  Do NOT remove — pages 02, 03, 07, 09 and FastAPI symptom routes all depend on it.
 - `calc_interview_period_start(onset, type, last_negative_date)` — exists but not yet wired to UI
 
 ### `Symptom` dataclass fields
@@ -166,9 +176,16 @@ sex-type compatibility criterion. Set from the `Location` column of the symptom 
 
 ### Database
 - Always use `with SessionLocal() as db:` context manager — never bare `db = SessionLocal()`
-- All DB access goes through functions in `queries.py` — no inline ORM queries in pages
+- All DB access goes through functions in `queries.py` — no inline ORM queries in pages or FastAPI routers
 - New query functions use `**kwargs` pattern for flexible updates
 - `from_ref` / `to_ref` in ArrowLink and Ghosting: `"OP"` or partner number string (`"1"`, `"2"`)
+
+### FastAPI backend (`fastapi_app/`)
+- Reuse shared ORM models from `app/db/models.py` via the shared `Base`; do not create a second declarative model tree.
+- Reuse business/data-access logic from `app/db/queries.py` where practical; FastAPI should be a thin API layer, not a parallel rewrite.
+- Routers live in `fastapi_app/app/routers/`; Pydantic schemas live in `fastapi_app/app/schemas/`.
+- Endpoint tests should override `get_db` and pin `DATABASE_URL` to SQLite before importing the FastAPI app.
+- Symptom APIs now expose `date_kind` and `duration_source` and derive `ongoing` server-side from symptom provenance.
 
 ### Streamlit pages
 - Every page calls `init_session_state()` then `require_password()` at the top
@@ -176,6 +193,7 @@ sex-type compatibility criterion. Set from the `Location` column of the symptom 
 - Active partner ID: always use `get_active_partner_id()` / `set_active_partner_id()`
 - Navigation: `st.switch_page("pages/NN_name.py")` — no relative paths
 - `st.set_page_config()` must be the first Streamlit call on every page
+- Exposure window fields belong on the OP↔partner relationship workflow (`CasePartnerRelationship`), not on the case record itself.
 
 ### Lab editor pattern (pages 02 and 03)
 Two separate `st.data_editor` tables: non-treponemal (left) and treponemal (right).
@@ -184,8 +202,11 @@ Keys: `"op_nontrop_lab_editor"`, `"op_trep_lab_editor"`, `"partner_nontrop_lab_e
 Save logic: collect current IDs from DB, diff against editor IDs, delete orphans, upsert rows.
 
 ### Symptom editor pattern (pages 02, 03, 07, 09)
-Single `st.data_editor` with columns: `Type` (SelectboxColumn), `Onset Date`, `Duration`, `Ongoing` (pages 02/03) or `Location` (pages 07/09).
+Streamlit pages 02 and 03 now collect symptom rows with `Type`, `Onset or Observation Date`, `Date Type`, and `Duration`.
+`ongoing` is derived in the new symptom provenance flow instead of being manually entered.
 Classification is derived via `get_symptom_classification()` at save time — never stored manually.
+
+Pages 07 and 08 must interpret saved symptom rows through the derived timing helpers rather than assuming the stored date is always a true onset date.
 
 ### Models
 - All enums inherit from `(str, enum.Enum)` for SQLAlchemy compatibility
@@ -202,9 +223,6 @@ Classification is derived via `get_symptom_classification()` at save time — ne
 | VCA chart (08) not reading `SymptomEntry` — symptom bars blank | 08 | High |
 | VCA chart (08) not reading `LabResultEntry` — lab markers blank | 08 | Medium |
 | `dropdowns.py` has unused legacy helpers | components/dropdowns.py | Low |
-| `docker-compose.yml` DATABASE_URL still points to `vcamon.db` not `vcamon_v2.db` | docker-compose.yml | Medium |
-| No Alembic — schema migration is drop-and-recreate | database.py | Must fix before real data |
-| `test_db.py` missing `LabResultEntry` + `SymptomEntry` CRUD tests | tests/ | Medium |
 
 ---
 
@@ -226,17 +244,34 @@ Classification is derived via `get_symptom_classification()` at save time — ne
 | `SECRET_KEY` | — | Required in production |
 | `BETA_PASSWORD` | — | In `.streamlit/secrets.toml` (never commit) |
 
-Note: `docker-compose.yml` still sets `DATABASE_URL=sqlite:////project/data/vcamon.db`
-(old name). This is a known mismatch — update before next Docker deploy.
+Local agent validation should use the dedicated conda env `ai_coding_env_311` via
+`conda run -n ai_coding_env_311 ...` to avoid installing into base Anaconda.
+
+`docker-compose.yml` now points at `sqlite:////project/data/vcamon_v2.db`.
 
 Streamlit Cloud: SQLite goes to `/tmp` and resets on restart. Demo case auto-seeded on cold start.
 
 ---
 
-## Planned v2 migration (do not start yet)
+## V2 migration status
 
-- Backend: FastAPI + SQLAlchemy (same models, REST API layer)
-- Database: PostgreSQL via Supabase
-- Frontend: React + Tailwind CSS
-- Auth: Supabase Auth (case worker vs supervisor roles)
-- `clinical.py` drops in unchanged — design decisions must preserve this
+**Started. Current backend baseline:**
+- FastAPI app scaffold is active under `fastapi_app/`
+- Shared SQLAlchemy metadata from `app/db/models.py` is reused by FastAPI and Alembic
+- Implemented endpoints: `/health`, `/api/cases`, `/api/cases/{id}`, `/api/cases/{id}/partners`, `/api/cases/partners/{partner_id}`
+- Implemented labs endpoints: `/api/cases/{id}/labs`, `/api/cases/partners/{partner_id}/labs`, `/api/cases/labs/{entry_id}`
+- Implemented symptoms endpoints: `/api/cases/{id}/symptoms`, `/api/cases/partners/{partner_id}/symptoms`, `/api/cases/symptoms/{entry_id}`
+- Implemented timeline endpoints: `/api/cases/{id}/timeline`, `/api/cases/timeline/{event_id}`
+- Implemented relationship endpoints: `/api/cases/{case_id}/partners/{partner_id}/relationship`, `/api/cases/relationships/{relationship_id}/reports`, `/api/cases/relationships/reports/{report_id}`
+- Implemented ghosting endpoints: `/api/ghosting/analyze`, `/api/cases/{case_id}/partners/{partner_id}/ghosting-analysis`, `/api/cases/{case_id}/ghostings`, `/api/cases/ghostings/{ghosting_id}`
+- Implemented analytics endpoints: `/api/cases/{id}/links`, `/api/cases/links/{link_id}`, `/api/cases/{id}/analytics`
+- Implemented MAP endpoints: `/api/map/items`, `/api/cases/{case_id}/map`, `/api/cases/{case_id}/partners/{partner_id}/map`
+- Implemented auth scaffolding: optional Supabase-backed auth middleware plus `/api/auth/status`, `/api/auth/me`, and `/api/auth/permissions`
+- Added initial role policy scaffold: operator access for create/update flows; supervisor-only access for destructive deletes/MAP clears
+- Initial Alembic revision exists at `fastapi_app/migrations/versions/e3f9427a3fbf_initial_schema.py`
+- API tests live in `tests/test_fastapi_cases.py`; migration coverage lives in `tests/test_alembic.py`
+
+**Next backend steps:**
+- Apply Alembic migrations (`make db-upgrade`) in local/dev/deploy bootstrap flows
+- Complete frontend login flow integration against the auth contract in `documents/fastapi-auth-contract.md`
+- Refine RBAC beyond the current rollout-safe operator/supervisor scaffold if product rules become more specific

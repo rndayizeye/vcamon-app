@@ -107,7 +107,7 @@ with st.sidebar:
         st.stop()
 
     st.write(f"**#{case.id} — {case.patient_name}**")
-    st.caption(f"Lot: {case.lot or '—'}  |  Manager: {case.case_manager or '—'}")
+    st.caption(f"Diagnosis: {case.lot or '—'}  |  Manager: {case.case_manager or '—'}")
     st.divider()
 
     if st.button("← MAP sheet", use_container_width=True):
@@ -173,7 +173,7 @@ def build_graph(case, partners, links, selected_date=None):
             size=28,
             color="#D85A30",
             font={"color": "#FFFFFF", "size": 14},
-            title=f"OP: {case.patient_name}\nLot: {case.lot or '—'}",
+            title=f"OP: {case.patient_name}\nDiagnosis: {case.lot or '—'}",
         )
     )
 

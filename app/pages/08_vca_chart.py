@@ -40,10 +40,13 @@ from app.db.queries import (
     get_case_partner_relationship,
     get_ghostings,
     get_partners_for_case,
+    get_symptoms_for_case,
+    get_symptoms_for_partner,
 )
 from app.utils.clinical import (
     INCUBATION,
     PRIMARY,
+    resolve_symptom_timing_for_analysis,
 )
 from app.utils.session_state import (
     get_active_case_id,
@@ -151,13 +154,15 @@ with st.sidebar:
         case = get_case_by_id(db, case_id)
         partners = get_partners_for_case(db, case_id)
         ghostings = get_ghostings(db, case_id)
+        case_symptoms = get_symptoms_for_case(db, case_id)
+        primary_sym_case = case_symptoms[-1] if case_symptoms else None
 
     if not case:
         st.error("Case not found.")
         st.stop()
 
     st.write(f"**#{case.id} — {case.patient_name}**")
-    st.caption(f"Lot: {case.lot or '—'}  |  Manager: {case.case_manager or '—'}")
+    st.caption(f"Diagnosis: {case.lot or '—'}  |  Manager: {case.case_manager or '—'}")
     st.divider()
 
     show_durations = st.toggle("Show symptom duration bars", value=True)
@@ -195,8 +200,8 @@ people = []
 op_entry = {
     "id": "OP",
     "label": f"{case.patient_name} (OP)",
-    "lesion_type": case.lesion_type,
-    "symptom": case.symptom,
+    "lesion_type": primary_sym_case.lesion_type if primary_sym_case else case.lesion_type,
+    "symptom": primary_sym_case.symptom if primary_sym_case else case.symptom,
     "treatment_date": case.treatment_date,
     "lab_1": case.lab_1,
     "lab_2": case.lab_2,
@@ -205,6 +210,7 @@ op_entry = {
     "last_exposure": None,
     "exposure_modalities": [],
     "is_op": True,
+    "primary_sym": primary_sym_case,
 }
 people.append(op_entry)
 
@@ -212,6 +218,8 @@ for p in partners:
     # Load relationship data from the new association table
     with SessionLocal() as db:
         relationship = get_case_partner_relationship(db, case_id, p.id)
+        partner_symptoms = get_symptoms_for_partner(db, p.id)
+        primary_sym_partner = partner_symptoms[-1] if partner_symptoms else None
 
     sex_list = []
     if relationship and relationship.exposure_modalities:
@@ -224,8 +232,8 @@ for p in partners:
         {
             "id": str(p.partner_number),
             "label": f"P{p.partner_number} — {p.name or 'Unnamed'}",
-            "lesion_type": p.lesion_type,
-            "symptom": p.symptom,
+            "lesion_type": primary_sym_partner.lesion_type if primary_sym_partner else p.lesion_type,
+            "symptom": primary_sym_partner.symptom if primary_sym_partner else p.symptom,
             "treatment_date": p.treatment_date,
             "lab_1": p.lab_1,
             "lab_2": p.lab_2,
@@ -236,6 +244,7 @@ for p in partners:
             "last_exposure": relationship.exposure_last_date if relationship else None,
             "exposure_modalities": sex_list,
             "is_op": False,
+            "primary_sym": primary_sym_partner,
         }
     )
 
@@ -306,10 +315,29 @@ def _sym_type(person: dict) -> str:
     return "Other"
 
 
-def _sym_onset(person: dict):
-    """Symptom onset date from the primary symptom entry."""
+def _sym_timing(person: dict):
+    """Derived symptom timing for the primary symptom entry."""
     sym = person.get("primary_sym")
-    return sym.onset_date if sym else None
+    if not sym:
+        return None, 0
+
+    return resolve_symptom_timing_for_analysis(
+        symptom_type=sym.symptom_type,
+        anchor_date=sym.onset_date,
+        duration_days=sym.duration_days,
+        date_kind=getattr(sym, "date_kind", None),
+        classification=sym.classification,
+    )
+
+
+def _sym_onset(person: dict):
+    """Derived symptom onset date from the primary symptom entry."""
+    return _sym_timing(person)[0]
+
+
+def _sym_duration(person: dict):
+    """Derived symptom duration for the primary symptom entry."""
+    return _sym_timing(person)[1]
 
 
 # --- Draw per-person elements ---
@@ -317,11 +345,12 @@ for person in people:
     y = person["label"]
     sym_type = _sym_type(person)
     sym_onset = _sym_onset(person)
+    sym_duration = _sym_duration(person)
 
     # --- Symptom duration bar ---
     if show_durations and sym_type and sym_onset:
-        # Use actual duration from DB if available, else fallback to PRIMARY avg
-        dur = person["primary_sym"].duration_days or PRIMARY["avg"]
+        # Use derived duration from symptom provenance, else fallback to PRIMARY avg
+        dur = sym_duration or PRIMARY["avg"]
         end = sym_onset + timedelta(days=dur)
         fig.add_trace(
             go.Scatter(
@@ -368,8 +397,8 @@ for person in people:
 
     # --- Inoculation points ---
     if show_inoc and sym_type and sym_onset:
-        # Use actual duration from DB if available
-        dur = person["primary_sym"].duration_days or PRIMARY["avg"]
+        # Use derived duration from symptom provenance
+        dur = sym_duration or PRIMARY["avg"]
         min_d, avg_d, max_d = _inoculation_points(sym_type, sym_onset, dur)
         inoc_dates = [d for d in [min_d, avg_d, max_d] if d]
         inoc_labels = ["Min inoculation", "Avg inoculation", "Max inoculation"][
@@ -410,7 +439,7 @@ for person in people:
                 hovertemplate=(
                     f"<b>{y}</b><br>"
                     f"Lab: {lab.test_type}: {lab.titer or lab.result or 'N/A'}"
-                    + f"<br>Lot: {person['lot'] or '—'}<extra></extra>"
+                    + f"<br>Diagnosis: {person['lot'] or '—'}<extra></extra>"
                 ),
             )
         )

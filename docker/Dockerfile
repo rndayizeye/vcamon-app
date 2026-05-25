@@ -11,6 +11,7 @@ RUN pip install --no-cache-dir -r base.txt
 
 # 3. Code and Metadata
 COPY . .
+RUN chmod +x /project/docker/entrypoint.sh
 
 # 4. Install the project (Now it will find the correct build-backend)
 RUN pip install --no-cache-dir .
@@ -19,4 +20,4 @@ EXPOSE 8501
 
 HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health || exit 1
 
-ENTRYPOINT ["streamlit", "run", "app/main.py", "--server.port=8501", "--server.address=0.0.0.0"]
+ENTRYPOINT ["/project/docker/entrypoint.sh", "streamlit", "run", "app/main.py", "--server.port=8501", "--server.address=0.0.0.0"]

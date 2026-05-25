@@ -95,6 +95,9 @@ cp .env.example .env
 
 make build
 make run
+
+# optional: run the FastAPI backend locally
+make run-api
 ```
 
 Open [http://localhost:8501](http://localhost:8501).
@@ -131,13 +134,37 @@ Copy `.env.example` to `.env` and set values before running:
 | `DATABASE_URL` | `sqlite:///./data/vcamon.db` | SQLAlchemy connection string |
 | `APP_ENV` | `development` | `development` or `production` |
 | `SECRET_KEY` | — | Required in production |
+| `AUTH_ENABLED` | `false` | Enables FastAPI bearer-token auth middleware |
+| `SUPABASE_URL` | — | Supabase project URL used for server-side token validation |
+| `SUPABASE_ANON_KEY` / `SUPABASE_PUBLISHABLE_KEY` | — | Key sent as the `apikey` header when validating Supabase access tokens |
+| `SUPABASE_AUTH_TIMEOUT_SECONDS` | `5` | Timeout for server-side Supabase token validation requests |
 
 The SQLite database is created automatically on first run. The `data/` directory
 is mounted as a Docker volume so it persists across container restarts.
 
+When `AUTH_ENABLED=true`, FastAPI keeps `/, /health, /api, /api/auth/status,
+/docs, /redoc, /openapi.json` public and requires `Authorization: Bearer <token>`
+for the remaining API routes. The scaffold also exposes `/api/auth/me` so the
+frontend can inspect the authenticated Supabase user context.
+
+For browser clients, CORS preflight `OPTIONS` requests bypass auth automatically,
+so authenticated frontend calls can succeed without the middleware blocking the
+preflight before the real bearer-authenticated request is sent.
+
+For the frontend integration contract and current permission model, see
+`documents/fastapi-auth-contract.md`.
+
+For a copy-pastable React + Supabase bootstrap example, see
+`documents/react-auth-bootstrap-example.md`.
+
 > **Streamlit Cloud note:** SQLite is stored in `/tmp` on Streamlit Cloud and
 > resets on container restart. A demo case is auto-seeded on each cold start.
 > Production deployment should use PostgreSQL via the `DATABASE_URL` env var.
+>
+> **Supabase auth note:** when enabling auth in local Docker or deploy targets,
+> set `AUTH_ENABLED=true`, `SUPABASE_URL`, and one of
+> `SUPABASE_ANON_KEY`/`SUPABASE_PUBLISHABLE_KEY` in `.env` or your deployment
+> environment.
 
 ---
 

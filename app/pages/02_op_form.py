@@ -19,6 +19,7 @@ from app.db.models import (
     NonTreponemalTiter,
     ReasonForExam,
     Symptom,
+    SymptomDateKind,
     TestCategory,
     Treatment,
     TreponemalTestResult,
@@ -38,7 +39,12 @@ from app.db.queries import (
     update_lab_result_entry,
     update_symptom_entry,
 )
-from app.utils.clinical import get_symptom_classification
+from app.utils.clinical import (
+    derive_symptom_capture_metadata,
+    derive_symptom_end_date,
+    get_symptom_classification,
+    resolve_symptom_timing_for_analysis,
+)
 from app.utils.session_state import (
     get_active_case_id,
     init_session_state,
@@ -121,10 +127,13 @@ with st.form("op_form", border=True):
             placeholder="Last, First",
         )
     with col2:
+        diagnosis_options = ["", "700", "710", "720", "730", "755"]
         lot = st.selectbox(
-            "Diagnosis",  # changed label from "Lot" to "Diagnosis", need to update DB field name in future
-            options=["", "700", "710", "720", "730"],
-            index=["", "700", "710", "720", "730"].index(case.lot or "") if case else 0,
+            "Diagnosis / syphilis stage",
+            options=diagnosis_options,
+            index=diagnosis_options.index(case.lot or "")
+            if case and case.lot in diagnosis_options
+            else 0,
         )
     with col3:
         case_manager = st.text_input(
@@ -168,7 +177,12 @@ with st.form("op_form", border=True):
 
     with col5:
         st.subheader("Symptoms")
-        st.caption("Add and manage all symptoms. Click a cell to edit.")
+        st.caption(
+            "Add and manage all symptoms. Use onset or observation date. "
+            "If onset is unknown and the symptom was observed during exam, "
+            "select that date type; when duration is left blank, analysis "
+            "will assume the maximum duration for that symptom class."
+        )
 
         # Load existing symptoms for the case
 
@@ -179,9 +193,13 @@ with st.form("op_form", border=True):
                     {
                         "id": s.id,
                         "Type": s.symptom_type,
-                        "Onset Date": s.onset_date,
+                        "Onset or Observation Date": s.onset_date,
+                        "Date Type": (
+                            s.date_kind.value
+                            if isinstance(s.date_kind, SymptomDateKind)
+                            else s.date_kind or SymptomDateKind.ONSET_REPORTED.value
+                        ),
                         "Duration": s.duration_days,
-                        "Ongoing": s.ongoing,
                     }
                     for s in symptoms
                 ]
@@ -191,7 +209,13 @@ with st.form("op_form", border=True):
         # Create DataFrame with proper schema (shows editable table even when empty)
         symptom_df = pd.DataFrame(
             existing_symptoms,
-            columns=["id", "Type", "Onset Date", "Duration", "Ongoing"],
+            columns=[
+                "id",
+                "Type",
+                "Onset or Observation Date",
+                "Date Type",
+                "Duration",
+            ],
         )
 
         edited_symptom_df = st.data_editor(
@@ -204,9 +228,15 @@ with st.form("op_form", border=True):
                     options=enum_options(LesionType) + enum_options(Symptom),
                     required=True,
                 ),
-                "Onset Date": st.column_config.DateColumn("Onset Date"),
-                "Duration": st.column_config.NumberColumn("Duration (Days)"),
-                "Ongoing": st.column_config.CheckboxColumn("Ongoing"),
+                "Onset or Observation Date": st.column_config.DateColumn(
+                    "Onset or observation date"
+                ),
+                "Date Type": st.column_config.SelectboxColumn(
+                    "Date type",
+                    options=[option.value for option in SymptomDateKind],
+                    required=True,
+                ),
+                "Duration": st.column_config.NumberColumn("Duration (Days, if known)"),
             },
             key="symptom_editor",
             use_container_width=True,
@@ -347,8 +377,11 @@ if submitted or go_partners or go_map:
 
         for row in edited_symptom_df.to_dict("records"):
             symptom_type = row.get("Type")
-            onset_date = row.get("Onset Date")
-            duration_days = row.get("Duration")
+            anchor_date = row.get("Onset or Observation Date")
+            date_kind = row.get("Date Type")
+            duration_days = (
+                int(row["Duration"]) if pd.notna(row.get("Duration")) else None
+            )
 
             is_primary_chancre = symptom_type in [
                 LesionType.ANAL.value,
@@ -360,21 +393,27 @@ if submitted or go_partners or go_map:
                 LesionType.VAGINAL.value,
             ]
 
-            if (
-                is_primary_chancre
-                and pd.notna(onset_date)
-                and pd.notna(duration_days)
-                and treatment_date
-            ):
+            if is_primary_chancre and pd.notna(anchor_date) and treatment_date:
                 try:
-                    symptom_end_date = pd.to_datetime(onset_date) + pd.Timedelta(
-                        days=int(duration_days)
+                    analysis_onset, _ = resolve_symptom_timing_for_analysis(
+                        symptom_type=symptom_type,
+                        anchor_date=pd.to_datetime(anchor_date).date(),
+                        duration_days=duration_days,
+                        date_kind=date_kind,
+                        classification=get_symptom_classification(symptom_type),
                     )
-                    if symptom_end_date.date() < treatment_date:
+                    symptom_end_date = derive_symptom_end_date(
+                        anchor_date=pd.to_datetime(anchor_date).date(),
+                        duration_days=duration_days,
+                        date_kind=date_kind,
+                    )
+                    if (
+                        analysis_onset
+                        and symptom_end_date
+                        and symptom_end_date < treatment_date
+                    ):
                         derived_historical_primary_chancre = True
-                        derived_historical_primary_date = pd.to_datetime(
-                            onset_date
-                        ).date()
+                        derived_historical_primary_date = analysis_onset
                         break  # Found one, no need to check further
                 except ValueError:
                     pass  # Handle cases where date conversion might fail
@@ -486,28 +525,41 @@ if submitted or go_partners or go_map:
                 if pd.isna(row.get("Type")) or not row.get("Type"):
                     continue
                 derived_class = get_symptom_classification(row["Type"])
+                anchor_date = row.get("Onset or Observation Date")
+                duration_days = (
+                    int(row["Duration"]) if pd.notna(row.get("Duration")) else None
+                )
+                date_kind, duration_source, derived_ongoing = (
+                    derive_symptom_capture_metadata(
+                        symptom_type=row["Type"],
+                        anchor_date=anchor_date,
+                        duration_days=duration_days,
+                        date_kind=row.get("Date Type"),
+                        classification=derived_class,
+                    )
+                )
                 if pd.notna(row.get("id")):
                     update_symptom_entry(
                         db,
                         int(row["id"]),
                         symptom_type=row["Type"],
                         classification=derived_class,
-                        onset_date=row.get("Onset Date"),
-                        duration_days=int(row["Duration"])
-                        if pd.notna(row.get("Duration"))
-                        else None,
-                        ongoing=bool(row.get("Ongoing", False)),
+                        onset_date=anchor_date,
+                        date_kind=date_kind,
+                        duration_days=duration_days,
+                        duration_source=duration_source,
+                        ongoing=derived_ongoing,
                     )
                 else:
                     create_symptom_entry(
                         db,
                         symptom_type=row["Type"],
                         classification=derived_class,
-                        onset_date=row.get("Onset Date"),
-                        duration_days=int(row["Duration"])
-                        if pd.notna(row.get("Duration"))
-                        else None,
-                        ongoing=bool(row.get("Ongoing", False)),
+                        onset_date=anchor_date,
+                        date_kind=date_kind,
+                        duration_days=duration_days,
+                        duration_source=duration_source,
+                        ongoing=derived_ongoing,
                         case_id=case_id,
                     )
 
@@ -530,7 +582,7 @@ if case:
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Case ID", f"#{case.id}")
-    c2.metric("Lot", case.lot or "—")
+    c2.metric("Diagnosis", case.lot or "—")
     c3.metric(
         "Treatment date", str(case.treatment_date) if case.treatment_date else "—"
     )

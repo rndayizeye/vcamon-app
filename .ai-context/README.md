@@ -11,6 +11,9 @@ this project. Commit it alongside your code.
 | `PROGRESS.md` | What's done, what's in flight, blockers | End of every session |
 | `TASKS.md` | Current sprint tasks | As tasks are added/completed |
 | `DECISIONS.md` | Architecture decision records (why things are how they are) | When a design decision is made |
+| `GHOSTING_ENGINE_PAPER1.md` | Research workspace for the methods/informatics paper on the ghosting engine | During literature review and manuscript planning |
+| `PAPER1_LITERATURE_SEARCH.md` | Search worksheet with database strategy, exact starter queries, screening rules, and first-session checklist | During literature collection |
+| `PAPER1_ARTICLE_TRACKER.csv` | Spreadsheet-friendly tracker for search log, screening, abstraction, and synthesis notes | During literature collection and synthesis |
 
 ## How to use with each tool
 

@@ -36,6 +36,8 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Optional
 
+from app.db.models import SymptomClassification, SymptomDateKind, SymptomDurationSource
+
 # ---------------------------------------------------------------------------
 # Syphilis natural history constants (days)
 # Source: VCA Training slide 10, Marion County Public Health / NCSDDC 2022
@@ -142,10 +144,113 @@ def get_symptom_classification(symptom_type: str | None) -> str | None:
     if not symptom_type:
         return None
     if symptom_type in _PRIMARY_LESION_VALUES:
-        return "Primary"
+        return SymptomClassification.PRIMARY.value
     if symptom_type in _SECONDARY_SYMPTOM_VALUES:
-        return "Secondary"
+        return SymptomClassification.SECONDARY.value
     return None
+
+
+def normalize_symptom_date_kind(
+    date_kind: SymptomDateKind | str | None,
+) -> SymptomDateKind:
+    if isinstance(date_kind, SymptomDateKind):
+        return date_kind
+    if not date_kind:
+        return SymptomDateKind.ONSET_REPORTED
+
+    for option in SymptomDateKind:
+        if date_kind in {option.value, option.name}:
+            return option
+
+    return SymptomDateKind.ONSET_REPORTED
+
+
+def get_symptom_max_duration_days(
+    symptom_type: str | None = None,
+    classification: str | None = None,
+) -> int | None:
+    resolved_classification = classification or get_symptom_classification(symptom_type)
+
+    if resolved_classification == SymptomClassification.PRIMARY.value:
+        return PRIMARY["max"]
+    if resolved_classification == SymptomClassification.SECONDARY.value:
+        return SECONDARY["max"]
+    return None
+
+
+def derive_symptom_capture_metadata(
+    symptom_type: str | None,
+    anchor_date: date | None,
+    duration_days: int | None,
+    date_kind: SymptomDateKind | str | None,
+    classification: str | None = None,
+) -> tuple[SymptomDateKind, SymptomDurationSource, bool]:
+    normalized_date_kind = normalize_symptom_date_kind(date_kind)
+    derived_ongoing = (
+        normalized_date_kind == SymptomDateKind.OBSERVED_DURING_EXAM
+        and anchor_date is not None
+    )
+
+    if duration_days is not None:
+        duration_source = SymptomDurationSource.REPORTED
+    elif (
+        normalized_date_kind == SymptomDateKind.OBSERVED_DURING_EXAM
+        and get_symptom_max_duration_days(symptom_type, classification) is not None
+    ):
+        duration_source = SymptomDurationSource.ASSUMED_MAX
+    else:
+        duration_source = SymptomDurationSource.UNKNOWN
+
+    return normalized_date_kind, duration_source, derived_ongoing
+
+
+def resolve_symptom_timing_for_analysis(
+    symptom_type: str | None,
+    anchor_date: date | None,
+    duration_days: int | None,
+    date_kind: SymptomDateKind | str | None,
+    classification: str | None = None,
+) -> tuple[date | None, int]:
+    if not anchor_date:
+        return None, duration_days or 0
+
+    normalized_date_kind, _, _ = derive_symptom_capture_metadata(
+        symptom_type=symptom_type,
+        anchor_date=anchor_date,
+        duration_days=duration_days,
+        date_kind=date_kind,
+        classification=classification,
+    )
+
+    if normalized_date_kind == SymptomDateKind.OBSERVED_DURING_EXAM:
+        effective_duration = duration_days
+        if effective_duration is None:
+            effective_duration = get_symptom_max_duration_days(
+                symptom_type=symptom_type,
+                classification=classification,
+            )
+        if effective_duration is None:
+            return anchor_date, 0
+        return anchor_date - timedelta(days=effective_duration), effective_duration
+
+    return anchor_date, duration_days or 0
+
+
+def derive_symptom_end_date(
+    anchor_date: date | None,
+    duration_days: int | None,
+    date_kind: SymptomDateKind | str | None,
+) -> date | None:
+    if not anchor_date:
+        return None
+
+    if normalize_symptom_date_kind(date_kind) == SymptomDateKind.OBSERVED_DURING_EXAM:
+        return anchor_date
+
+    if duration_days is None:
+        return None
+
+    return anchor_date + timedelta(days=duration_days)
 
 
 # ---------------------------------------------------------------------------
