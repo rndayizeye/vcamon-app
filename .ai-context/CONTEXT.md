@@ -278,11 +278,19 @@ Streamlit Cloud: SQLite goes to `/tmp` and resets on restart. Demo case auto-see
   - `RequireAuth` route guard, `RequirePermission` permission gates wired on all destructive actions
   - `LoginPage` handles both auth-enabled (magic link) and auth-disabled (bypass) modes
   - `TopBar` shows user email + sign-out when auth is enabled
-  - TypeScript compiles clean; full stack verified: FastAPI on `localhost:8000`, Vite on `localhost:5175`
+  - TypeScript compiles clean; full stack verified: FastAPI on `localhost:8000`, Vite on `localhost:5173`
+- React partner form complete (`frontend/src/features/partners/components/PartnerForm.tsx`)
+  - Fixed `historical_primary_chancre`: select string → `bool | null` conversion in `toPartnerPayload`
+  - Fixed `any[]` types → `SymptomEntryRead[]` / `LabResultEntryRead[]`
+  - Added `toLabDraft()` so DB `id` is preserved on edit (prevents duplicate rows)
+  - Added `normalizeLabDrafts()` before submit — blank rows are stripped
+  - Removed dead exposure fields (belong on `CasePartnerRelationship`, not `Partner`)
+  - Fixed `PartnerCreatePage` to sync labs on create (`syncPartnerLabs` alongside `syncPartnerSymptoms`)
 
 **Next steps:**
 - Set up Supabase project and add credentials to activate real auth (`AUTH_ENABLED=true`)
   - `frontend/.env.local`: add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`
   - `.env`: add `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `AUTH_ENABLED=true`
 - Test authenticated flow end-to-end (magic link → token injection → `/api/auth/me` returns real user)
+- Remaining React page migrations: MAP sheet (page 04), network graph (page 05), timeline (page 06), quick ghost (page 09)
 - Refine RBAC beyond the current rollout-safe operator/supervisor scaffold if product rules become more specific
