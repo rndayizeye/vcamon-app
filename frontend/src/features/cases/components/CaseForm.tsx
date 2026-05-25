@@ -307,7 +307,7 @@ export function CaseForm({
 
       <div className="stack-md">
         <LabResultsEditor
-          control={control}
+          control={control as Parameters<typeof LabResultsEditor>[0]["control"]}
           nontrepName="nontrepLabs"
           trepName="trepLabs"
         />

@@ -8,7 +8,7 @@ as new pages are built rather than all upfront.
 
 from datetime import date
 from typing import Optional
-
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db.models import (
@@ -20,6 +20,8 @@ from app.db.models import (
     MAPEntry,
     Partner,
     RelationshipReport,
+    SymptomDateKind,
+    SymptomDurationSource,
     SymptomEntry,
     TimelineEvent,
 )
@@ -35,6 +37,17 @@ def get_case_partner_relationship(
             CasePartnerRelationship.case_id == case_id,
             CasePartnerRelationship.partner_id == partner_id,
         )
+        .first()
+    )
+
+
+def get_case_partner_relationship_by_id(
+    db: Session, relationship_id: int
+) -> CasePartnerRelationship | None:
+    """Retrieve a relationship entry by ID."""
+    return (
+        db.query(CasePartnerRelationship)
+        .filter(CasePartnerRelationship.id == relationship_id)
         .first()
     )
 
@@ -65,11 +78,7 @@ def update_case_partner_relationship(
     db: Session, relationship_id: int, **kwargs
 ) -> CasePartnerRelationship | None:
     """Update an existing relationship entry."""
-    rel = (
-        db.query(CasePartnerRelationship)
-        .filter(CasePartnerRelationship.id == relationship_id)
-        .first()
-    )
+    rel = get_case_partner_relationship_by_id(db, relationship_id)
     if not rel:
         return None
     for field, value in kwargs.items():
@@ -81,11 +90,7 @@ def update_case_partner_relationship(
 
 def delete_case_partner_relationship(db: Session, relationship_id: int) -> bool:
     """Delete a relationship entry."""
-    rel = (
-        db.query(CasePartnerRelationship)
-        .filter(CasePartnerRelationship.id == relationship_id)
-        .first()
-    )
+    rel = get_case_partner_relationship_by_id(db, relationship_id)
     if not rel:
         return False
     db.delete(rel)
@@ -105,9 +110,16 @@ def get_reports_for_relationship(
     return (
         db.query(RelationshipReport)
         .filter(RelationshipReport.relationship_id == relationship_id)
-        .order_by(RelationshipReport.created_at.desc())
+        .order_by(RelationshipReport.created_at.desc(), RelationshipReport.id.desc())
         .all()
     )
+
+
+def get_relationship_report_by_id(
+    db: Session, report_id: int
+) -> RelationshipReport | None:
+    """Retrieve a specific report by ID."""
+    return db.query(RelationshipReport).filter(RelationshipReport.id == report_id).first()
 
 
 def create_relationship_report(
@@ -134,9 +146,7 @@ def create_relationship_report(
 
 def delete_relationship_report(db: Session, report_id: int) -> bool:
     """Delete a specific report."""
-    report = (
-        db.query(RelationshipReport).filter(RelationshipReport.id == report_id).first()
-    )
+    report = get_relationship_report_by_id(db, report_id)
     if not report:
         return False
     db.delete(report)
@@ -148,9 +158,7 @@ def update_relationship_report(
     db: Session, report_id: int, **kwargs
 ) -> RelationshipReport | None:
     """Update an existing evidence report."""
-    report = (
-        db.query(RelationshipReport).filter(RelationshipReport.id == report_id).first()
-    )
+    report = get_relationship_report_by_id(db, report_id)
     if not report:
         return None
     for field, value in kwargs.items():
@@ -170,7 +178,7 @@ def get_lab_results_for_case(db: Session, case_id: int) -> list[LabResultEntry]:
     return (
         db.query(LabResultEntry)
         .filter(LabResultEntry.case_id == case_id)
-        .order_by(LabResultEntry.collection_date)
+        .order_by(LabResultEntry.collection_date, LabResultEntry.id)
         .all()
     )
 
@@ -180,9 +188,14 @@ def get_lab_results_for_partner(db: Session, partner_id: int) -> list[LabResultE
     return (
         db.query(LabResultEntry)
         .filter(LabResultEntry.partner_id == partner_id)
-        .order_by(LabResultEntry.collection_date)
+        .order_by(LabResultEntry.collection_date, LabResultEntry.id)
         .all()
     )
+
+
+def get_lab_result_entry_by_id(db: Session, entry_id: int) -> LabResultEntry | None:
+    """Retrieve a specific lab result entry by ID."""
+    return db.query(LabResultEntry).filter(LabResultEntry.id == entry_id).first()
 
 
 def create_lab_result_entry(
@@ -215,7 +228,7 @@ def update_lab_result_entry(
     db: Session, entry_id: int, **kwargs
 ) -> LabResultEntry | None:
     """Update an existing lab result entry."""
-    lab_entry = db.query(LabResultEntry).filter(LabResultEntry.id == entry_id).first()
+    lab_entry = get_lab_result_entry_by_id(db, entry_id)
     if not lab_entry:
         return None
     for field, value in kwargs.items():
@@ -227,7 +240,7 @@ def update_lab_result_entry(
 
 def delete_lab_result_entry(db: Session, entry_id: int) -> bool:
     """Delete a lab result entry."""
-    lab_entry = db.query(LabResultEntry).filter(LabResultEntry.id == entry_id).first()
+    lab_entry = get_lab_result_entry_by_id(db, entry_id)
     if not lab_entry:
         return False
     db.delete(lab_entry)
@@ -242,12 +255,27 @@ def delete_lab_result_entry(db: Session, entry_id: int) -> bool:
 
 def get_symptoms_for_case(db: Session, case_id: int) -> list[SymptomEntry]:
     """Retrieve all symptoms for a given case."""
-    return db.query(SymptomEntry).filter(SymptomEntry.case_id == case_id).all()
+    return (
+        db.query(SymptomEntry)
+        .filter(SymptomEntry.case_id == case_id)
+        .order_by(SymptomEntry.onset_date, SymptomEntry.id)
+        .all()
+    )
 
 
 def get_symptoms_for_partner(db: Session, partner_id: int) -> list[SymptomEntry]:
     """Retrieve all symptoms for a given partner."""
-    return db.query(SymptomEntry).filter(SymptomEntry.partner_id == partner_id).all()
+    return (
+        db.query(SymptomEntry)
+        .filter(SymptomEntry.partner_id == partner_id)
+        .order_by(SymptomEntry.onset_date, SymptomEntry.id)
+        .all()
+    )
+
+
+def get_symptom_entry_by_id(db: Session, entry_id: int) -> SymptomEntry | None:
+    """Retrieve a specific symptom entry by ID."""
+    return db.query(SymptomEntry).filter(SymptomEntry.id == entry_id).first()
 
 
 def create_symptom_entry(
@@ -255,7 +283,9 @@ def create_symptom_entry(
     symptom_type: str,
     classification: str | None = None,
     onset_date: date | None = None,
+    date_kind: str | None = None,
     duration_days: int | None = None,
+    duration_source: str | None = None,
     ongoing: bool = False,
     case_id: int | None = None,
     partner_id: int | None = None,
@@ -267,7 +297,9 @@ def create_symptom_entry(
         symptom_type=symptom_type,
         classification=classification,
         onset_date=onset_date,
+        date_kind=date_kind or SymptomDateKind.ONSET_REPORTED,
         duration_days=duration_days,
+        duration_source=duration_source or SymptomDurationSource.UNKNOWN,
         ongoing=ongoing,
     )
     db.add(entry)
@@ -280,7 +312,7 @@ def update_symptom_entry(
     db: Session, entry_id: int, **kwargs
 ) -> Optional[SymptomEntry]:
     """Update an existing symptom entry."""
-    entry = db.query(SymptomEntry).filter(SymptomEntry.id == entry_id).first()
+    entry = get_symptom_entry_by_id(db, entry_id)
     if not entry:
         return None
     for field, value in kwargs.items():
@@ -292,7 +324,7 @@ def update_symptom_entry(
 
 def delete_symptom_entry(db: Session, entry_id: int) -> bool:
     """Delete a specific symptom entry."""
-    entry = db.query(SymptomEntry).filter(SymptomEntry.id == entry_id).first()
+    entry = get_symptom_entry_by_id(db, entry_id)
     if not entry:
         return False
     db.delete(entry)
@@ -409,6 +441,15 @@ def update_partner(db: Session, partner_id: int, **kwargs) -> Partner | None:
     return partner
 
 
+def delete_partner(db: Session, partner_id: int) -> bool:
+    partner = get_partner_by_id(db, partner_id)
+    if not partner:
+        return False
+    db.delete(partner)
+    db.commit()
+    return True
+
+
 # ---------------------------------------------------------------------------
 # MAP entry queries
 # ---------------------------------------------------------------------------
@@ -467,13 +508,33 @@ def upsert_map_entry(
     return entry
 
 
+def delete_map_entries(db: Session, case_id: int, partner_id: int | None = None) -> int:
+    q = db.query(MAPEntry).filter(MAPEntry.case_id == case_id)
+    if partner_id is None:
+        q = q.filter(MAPEntry.partner_id.is_(None))
+    else:
+        q = q.filter(MAPEntry.partner_id == partner_id)
+    deleted = q.delete(synchronize_session=False)
+    db.commit()
+    return deleted
+
+
 # ---------------------------------------------------------------------------
 # Arrow link queries  (used by 05_network_graph.py)
 # ---------------------------------------------------------------------------
 
 
 def get_arrow_links(db: Session, case_id: int) -> list[ArrowLink]:
-    return db.query(ArrowLink).filter(ArrowLink.case_id == case_id).all()
+    return (
+        db.query(ArrowLink)
+        .filter(ArrowLink.case_id == case_id)
+        .order_by(ArrowLink.id)
+        .all()
+    )
+
+
+def get_arrow_link_by_id(db: Session, link_id: int) -> ArrowLink | None:
+    return db.query(ArrowLink).filter(ArrowLink.id == link_id).first()
 
 
 def create_arrow_link(
@@ -513,7 +574,16 @@ def arrow_link_exists(db: Session, case_id: int, from_ref: str, to_ref: str) -> 
 
 
 def get_ghostings(db: Session, case_id: int) -> list[Ghosting]:
-    return db.query(Ghosting).filter(Ghosting.case_id == case_id).all()
+    return (
+        db.query(Ghosting)
+        .filter(Ghosting.case_id == case_id)
+        .order_by(Ghosting.id)
+        .all()
+    )
+
+
+def get_ghosting_by_id(db: Session, ghosting_id: int) -> Ghosting | None:
+    return db.query(Ghosting).filter(Ghosting.id == ghosting_id).first()
 
 
 def create_ghosting(
@@ -537,8 +607,19 @@ def create_ghosting(
     return g
 
 
+def update_ghosting(db: Session, ghosting_id: int, **kwargs) -> Ghosting | None:
+    g = get_ghosting_by_id(db, ghosting_id)
+    if not g:
+        return None
+    for field, value in kwargs.items():
+        setattr(g, field, value)
+    db.commit()
+    db.refresh(g)
+    return g
+
+
 def delete_ghosting(db: Session, ghosting_id: int) -> bool:
-    g = db.query(Ghosting).filter(Ghosting.id == ghosting_id).first()
+    g = get_ghosting_by_id(db, ghosting_id)
     if not g:
         return False
     db.delete(g)
@@ -551,13 +632,17 @@ def delete_ghosting(db: Session, ghosting_id: int) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def get_timeline_events(db: Session, case_id: int):
+def get_timeline_events(db: Session, case_id: int) -> list[TimelineEvent]:
     return (
         db.query(TimelineEvent)
         .filter(TimelineEvent.case_id == case_id)
-        .order_by(TimelineEvent.event_date)
+        .order_by(TimelineEvent.event_date, TimelineEvent.id)
         .all()
     )
+
+
+def get_timeline_event_by_id(db: Session, event_id: int) -> TimelineEvent | None:
+    return db.query(TimelineEvent).filter(TimelineEvent.id == event_id).first()
 
 
 def create_timeline_event(
@@ -581,10 +666,73 @@ def create_timeline_event(
     return evt
 
 
+def update_timeline_event(db: Session, event_id: int, **kwargs) -> TimelineEvent | None:
+    evt = get_timeline_event_by_id(db, event_id)
+    if not evt:
+        return None
+    for field, value in kwargs.items():
+        setattr(evt, field, value)
+    db.commit()
+    db.refresh(evt)
+    return evt
+
+
 def delete_timeline_event(db: Session, event_id: int) -> bool:
-    evt = db.query(TimelineEvent).filter(TimelineEvent.id == event_id).first()
+    evt = get_timeline_event_by_id(db, event_id)
     if not evt:
         return False
     db.delete(evt)
     db.commit()
     return True
+
+
+# ---------------------------------------------------------------------------
+# Dashboard queries
+# ---------------------------------------------------------------------------
+
+
+def get_cases_summary(db: Session) -> dict:
+    """Return global aggregate metrics for the dashboard."""
+    total_cases = db.query(func.count(Case.id)).scalar()
+    total_partners = db.query(func.count(Partner.id)).scalar()
+    treated_count = db.query(func.count(Case.id)).filter(Case.treatment_date.is_not(None)).scalar()
+    untreated_count = db.query(func.count(Case.id)).filter(Case.treatment_date.is_(None)).scalar()
+
+    return {
+        "total_cases": total_cases or 0,
+        "total_partners": total_partners or 0,
+        "treated_count": treated_count or 0,
+        "untreated_count": untreated_count or 0,
+    }
+
+
+def get_case_summaries_with_counts(db: Session, search: str | None = None) -> list[Case]:
+    """Return cases with their partner counts, optionally filtered by name."""
+    query = (
+        db.query(Case)
+        .outerjoin(Partner, Case.id == Partner.case_id)
+        .group_by(Case.id)
+        .order_by(Case.updated_at.desc())
+    )
+
+    if search:
+        query = query.filter(Case.patient_name.ilike(f"%{search}%"))
+
+    results = []
+    cases = query.all()
+    for case in cases:
+        count = db.query(func.count(Partner.id)).filter(Partner.case_id == case.id).scalar()
+        case.partner_count = count or 0
+        results.append(case)
+
+    return results
+
+
+def get_latest_lab_for_case(db: Session, case_id: int) -> LabResultEntry | None:
+    """Retrieve the most recent lab result for a specific case."""
+    return (
+        db.query(LabResultEntry)
+        .filter(LabResultEntry.case_id == case_id)
+        .order_by(LabResultEntry.collection_date.desc(), LabResultEntry.id.desc())
+        .first()
+    )
