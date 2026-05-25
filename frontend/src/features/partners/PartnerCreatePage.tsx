@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCreatePartner } from "./hooks";
 import { syncPartnerSymptoms } from "../symptoms/api";
+import { syncPartnerLabs } from "./labs-api";
 import {
   PartnerForm,
   type PartnerFormSubmission,
@@ -23,11 +24,22 @@ export function PartnerCreatePage() {
       // 1. Create partner
       const newPartner = await createPartner.mutateAsync(payload.partner);
 
-      // 2. Save symptoms for this partner
-      await syncPartnerSymptoms(newPartner.id, [], payload.symptoms);
-      await queryClient.invalidateQueries({
-        queryKey: ["partners", newPartner.id, "symptoms"],
-      });
+      // 2. Save symptoms and labs for this partner
+      await Promise.all([
+        syncPartnerSymptoms(newPartner.id, [], payload.symptoms),
+        syncPartnerLabs(newPartner.id, [], [
+          ...payload.nontrepLabs,
+          ...payload.trepLabs,
+        ]),
+      ]);
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["partners", newPartner.id, "symptoms"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["partners", newPartner.id, "labs"],
+        }),
+      ]);
 
       // 3. Navigate back to partner list
       navigate(`/cases/${safeCaseId}/partners`);

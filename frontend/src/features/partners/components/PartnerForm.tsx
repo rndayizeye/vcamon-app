@@ -2,20 +2,17 @@ import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useFieldArray, useForm } from "react-hook-form";
 
+import type {
+  SymptomEntryDraft,
+  SymptomEntryRead,
+  SymptomEntryWriteInput,
+} from "../../symptoms/types";
 import { normalizeSymptomDrafts, toSymptomDraft } from "../../symptoms/utils";
 import { SymptomEntriesEditor } from "../../cases/components/SymptomEntriesEditor";
 import { LabResultsEditor } from "../../cases/components/LabResultsEditor";
-import {
-  REASON_FOR_EXAM_OPTIONS,
-  TREATMENT_OPTIONS,
-} from "../../labs/constants";
-import type {
-  PartnerCreateInput,
-  PartnerRead,
-  PartnerUpdateInput,
-} from "../types";
-import type { SymptomEntryWriteInput } from "../../symptoms/types";
-import type { LabResultEntryWriteInput } from "../../labs/types";
+import { REASON_FOR_EXAM_OPTIONS, TREATMENT_OPTIONS } from "../../labs/constants";
+import type { LabResultEntryRead, LabResultEntryWriteInput } from "../../labs/types";
+import type { PartnerCreateInput, PartnerRead, PartnerUpdateInput } from "../types";
 
 export type PartnerFormSubmission = {
   partner: PartnerCreateInput | PartnerUpdateInput;
@@ -24,35 +21,31 @@ export type PartnerFormSubmission = {
   trepLabs: LabResultEntryWriteInput[];
 };
 
+type LabDraft = Partial<LabResultEntryWriteInput>;
+
 type PartnerFormValues = {
-  partner_number: number | null;
+  partner_number: string;
   name: string;
   reason_for_exam: string;
   treatment_date: string;
   treatment: string;
   medical_info: string;
-  historical_primary_chancre: boolean;
+  historical_primary_chancre: string;
   historical_primary_date: string;
-  exposure_first_date: string;
-  exposure_last_date: string;
-  exposure_modalities: string;
-  symptoms: any[];
-  nontrepLabs: any[];
-  trepLabs: any[];
+  symptoms: SymptomEntryDraft[];
+  nontrepLabs: LabDraft[];
+  trepLabs: LabDraft[];
 };
 
 const EMPTY_FORM_VALUES: PartnerFormValues = {
-  partner_number: null,
+  partner_number: "",
   name: "",
   reason_for_exam: "",
   treatment_date: "",
   treatment: "",
   medical_info: "",
-  historical_primary_chancre: false,
+  historical_primary_chancre: "",
   historical_primary_date: "",
-  exposure_first_date: "",
-  exposure_last_date: "",
-  exposure_modalities: "",
   symptoms: [],
   nontrepLabs: [],
   trepLabs: [],
@@ -68,51 +61,79 @@ function normalizeDate(value: string) {
   return trimmed ? trimmed : null;
 }
 
+function toLabDraft(lab: LabResultEntryRead): LabDraft {
+  return {
+    id: lab.id,
+    test_type: lab.test_type,
+    titer: lab.titer ?? "",
+    result: lab.result ?? "",
+    collection_date: lab.collection_date,
+  };
+}
+
 function toFormValues(
   partnerData?: Partial<PartnerRead> | null,
-  symptoms: any[] = [],
-  nontrepLabs: any[] = [],
-  trepLabs: any[] = [],
-  relationship?: any,
+  symptoms: SymptomEntryRead[] = [],
+  nontrepLabs: LabResultEntryRead[] = [],
+  trepLabs: LabResultEntryRead[] = [],
 ): PartnerFormValues {
   if (!partnerData) {
     return {
       ...EMPTY_FORM_VALUES,
       symptoms: symptoms.map(toSymptomDraft),
-      nontrepLabs,
-      trepLabs,
+      nontrepLabs: nontrepLabs.map(toLabDraft),
+      trepLabs: trepLabs.map(toLabDraft),
     };
   }
 
+  const hpc = partnerData.historical_primary_chancre;
+
   return {
-    partner_number: partnerData.partner_number ?? null,
+    partner_number:
+      partnerData.partner_number != null
+        ? String(partnerData.partner_number)
+        : "",
     name: partnerData.name || "",
     reason_for_exam: partnerData.reason_for_exam || "",
     treatment_date: partnerData.treatment_date || "",
     treatment: partnerData.treatment || "",
     medical_info: partnerData.medical_info || "",
-    historical_primary_chancre: partnerData.historical_primary_chancre ?? false,
+    historical_primary_chancre:
+      hpc === true ? "true" : hpc === false ? "false" : "",
     historical_primary_date: partnerData.historical_primary_date || "",
-    exposure_first_date: relationship?.exposure_first_date || "",
-    exposure_last_date: relationship?.exposure_last_date || "",
-    exposure_modalities: relationship?.exposure_modalities || "",
     symptoms: symptoms.map(toSymptomDraft),
-    nontrepLabs,
-    trepLabs,
+    nontrepLabs: nontrepLabs.map(toLabDraft),
+    trepLabs: trepLabs.map(toLabDraft),
   };
 }
 
+function normalizeLabDrafts(
+  drafts: LabDraft[],
+  testCategory: string,
+): LabResultEntryWriteInput[] {
+  return drafts
+    .filter((d) => d.test_type && d.test_type.trim())
+    .map((d) => ({
+      ...d,
+      test_category: testCategory,
+      test_type: d.test_type!.trim(),
+      collection_date: d.collection_date || "",
+    }));
+}
+
 function toPartnerPayload(values: PartnerFormValues): PartnerCreateInput {
+  const hpc = values.historical_primary_chancre;
+  const partnerNumber = values.partner_number.trim();
+
   return {
-    partner_number: values.partner_number
-      ? Number(values.partner_number)
-      : null,
+    partner_number: partnerNumber ? Number(partnerNumber) : null,
     name: normalizeText(values.name),
     reason_for_exam: normalizeText(values.reason_for_exam),
     treatment_date: normalizeDate(values.treatment_date),
     treatment: normalizeText(values.treatment),
     medical_info: normalizeText(values.medical_info),
-    historical_primary_chancre: values.historical_primary_chancre,
+    historical_primary_chancre:
+      hpc === "true" ? true : hpc === "false" ? false : null,
     historical_primary_date: normalizeDate(values.historical_primary_date),
   };
 }
@@ -130,9 +151,9 @@ export function PartnerForm({
 }: {
   mode: "create" | "edit";
   initialPartner?: Partial<PartnerRead> | null;
-  initialSymptoms?: any[];
-  initialNontrepLabs?: any[];
-  initialTrepLabs?: any[];
+  initialSymptoms?: SymptomEntryRead[];
+  initialNontrepLabs?: LabResultEntryRead[];
+  initialTrepLabs?: LabResultEntryRead[];
   onSubmit: (payload: PartnerFormSubmission) => Promise<void> | void;
   submitting: boolean;
   errorMessage?: string | null;
@@ -147,7 +168,12 @@ export function PartnerForm({
     clearErrors,
     formState: { errors },
   } = useForm<PartnerFormValues>({
-    defaultValues: toFormValues(initialPartner, initialSymptoms, initialNontrepLabs, initialTrepLabs),
+    defaultValues: toFormValues(
+      initialPartner,
+      initialSymptoms,
+      initialNontrepLabs,
+      initialTrepLabs,
+    ),
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -157,19 +183,33 @@ export function PartnerForm({
   });
 
   useEffect(() => {
-    reset(toFormValues(initialPartner, initialSymptoms, initialNontrepLabs, initialTrepLabs));
+    reset(
+      toFormValues(
+        initialPartner,
+        initialSymptoms,
+        initialNontrepLabs,
+        initialTrepLabs,
+      ),
+    );
   }, [initialPartner, initialSymptoms, initialNontrepLabs, initialTrepLabs, reset]);
 
   async function handleFormSubmit(values: PartnerFormValues) {
     clearErrors("root");
-
     try {
       const normalizedSymptoms = normalizeSymptomDrafts(values.symptoms);
+      const normalizedNontrepLabs = normalizeLabDrafts(
+        values.nontrepLabs,
+        "Non-treponemal",
+      );
+      const normalizedTrepLabs = normalizeLabDrafts(
+        values.trepLabs,
+        "Treponemal",
+      );
       await onSubmit({
         partner: toPartnerPayload(values),
         symptoms: normalizedSymptoms,
-        nontrepLabs: values.nontrepLabs,
-        trepLabs: values.trepLabs,
+        nontrepLabs: normalizedNontrepLabs,
+        trepLabs: normalizedTrepLabs,
       });
     } catch (error) {
       const message =
@@ -187,6 +227,11 @@ export function PartnerForm({
           </p>
           <h2>{mode === "create" ? "Create partner" : "Update partner"}</h2>
         </div>
+        <p className="muted">
+          Exposure dates belong to the OP ↔ Partner relationship, not the
+          partner record. Set them in the Exposure Window section below after
+          saving.
+        </p>
       </div>
 
       <div className="two-column-grid">
@@ -194,6 +239,7 @@ export function PartnerForm({
           <span>Partner number</span>
           <input
             type="number"
+            min="1"
             placeholder="e.g., 1"
             {...register("partner_number")}
           />
@@ -208,63 +254,46 @@ export function PartnerForm({
         </label>
 
         <label className="field">
+          <span>Reason for exam</span>
+          <select {...register("reason_for_exam")}>
+            <option value="">Select reason</option>
+            {REASON_FOR_EXAM_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="field">
+          <span>Treatment given</span>
+          <select {...register("treatment")}>
+            <option value="">Select...</option>
+            {TREATMENT_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="field">
           <span>Treatment date</span>
           <input type="date" {...register("treatment_date")} />
         </label>
 
         <label className="field">
-          <span>Reason for exam</span>
-          <select {...register("reason_for_exam")}>
-            <option value="">Select reason</option>
-            {REASON_FOR_EXAM_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-          </select>
-        </label>
-      </div>
-
-      <div className="two-column-grid">
-        <label className="field">
-          <span>Treatment given</span>
-          <select {...register("treatment")}>
-            <option value="">Select...</option>
-            {TREATMENT_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-          </select>
-        </label>
-
-        <label className="field">
-          <span>Historical Primary Chancre?</span>
+          <span>Historical primary chancre?</span>
           <select {...register("historical_primary_chancre")}>
-            <option value="">Select...</option>
+            <option value="">Unknown</option>
             <option value="true">Yes</option>
             <option value="false">No</option>
           </select>
         </label>
 
         <label className="field">
-          <span>Historical Primary Date</span>
+          <span>Historical primary date</span>
           <input type="date" {...register("historical_primary_date")} />
-        </label>
-      </div>
-
-      <div className="stack-md panel p-4 bg-gray-50 rounded-lg border">
-        <h3 className="font-bold">Exposure Window</h3>
-        <div className="two-column-grid">
-          <label className="field">
-            <span>Exposure First Date</span>
-            <input type="date" {...register("exposure_first_date")} />
-          </label>
-          <label className="field">
-            <span>Exposure Last Date</span>
-            <input type="date" {...register("exposure_last_date")} />
-          </label>
-        </div>
-        <label className="field mt-4">
-          <span>Exposure Modalities</span>
-          <input
-            type="text"
-            placeholder="e.g., Anal, Oral"
-            {...register("exposure_modalities")}
-          />
-          <span className="muted small-text">Comma separated list of modalities.</span>
         </label>
       </div>
 
@@ -277,25 +306,21 @@ export function PartnerForm({
         />
       </label>
 
-      <div className="stack-md">
-        <h3 className="font-bold">Symptoms</h3>
-        <SymptomEntriesEditor
-          fields={fields}
-          append={append}
-          remove={remove}
-          register={register as Parameters<typeof SymptomEntriesEditor>[0]["register"]}
-          disabled={submitting}
-        />
-      </div>
+      <SymptomEntriesEditor
+        fields={fields}
+        append={append}
+        remove={remove}
+        register={
+          register as Parameters<typeof SymptomEntriesEditor>[0]["register"]
+        }
+        disabled={submitting}
+      />
 
-      <div className="stack-md">
-        <h3 className="font-bold">Lab Results</h3>
-        <LabResultsEditor
-          control={control as Parameters<typeof LabResultsEditor>[0]["control"]}
-          nontrepName="nontrepLabs"
-          trepName="trepLabs"
-        />
-      </div>
+      <LabResultsEditor
+        control={control as Parameters<typeof LabResultsEditor>[0]["control"]}
+        nontrepName="nontrepLabs"
+        trepName="trepLabs"
+      />
 
       {errors.root?.message ? (
         <p className="error-text">{errors.root.message}</p>
