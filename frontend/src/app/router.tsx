@@ -14,7 +14,10 @@ import { PartnerListPage } from "../features/partners/PartnerListPage";
 import { PartnerCreatePage } from "../features/partners/PartnerCreatePage";
 import { PartnerEditPage } from "../features/partners/PartnerEditPage";
 import { GhostingPage } from "../features/ghosting/GhostingPage";
+import { QuickGhostPage } from "../features/ghosting/QuickGhostPage";
 import { VcaChartPage } from "../features/ghosting/VcaChartPage";
+import { NetworkGraphPage } from "../features/network/NetworkGraphPage";
+import { TimelinePage } from "../features/timeline/TimelinePage";
 
 export const router = createBrowserRouter([
   {
@@ -78,6 +81,14 @@ export const router = createBrowserRouter([
             element: <CaseMapPage />,
           },
           {
+            path: "network",
+            element: <NetworkGraphPage />,
+          },
+          {
+            path: "timeline",
+            element: <TimelinePage />,
+          },
+          {
             path: "ghosting",
             element: <GhostingPage />,
           },
@@ -86,6 +97,10 @@ export const router = createBrowserRouter([
             element: <VcaChartPage />,
           },
         ],
+      },
+      {
+        path: "quick-ghost",
+        element: <QuickGhostPage />,
       },
     ],
   },

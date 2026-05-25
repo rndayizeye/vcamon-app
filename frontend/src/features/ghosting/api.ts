@@ -1,10 +1,18 @@
 import { apiFetch } from '../../lib/api-client'
 import type {
+  GhostingAnalysisRequest,
   GhostingAnalysisResult,
   GhostingCaseAnalysisRequest,
   GhostingCreate,
   GhostingRecord,
 } from './types'
+
+export function runQuickGhostingAnalysis(payload: GhostingAnalysisRequest) {
+  return apiFetch<GhostingAnalysisResult>('/api/ghosting/analyze', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
 
 export function runCasePartnerGhostingAnalysis(
   caseId: number,

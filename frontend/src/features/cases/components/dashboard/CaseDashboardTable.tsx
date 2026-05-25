@@ -1,58 +1,80 @@
-import React from 'react';
-import type { CaseSummary } from '../../types';
+import { Link } from 'react-router-dom'
+import type { CaseSummary } from '../../types'
 
-interface CaseDashboardTableProps {
-  cases: CaseSummary[];
-  selectedCaseId: number | null;
-  onCaseSelect: (id: number) => void;
-}
-
-export const CaseDashboardTable: React.FC<CaseDashboardTableProps> = ({
+export function CaseDashboardTable({
   cases,
   selectedCaseId,
   onCaseSelect,
-}) => {
+}: {
+  cases: CaseSummary[]
+  selectedCaseId: number | null
+  onCaseSelect: (id: number) => void
+}) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm bg-white">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
+    <div className="panel table-panel">
+      <table className="data-table">
+        <thead>
           <tr>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ID</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Patient</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Diagnosis</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Manager</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Reason</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Treated</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Partners</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Updated</th>
+            <th>ID</th>
+            <th>Patient</th>
+            <th>Diagnosis</th>
+            <th>Manager</th>
+            <th>Reason</th>
+            <th>Treated</th>
+            <th>Partners</th>
+            <th>Updated</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-200">
-          {cases.map((caseItem) => (
+        <tbody>
+          {cases.map(c => (
             <tr
-              key={caseItem.id}
-              onClick={() => onCaseSelect(caseItem.id)}
-              className={`cursor-pointer transition-colors hover:bg-blue-50 ${
-                selectedCaseId === caseItem.id ? 'bg-blue-100' : ''
-              } ${!caseItem.treatment_date ? 'bg-amber-50/50' : ''}`}
+              key={c.id}
+              onClick={() => onCaseSelect(c.id)}
+              style={{
+                cursor: 'pointer',
+                background:
+                  selectedCaseId === c.id
+                    ? '#ddeeff'
+                    : !c.treatment_date
+                    ? 'rgba(251,191,36,0.07)'
+                    : undefined,
+              }}
             >
-              <td className="px-4 py-3 text-sm text-gray-900 font-medium">{caseItem.id}</td>
-              <td className="px-4 py-3 text-sm text-gray-700">{caseItem.patient_name}</td>
-              <td className="px-4 py-3 text-sm text-gray-700">{caseItem.diagnosis_code || '-'}</td>
-              <td className="px-4 py-3 text-sm text-gray-700">{caseItem.case_manager || '-'}</td>
-              <td className="px-4 py-3 text-sm text-gray-700">{caseItem.reason_for_exam || '-'}</td>
-              <td className="px-4 py-3 text-sm text-gray-700">
-                {caseItem.treatment_date ? caseItem.treatment_date : <span className="text-amber-600 font-semibold">Pending</span>}
+              <td>
+                <Link
+                  to={`/cases/${c.id}/overview`}
+                  className="table-link"
+                  onClick={e => e.stopPropagation()}
+                >
+                  #{c.id}
+                </Link>
               </td>
-              <td className="px-4 py-3 text-sm text-gray-700">{caseItem.partner_count}</td>
-              <td className="px-4 py-3 text-sm text-gray-500">
-                {caseItem.updated_at ? new Date(caseItem.updated_at).toLocaleDateString() : '-'}
+              <td style={{ fontWeight: 500 }}>{c.patient_name}</td>
+              <td>{c.diagnosis_code || '—'}</td>
+              <td>{c.case_manager || '—'}</td>
+              <td>{c.reason_for_exam || '—'}</td>
+              <td>
+                {c.treatment_date ?? (
+                  <span style={{ color: '#854F0B', fontWeight: 600 }}>Pending</span>
+                )}
+              </td>
+              <td>{c.partner_count}</td>
+              <td className="muted small-text">
+                {c.updated_at ? new Date(c.updated_at).toLocaleDateString() : '—'}
               </td>
             </tr>
           ))}
           {cases.length === 0 && (
             <tr>
-              <td colSpan={8} className="px-4 py-8 text-center text-gray-500 italic">
+              <td
+                colSpan={8}
+                style={{
+                  textAlign: 'center',
+                  color: '#5b6f82',
+                  fontStyle: 'italic',
+                  padding: '2rem 0.75rem',
+                }}
+              >
                 No cases found.
               </td>
             </tr>
@@ -60,5 +82,5 @@ export const CaseDashboardTable: React.FC<CaseDashboardTableProps> = ({
         </tbody>
       </table>
     </div>
-  );
-};
+  )
+}

@@ -1,40 +1,53 @@
-import React from 'react';
-import type { DashboardSummary } from '../../types';
+import type { DashboardSummary } from '../../types'
 
-interface DashboardMetricsProps {
-  summary: DashboardSummary;
+function MetricCard({
+  label,
+  value,
+  accent,
+}: {
+  label: string
+  value: number
+  accent?: 'green' | 'amber'
+}) {
+  return (
+    <div
+      className="panel stack-xs"
+      style={{
+        background: accent === 'green' ? '#edf9f0' : accent === 'amber' ? '#fffbeb' : undefined,
+        borderColor:
+          accent === 'green' ? '#a7f3d0' : accent === 'amber' ? '#fde68a' : undefined,
+      }}
+    >
+      <p className="eyebrow">{label}</p>
+      <p
+        style={{
+          fontSize: '2rem',
+          fontWeight: 700,
+          color:
+            accent === 'green'
+              ? '#0a7a38'
+              : accent === 'amber' && value > 0
+              ? '#854F0B'
+              : undefined,
+        }}
+      >
+        {value}
+      </p>
+    </div>
+  )
 }
 
-export const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ summary }) => {
+export function DashboardMetrics({ summary }: { summary: DashboardSummary }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-      <MetricCard
-        label="Total Cases"
-        value={summary.total_cases}
-        color="bg-white"
-      />
-      <MetricCard
-        label="Total Partners"
-        value={summary.total_partners}
-        color="bg-white"
-      />
-      <MetricCard
-        label="Treated"
-        value={summary.treated_count}
-        color="bg-green-50 text-green-700 border-green-200"
-      />
+    <div className="card-grid">
+      <MetricCard label="Total Cases" value={summary.total_cases} />
+      <MetricCard label="Total Partners" value={summary.total_partners} />
+      <MetricCard label="Treated" value={summary.treated_count} accent="green" />
       <MetricCard
         label="Pending Treatment"
         value={summary.untreated_count}
-        color={summary.untreated_count > 0 ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-white"}
+        accent={summary.untreated_count > 0 ? 'amber' : undefined}
       />
     </div>
-  );
-};
-
-const MetricCard = ({ label, value, color }: { label: string; value: number; color: string }) => (
-  <div className={`p-4 rounded-lg border shadow-sm ${color} transition-colors`}>
-    <div className="text-sm font-medium text-gray-500 uppercase tracking-wider">{label}</div>
-    <div className="text-3xl font-bold mt-1">{value}</div>
-  </div>
-);
+  )
+}

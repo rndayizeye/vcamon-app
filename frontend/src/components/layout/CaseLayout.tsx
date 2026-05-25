@@ -68,6 +68,22 @@ export function CaseLayout() {
           Analytics
         </NavLink>
         <NavLink
+          to="network"
+          className={({ isActive }) =>
+            isActive ? "tab-link tab-link-active" : "tab-link"
+          }
+        >
+          Network
+        </NavLink>
+        <NavLink
+          to="timeline"
+          className={({ isActive }) =>
+            isActive ? "tab-link tab-link-active" : "tab-link"
+          }
+        >
+          Timeline
+        </NavLink>
+        <NavLink
           to="map"
           className={({ isActive }) =>
             isActive ? "tab-link tab-link-active" : "tab-link"
