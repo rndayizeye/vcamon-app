@@ -19,3 +19,10 @@ __pycache__/
 # Gemini
 .gemini
 .aider*
+
+# Playwright
+frontend/test-results/
+playwright-report/
+
+# Temp / lock files
+documents/~$*

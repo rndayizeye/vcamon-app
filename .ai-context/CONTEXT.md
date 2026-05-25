@@ -271,7 +271,18 @@ Streamlit Cloud: SQLite goes to `/tmp` and resets on restart. Demo case auto-see
 - Initial Alembic revision exists at `fastapi_app/migrations/versions/e3f9427a3fbf_initial_schema.py`
 - API tests live in `tests/test_fastapi_cases.py`; migration coverage lives in `tests/test_alembic.py`
 
-**Next backend steps:**
-- Apply Alembic migrations (`make db-upgrade`) in local/dev/deploy bootstrap flows
-- Complete frontend login flow integration against the auth contract in `documents/fastapi-auth-contract.md`
+**Completed this session:**
+- Alembic migrations applied (`make db-upgrade`) — `vcamon_v2.db` is current
+- Frontend login flow complete and tested end-to-end in open access mode (`AUTH_ENABLED=false`)
+  - `useAuthBootstrap` sequence: `GET /api/auth/status` → `GET /api/auth/me` → resolve `OPEN_ACCESS_PERMISSIONS`
+  - `RequireAuth` route guard, `RequirePermission` permission gates wired on all destructive actions
+  - `LoginPage` handles both auth-enabled (magic link) and auth-disabled (bypass) modes
+  - `TopBar` shows user email + sign-out when auth is enabled
+  - TypeScript compiles clean; full stack verified: FastAPI on `localhost:8000`, Vite on `localhost:5175`
+
+**Next steps:**
+- Set up Supabase project and add credentials to activate real auth (`AUTH_ENABLED=true`)
+  - `frontend/.env.local`: add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`
+  - `.env`: add `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `AUTH_ENABLED=true`
+- Test authenticated flow end-to-end (magic link → token injection → `/api/auth/me` returns real user)
 - Refine RBAC beyond the current rollout-safe operator/supervisor scaffold if product rules become more specific
