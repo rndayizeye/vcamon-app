@@ -11,6 +11,8 @@ import type {
   GhostingScenarioCriteria,
   GhostingCriteriaCheck,
   GhostingRecord,
+  GhostedLesion,
+  GhostingSymptomInput,
   PartnerSummary,
 } from './types'
 import {
@@ -30,6 +32,24 @@ const CLINICAL_REF = [
   { phase: 'Latency', min: '0d', avg: '28d', max: '70d' },
   { phase: 'Secondary', min: '14d', avg: '28d', max: '42d' },
 ]
+
+// ---------------------------------------------------------------------------
+// Date helpers
+// ---------------------------------------------------------------------------
+
+function isoAddDays(iso: string, days: number): string {
+  const d = new Date(iso)
+  d.setDate(d.getDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
+function dateInRange(d: string, start: string, end: string): boolean {
+  return d >= start && d <= end
+}
+
+function computeInoculationAvg(symptom: GhostingSymptomInput): string {
+  return isoAddDays(symptom.onset, -21)
+}
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -55,34 +75,104 @@ function StatusBadge({ check }: { check: GhostingCriteriaCheck }) {
   )
 }
 
-function CriteriaTable({ criteria }: { criteria: GhostingScenarioCriteria }) {
-  const rows = [
-    { name: 'Exposure', check: criteria.exposure },
-    { name: 'Exposure Modality', check: criteria.exposure_modality },
-    { name: 'Latency', check: criteria.latency },
-    { name: 'Natural Order', check: criteria.natural_order },
-  ]
+/**
+ * Criteria table with:
+ * - Latency shown in 3 rows (optimistic / expected / conservative range)
+ * - All other criteria shown once (expected range only)
+ * - Sub-row under exposure showing whether the likely inoculation date falls
+ *   within the ghosted lesion window
+ */
+function EnhancedCriteriaTable({
+  aggressive,
+  expected,
+  conservative,
+  case1Symptom,
+  ghostedLesion,
+  case1Name,
+}: {
+  aggressive: GhostingScenarioCriteria
+  expected: GhostingScenarioCriteria
+  conservative: GhostingScenarioCriteria
+  case1Symptom: GhostingSymptomInput
+  ghostedLesion: GhostedLesion
+  case1Name: string
+}) {
+  const inocAvg = computeInoculationAvg(case1Symptom)
+  const inocInWindow = dateInRange(inocAvg, ghostedLesion.onset, ghostedLesion.end)
+  const tdMuted: React.CSSProperties = { fontSize: '0.875rem', color: 'var(--color-text-muted, #666)' }
+
   return (
     <table className="data-table" style={{ width: '100%' }}>
       <thead>
         <tr>
           <th>Criterion</th>
+          <th>Range</th>
           <th>Result</th>
           <th>Detail</th>
         </tr>
       </thead>
       <tbody>
-        {rows.map((row) => (
-          <tr key={row.name}>
-            <td>{row.name}</td>
-            <td>
-              <StatusBadge check={row.check} />
-            </td>
-            <td style={{ fontSize: '0.875rem', color: 'var(--color-text-muted, #666)' }}>
-              {row.check.detail}
-            </td>
-          </tr>
-        ))}
+        {/* Exposure — expected range + inoculation sub-row */}
+        <tr>
+          <td rowSpan={2} style={{ fontWeight: 500, verticalAlign: 'middle' }}>
+            Exposure
+          </td>
+          <td style={{ ...tdMuted, fontSize: '0.8rem' }}>Expected</td>
+          <td><StatusBadge check={expected.exposure} /></td>
+          <td style={tdMuted}>{expected.exposure.detail}</td>
+        </tr>
+        <tr style={{ background: 'rgba(0,0,0,0.02)' }}>
+          <td style={{ fontSize: '0.78rem', color: '#888', paddingLeft: '1rem' }}>
+            ↳ Inoculation date
+          </td>
+          <td>
+            <span className={inocInWindow ? 'badge badge-pass' : 'badge badge-fail'}>
+              {inocInWindow ? '✓ In window' : '✗ Outside'}
+            </span>
+          </td>
+          <td style={{ fontSize: '0.78rem', color: '#666' }}>
+            {case1Name}'s avg inoculation date ({inocAvg}) —{' '}
+            {inocInWindow
+              ? `falls within ghosted lesion (${ghostedLesion.onset} → ${ghostedLesion.end})`
+              : `does not fall within ghosted lesion (${ghostedLesion.onset} → ${ghostedLesion.end})`}
+          </td>
+        </tr>
+
+        {/* Exposure modality — expected only */}
+        <tr>
+          <td style={{ fontWeight: 500 }}>Exposure modality</td>
+          <td style={{ ...tdMuted, fontSize: '0.8rem' }}>Expected</td>
+          <td><StatusBadge check={expected.exposure_modality} /></td>
+          <td style={tdMuted}>{expected.exposure_modality.detail}</td>
+        </tr>
+
+        {/* Latency — 3 rows (optimistic / expected / conservative) */}
+        <tr>
+          <td rowSpan={3} style={{ fontWeight: 500, verticalAlign: 'middle' }}>
+            Latency
+          </td>
+          <td style={{ fontSize: '0.8rem', color: '#888' }}>Optimistic (min)</td>
+          <td><StatusBadge check={aggressive.latency} /></td>
+          <td style={tdMuted}>{aggressive.latency.detail}</td>
+        </tr>
+        <tr style={{ background: 'rgba(0,0,0,0.02)' }}>
+          <td style={{ fontSize: '0.8rem', fontWeight: 600 }}>Expected (avg)</td>
+          <td><StatusBadge check={expected.latency} /></td>
+          <td style={tdMuted}>{expected.latency.detail}</td>
+        </tr>
+        <tr>
+          <td style={{ fontSize: '0.8rem', color: '#888' }}>Conservative (max)</td>
+          <td><StatusBadge check={conservative.latency} /></td>
+          <td style={tdMuted}>{conservative.latency.detail}</td>
+        </tr>
+
+        {/* Natural order — expected only */}
+        <tr>
+          <td style={{ fontWeight: 500 }}>Natural order</td>
+          <td style={{ ...tdMuted, fontSize: '0.8rem' }}>Expected</td>
+          <td><StatusBadge check={expected.natural_order} /></td>
+          <td style={tdMuted}>{expected.natural_order.detail}</td>
+        </tr>
       </tbody>
     </table>
   )
@@ -125,12 +215,105 @@ function VerdictBanner({ verdict }: { verdict: string }) {
   )
 }
 
+/** Plain-language explanation of each failing criterion. */
+function VerdictContext({ result }: { result: GhostingAnalysisResult }) {
+  const srcExpected = result.source_scenarios.range_data.expected
+  const sprExpected = result.spread_scenarios.range_data.expected
+  const srcLesion = result.source_scenarios.range_lesions.expected
+  const sprLesion = result.spread_scenarios.range_lesions.expected
+  const c1 = result.case1_name
+  const c2 = result.case2_name
+
+  type Explanation = { scenario: string; text: string }
+  const failures: Explanation[] = []
+
+  if (srcExpected.exposure.status === 'fail') {
+    failures.push({
+      scenario: 'Source',
+      text: `${c1} was likely not infected by ${c2} because the reported exposure window does not overlap with ${c2}'s ghosted source lesion (${srcLesion.onset} → ${srcLesion.end}). ${c2} would not have been infectious during the recorded contact.`,
+    })
+  }
+  if (srcExpected.exposure_modality.status === 'fail') {
+    failures.push({
+      scenario: 'Source',
+      text: `The type of sexual contact between ${c1} and ${c2} is not compatible with the site of ${c1}'s ${result.case1_symptom.type}. Transmission requires contact with the infected anatomical site.`,
+    })
+  }
+  if (srcExpected.latency.status === 'fail') {
+    failures.push({
+      scenario: 'Source',
+      text: `The timeline between ${c2}'s ghosted source lesion and their secondary symptoms does not fit the expected syphilis progression (requires ≥0 days latency). ${srcExpected.latency.detail}`,
+    })
+  }
+  if (srcExpected.natural_order.status === 'fail') {
+    failures.push({
+      scenario: 'Source',
+      text: `The ghosted source lesion would have occurred after ${c2}'s existing secondary lesion — this violates the biological order of syphilis stages (primary must precede secondary). ${srcExpected.natural_order.detail}`,
+    })
+  }
+
+  if (sprExpected.exposure.status === 'fail') {
+    failures.push({
+      scenario: 'Spread',
+      text: `${c2} was likely not infected by ${c1} because the reported exposure window does not overlap with ${c1}'s infectious period (${sprLesion.onset} → ${sprLesion.end}). ${c1} would not have been contagious during the recorded contact.`,
+    })
+  }
+  if (sprExpected.exposure_modality.status === 'fail') {
+    failures.push({
+      scenario: 'Spread',
+      text: `The type of sexual contact is not compatible with the site of ${c1}'s ${result.case1_symptom.type}. ${sprExpected.exposure_modality.detail}`,
+    })
+  }
+  if (sprExpected.latency.status === 'fail') {
+    failures.push({
+      scenario: 'Spread',
+      text: `The time between ${c1}'s infectious period and ${c2}'s secondary symptoms does not fit natural syphilis progression. ${sprExpected.latency.detail}`,
+    })
+  }
+  if (sprExpected.natural_order.status === 'fail') {
+    failures.push({
+      scenario: 'Spread',
+      text: `The ghosted spread lesion would have occurred after ${c2}'s existing secondary lesion — this violates the biological order of syphilis stages. ${sprExpected.natural_order.detail}`,
+    })
+  }
+
+  if (failures.length === 0) {
+    return (
+      <div className="panel stack-xs" style={{ fontSize: '0.875rem' }}>
+        <p className="eyebrow">Why this verdict?</p>
+        <p style={{ color: '#1d9e75' }}>
+          All key criteria passed — the verdict above is well-supported by the clinical data on file.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="panel stack-sm" style={{ fontSize: '0.875rem' }}>
+      <p className="eyebrow">Why this verdict? — criteria that failed</p>
+      <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
+        {failures.map((f, i) => (
+          <li key={i} style={{ marginBottom: '0.6rem' }}>
+            <span
+              style={{
+                fontWeight: 600,
+                color: '#e24b4a',
+                marginRight: '0.4rem',
+              }}
+            >
+              [{f.scenario}]
+            </span>
+            {f.text}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <div
-      className="panel"
-      style={{ padding: '1rem', minWidth: 0 }}
-    >
+    <div className="panel" style={{ padding: '1rem', minWidth: 0 }}>
       <p className="eyebrow" style={{ fontSize: '0.75rem', marginBottom: '0.25rem' }}>
         {label}
       </p>
@@ -246,8 +429,6 @@ export function GhostingPage() {
   const [showRef, setShowRef] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
-  // Default to the first partner once the list loads (deferred via timeout to avoid
-  // triggering the cascading-setState lint rule for synchronous effect setState).
   useEffect(() => {
     const partners = partnersQuery.data
     if (!partners || partners.length === 0 || selectedPartnerId) return
@@ -325,8 +506,28 @@ export function GhostingPage() {
 
   const activeScenario =
     activeTab === 'source' ? result?.source_scenarios : result?.spread_scenarios
-  const activeExpectedCriteria = activeScenario?.range_data.expected
-  const activeExpectedLesion = activeScenario?.range_lesions.expected
+  const activeGhostedLesion =
+    activeTab === 'source'
+      ? result?.ghosted_source
+      : result?.ghosted_spread
+
+  // Build hypothesis text for the active tab
+  function buildHypothesis(tab: 'source' | 'spread', r: GhostingAnalysisResult): string {
+    const srcAssigned = r.ghosted_source.assigned_to
+    const sprAssigned = r.ghosted_spread.assigned_to
+    if (tab === 'source') {
+      return `Hypothesis: ${srcAssigned} infected ${r.case1_name}. ` +
+        `This scenario back-calculates when ${srcAssigned} would have had an active primary chancre ` +
+        `(ghosted source lesion: ${r.ghosted_source.onset} → ${r.ghosted_source.end}) ` +
+        `that could have been transmitted to ${r.case1_name} during the exposure window. ` +
+        `For this to hold, the exposure must overlap with that infectious window, ` +
+        `and ${r.case1_name}'s back-calculated inoculation date must fall within it.`
+    }
+    return `Hypothesis: ${r.case1_name} infected ${sprAssigned}. ` +
+      `This scenario calculates when ${r.case1_name} would have been contagious ` +
+      `(ghosted spread lesion: ${r.ghosted_spread.onset} → ${r.ghosted_spread.end}) ` +
+      `and whether that infectious period overlaps with the reported contact with ${sprAssigned}.`
+  }
 
   return (
     <section className="stack-lg">
@@ -371,10 +572,7 @@ export function GhostingPage() {
                 ))}
               </tbody>
             </table>
-            <p
-              className="muted"
-              style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}
-            >
+            <p className="muted" style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>
               Interview period — Primary: 125 days before chancre onset. Secondary: 237 days before
               secondary onset.
             </p>
@@ -438,6 +636,7 @@ export function GhostingPage() {
       {result && (
         <>
           <VerdictBanner verdict={result.verdict} />
+          <VerdictContext result={result} />
 
           {/* Anchor symptom used */}
           <div className="panel stack-xs" style={{ fontSize: '0.875rem' }}>
@@ -448,6 +647,7 @@ export function GhostingPage() {
               {result.case1_symptom.duration_days > 0
                 ? ` · Duration ${result.case1_symptom.duration_days}d`
                 : ''}
+              {' · '}Avg inoculation date: <strong>{computeInoculationAvg(result.case1_symptom)}</strong>
             </p>
           </div>
 
@@ -482,24 +682,42 @@ export function GhostingPage() {
               </button>
             </nav>
 
-            {activeScenario && activeExpectedLesion && activeExpectedCriteria && (
+            {activeScenario && activeGhostedLesion && (
               <div className="stack-md">
+                {/* Hypothesis */}
+                <div
+                  style={{
+                    background: '#f8f9fa',
+                    borderLeft: '3px solid #378add',
+                    padding: '0.75rem 1rem',
+                    fontSize: '0.875rem',
+                    borderRadius: '0 4px 4px 0',
+                  }}
+                >
+                  <p className="eyebrow" style={{ marginBottom: '0.25rem' }}>
+                    What this scenario tests
+                  </p>
+                  <p>{buildHypothesis(activeTab, result)}</p>
+                </div>
+
+                {/* Lesion window + confidence */}
                 <div
                   style={{
                     display: 'flex',
                     gap: '1.5rem',
                     alignItems: 'center',
                     fontSize: '0.9rem',
+                    flexWrap: 'wrap',
                   }}
                 >
                   <div>
-                    <p className="eyebrow">Expected lesion window</p>
+                    <p className="eyebrow">Ghosted lesion window (expected)</p>
                     <p style={{ fontWeight: 600 }}>
-                      {activeExpectedLesion.onset} → {activeExpectedLesion.end}
+                      {activeGhostedLesion.onset} → {activeGhostedLesion.end}
                     </p>
                     <p className="muted" style={{ fontSize: '0.8rem' }}>
-                      Assigned to {activeExpectedLesion.assigned_to} · derived from{' '}
-                      {activeExpectedLesion.derived_from_symptom}
+                      Assigned to {activeGhostedLesion.assigned_to} · derived from{' '}
+                      {activeGhostedLesion.derived_from_symptom}
                     </p>
                   </div>
                   <div>
@@ -512,8 +730,17 @@ export function GhostingPage() {
                   </div>
                 </div>
 
-                <p className="eyebrow">Criteria — expected range</p>
-                <CriteriaTable criteria={activeExpectedCriteria} />
+                <p className="eyebrow">
+                  Criteria — latency shown across all 3 ranges (optimistic / expected / conservative)
+                </p>
+                <EnhancedCriteriaTable
+                  aggressive={activeScenario.range_data.aggressive}
+                  expected={activeScenario.range_data.expected}
+                  conservative={activeScenario.range_data.conservative}
+                  case1Symptom={result.case1_symptom}
+                  ghostedLesion={activeGhostedLesion}
+                  case1Name={result.case1_name}
+                />
               </div>
             )}
           </div>

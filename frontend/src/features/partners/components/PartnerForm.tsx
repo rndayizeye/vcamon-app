@@ -215,9 +215,9 @@ export function PartnerForm({
           <h2>{mode === "create" ? "Create partner" : "Update partner"}</h2>
         </div>
         <p className="muted">
-          Exposure dates belong to the OP ↔ Partner relationship, not the
-          partner record. Set them in the Exposure Window section below after
-          saving.
+          Exposure dates and body parts used during contact belong to the OP ↔
+          Partner relationship. After saving, the Exposure Window section will
+          appear below where you can record them.
         </p>
       </div>
 

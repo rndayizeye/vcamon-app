@@ -41,8 +41,8 @@ export function PartnerCreatePage() {
         }),
       ]);
 
-      // 3. Navigate back to partner list
-      navigate(`/cases/${safeCaseId}/partners`);
+      // 3. Navigate to edit page so the RelationshipEditor (exposure dates + body parts) is immediately visible
+      navigate(`/cases/${safeCaseId}/partners/${newPartner.id}/edit`);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unable to create partner.";

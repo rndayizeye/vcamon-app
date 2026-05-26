@@ -27,8 +27,10 @@ const INTERVIEW_PERIOD_SECONDARY_DAYS = 237
 // ---------------------------------------------------------------------------
 
 const COLORS = {
-  symptomOnset: '#E24B4A',
-  symptomBar: '#E24B4A',
+  primaryOnset: '#E24B4A',
+  primaryBar: '#E24B4A',
+  secondaryOnset: '#7F77DD',
+  secondaryBar: '#7F77DD',
   exposurePartner: '#7F77DD',
   exposureOp: '#EF9F27',
   critical: '#1D9E75',
@@ -50,6 +52,7 @@ const RIGHT_MARGIN = 24
 const TOP_MARGIN = 16
 const BOTTOM_MARGIN = 56
 const ROW_HEIGHT = 80
+const MIN_CHART_SPAN_MS = 365 * 24 * 60 * 60 * 1000  // 12-month minimum
 
 // ---------------------------------------------------------------------------
 // Date utilities
@@ -82,25 +85,59 @@ function getMonthTicks(minDate: Date, maxDate: Date): Date[] {
 }
 
 // ---------------------------------------------------------------------------
-// Symptom classification helpers
+// Symptom helpers
 // ---------------------------------------------------------------------------
 
-const PRIMARY_KEYWORDS = ['Anal', 'Oral', 'Vaginal', 'Penile', 'Rectal', 'LX']
-const SECONDARY_KEYWORDS = ['Rash', 'Alopecia', 'Lata']
+type SymptomChartType = 'Primary Chancre' | 'Secondary Rash/Lesions' | 'Historical Primary'
 
-function classifySymptomType(symptomType: string): 'Primary Chancre' | 'Secondary Rash/Lesions' | null {
-  if (PRIMARY_KEYWORDS.some((k) => symptomType.includes(k))) return 'Primary Chancre'
-  if (SECONDARY_KEYWORDS.some((k) => symptomType.includes(k))) return 'Secondary Rash/Lesions'
+type SymptomBar = {
+  chartType: SymptomChartType
+  onset: Date
+  durationDays: number
+  typeName: string
+}
+
+function classificationToChartType(classification: string | null): SymptomChartType | null {
+  if (classification === 'Primary') return 'Primary Chancre'
+  if (classification === 'Secondary') return 'Secondary Rash/Lesions'
   return null
 }
 
+function buildSymptomBars(
+  entries: SymptomEntryRead[],
+  historicalPrimaryChancre: boolean | null,
+  historicalPrimaryDate: string | null,
+): SymptomBar[] {
+  const bars: SymptomBar[] = []
+  for (const entry of entries) {
+    if (!entry.onset_date) continue
+    const chartType = classificationToChartType(entry.classification)
+    if (!chartType) continue
+    const onset = parseDate(entry.onset_date)
+    if (!onset) continue
+    bars.push({
+      chartType,
+      onset,
+      durationDays: entry.duration_days ?? 0,
+      typeName: entry.symptom_type,
+    })
+  }
+  if (historicalPrimaryChancre && historicalPrimaryDate) {
+    const onset = parseDate(historicalPrimaryDate)
+    if (onset) {
+      bars.push({ chartType: 'Historical Primary', onset, durationDays: 0, typeName: 'Historical Primary' })
+    }
+  }
+  return bars
+}
+
 function getInoculationPoints(
-  chartType: string,
+  chartType: SymptomChartType,
   onset: Date,
   durationDays: number,
 ): { min: Date; avg: Date; max: Date } | null {
   const dur = durationDays > 0 ? durationDays : PRIMARY.avg
-  if (['Primary Chancre', 'Historical Primary', 'Ghosted Primary'].includes(chartType)) {
+  if (chartType === 'Primary Chancre' || chartType === 'Historical Primary') {
     return {
       min: addDays(onset, -INCUBATION.min),
       avg: addDays(onset, -INCUBATION.avg),
@@ -115,6 +152,13 @@ function getInoculationPoints(
     }
   }
   return null
+}
+
+function symptomColor(chartType: SymptomChartType): { onset: string; bar: string } {
+  if (chartType === 'Secondary Rash/Lesions') {
+    return { onset: COLORS.secondaryOnset, bar: COLORS.secondaryBar }
+  }
+  return { onset: COLORS.primaryOnset, bar: COLORS.primaryBar }
 }
 
 // Parse ghosted lesion date pair from the notes string saved by the engine
@@ -156,9 +200,7 @@ function starPath(cx: number, cy: number, r: number): string {
 type PersonData = {
   label: string
   isOp: boolean
-  symptomType: string | null
-  symptomOnset: Date | null
-  symptomDuration: number
+  symptoms: SymptomBar[]
   treatmentDate: Date | null
   firstExposure: Date | null
   lastExposure: Date | null
@@ -187,15 +229,19 @@ function VcaTimeline({
     showInterview: boolean
   }
 }) {
-  // Date range
+  // Collect all dates to determine raw data range
   const allDates: Date[] = []
   for (const p of people) {
     if (p.treatmentDate) allDates.push(p.treatmentDate)
     if (p.firstExposure) allDates.push(p.firstExposure)
     if (p.lastExposure) allDates.push(p.lastExposure)
-    if (p.symptomOnset) {
-      allDates.push(p.symptomOnset)
-      if (p.symptomDuration > 0) allDates.push(addDays(p.symptomOnset, p.symptomDuration))
+    for (const sym of p.symptoms) {
+      allDates.push(sym.onset)
+      const dur = sym.durationDays > 0 ? sym.durationDays : PRIMARY.avg
+      allDates.push(addDays(sym.onset, dur))
+      // Include inoculation range so chart always shows the full estimated window
+      const inoc = getInoculationPoints(sym.chartType, sym.onset, dur)
+      if (inoc) allDates.push(inoc.max)
     }
   }
   for (const g of ghostings) {
@@ -204,8 +250,22 @@ function VcaTimeline({
   }
 
   const today = new Date()
-  const minDate = allDates.length > 0 ? addDays(new Date(Math.min(...allDates.map((d) => d.getTime()))), -45) : addDays(today, -180)
-  const maxDate = allDates.length > 0 ? addDays(new Date(Math.max(...allDates.map((d) => d.getTime()))), 45) : addDays(today, 30)
+  const rawMin = allDates.length > 0
+    ? addDays(new Date(Math.min(...allDates.map((d) => d.getTime()))), -30)
+    : addDays(today, -365)
+  const rawMax = allDates.length > 0
+    ? addDays(new Date(Math.max(...allDates.map((d) => d.getTime()))), 30)
+    : today
+
+  // Enforce 12-month minimum window centered on the data midpoint
+  let minDate = rawMin
+  let maxDate = rawMax
+  const rawSpan = rawMax.getTime() - rawMin.getTime()
+  if (rawSpan < MIN_CHART_SPAN_MS) {
+    const midMs = (rawMin.getTime() + rawMax.getTime()) / 2
+    minDate = new Date(midMs - MIN_CHART_SPAN_MS / 2)
+    maxDate = new Date(midMs + MIN_CHART_SPAN_MS / 2)
+  }
 
   const chartW = containerWidth - LEFT_MARGIN - RIGHT_MARGIN
   const svgH = TOP_MARGIN + people.length * ROW_HEIGHT + BOTTOM_MARGIN
@@ -221,7 +281,6 @@ function VcaTimeline({
   }
 
   const xTicks = getMonthTicks(minDate, maxDate)
-  // Reduce tick density if too many
   const tickStep = xTicks.length > 24 ? 3 : xTicks.length > 12 ? 2 : 1
   const visibleTicks = xTicks.filter((_, i) => i % tickStep === 0)
 
@@ -261,73 +320,84 @@ function VcaTimeline({
       {/* Per-person chart elements */}
       {people.map((p, i) => {
         const y = rowY(i)
-        const onset = p.symptomOnset
-        const chartType = p.symptomType
-        const dur = p.symptomDuration || PRIMARY.avg
+        // For OP-only overlays (critical/interview period), prefer primary symptom
+        const keySym =
+          p.symptoms.find((s) => s.chartType === 'Primary Chancre') ??
+          p.symptoms.find((s) => s.chartType === 'Historical Primary') ??
+          p.symptoms[0] ??
+          null
 
         return (
           <g key={`person-${i}`}>
-            {/* Symptom duration bar */}
-            {toggles.showDurations && chartType && onset && (
-              <line
-                x1={dateToX(onset)}
-                y1={y}
-                x2={dateToX(addDays(onset, dur))}
-                y2={y}
-                stroke={COLORS.symptomBar}
-                strokeWidth={7}
-                strokeLinecap="round"
-              >
-                <title>
-                  {p.label} — {chartType} · Onset {onset.toISOString().slice(0, 10)} · Est. end{' '}
-                  {addDays(onset, dur).toISOString().slice(0, 10)}
-                </title>
-              </line>
-            )}
+            {/* All symptom bars (primary = red, secondary = purple) */}
+            {p.symptoms.map((sym, si) => {
+              const dur = sym.durationDays > 0 ? sym.durationDays : PRIMARY.avg
+              const { onset: onsetColor, bar: barColor } = symptomColor(sym.chartType)
+              const xOnset = dateToX(sym.onset)
 
-            {/* Symptom onset marker (▲) */}
-            {chartType && onset && (
-              <polygon
-                points={trianglePoints(dateToX(onset), y, 7)}
-                fill={COLORS.symptomOnset}
-              >
-                <title>
-                  {p.label} — Symptom onset: {onset.toISOString().slice(0, 10)} · {chartType}
-                </title>
-              </polygon>
-            )}
-
-            {/* Inoculation points (◆) */}
-            {toggles.showInoc && chartType && onset && (() => {
-              const pts = getInoculationPoints(chartType, onset, dur)
-              if (!pts) return null
               return (
-                <g>
-                  {[
-                    { d: pts.min, label: 'Min inoculation' },
-                    { d: pts.avg, label: 'Avg inoculation' },
-                    { d: pts.max, label: 'Max inoculation' },
-                  ].map(({ d, label }) => (
-                    <polygon
-                      key={label}
-                      points={diamondPoints(dateToX(d), y, 7)}
-                      fill={COLORS.inoculation}
+                <g key={`sym-${si}`}>
+                  {/* Duration bar */}
+                  {toggles.showDurations && (
+                    <line
+                      x1={xOnset}
+                      y1={y}
+                      x2={dateToX(addDays(sym.onset, dur))}
+                      y2={y}
+                      stroke={barColor}
+                      strokeWidth={7}
+                      strokeLinecap="round"
                     >
                       <title>
-                        {p.label} — {label}: {d.toISOString().slice(0, 10)}
+                        {p.label} — {sym.typeName} ({sym.chartType}) · Onset{' '}
+                        {sym.onset.toISOString().slice(0, 10)} · Est. end{' '}
+                        {addDays(sym.onset, dur).toISOString().slice(0, 10)}
                       </title>
-                    </polygon>
-                  ))}
+                    </line>
+                  )}
+
+                  {/* Onset marker (▲) */}
+                  <polygon points={trianglePoints(xOnset, y, 7)} fill={onsetColor}>
+                    <title>
+                      {p.label} — {sym.typeName} onset: {sym.onset.toISOString().slice(0, 10)} ·{' '}
+                      {sym.chartType}
+                    </title>
+                  </polygon>
+
+                  {/* Inoculation points (◆) */}
+                  {toggles.showInoc && (() => {
+                    const pts = getInoculationPoints(sym.chartType, sym.onset, dur)
+                    if (!pts) return null
+                    return (
+                      <g>
+                        {(
+                          [
+                            { d: pts.min, label: 'Min inoculation' },
+                            { d: pts.avg, label: 'Avg inoculation' },
+                            { d: pts.max, label: 'Max inoculation' },
+                          ] as const
+                        ).map(({ d, label }) => (
+                          <polygon
+                            key={label}
+                            points={diamondPoints(dateToX(d), y, 7)}
+                            fill={COLORS.inoculation}
+                          >
+                            <title>
+                              {p.label} — {sym.typeName}: {label}:{' '}
+                              {d.toISOString().slice(0, 10)}
+                            </title>
+                          </polygon>
+                        ))}
+                      </g>
+                    )
+                  })()}
                 </g>
               )
-            })()}
+            })}
 
             {/* Treatment marker (★) */}
             {p.treatmentDate && (
-              <path
-                d={starPath(dateToX(p.treatmentDate), y, 8)}
-                fill={COLORS.treatment}
-              >
+              <path d={starPath(dateToX(p.treatmentDate), y, 8)} fill={COLORS.treatment}>
                 <title>
                   {p.label} — Treatment: {p.treatmentDate.toISOString().slice(0, 10)}
                 </title>
@@ -358,10 +428,11 @@ function VcaTimeline({
               )
             })()}
 
-            {/* Critical period (OP only) */}
-            {toggles.showCritical && p.isOp && chartType && onset && (() => {
-              const pts = getInoculationPoints(chartType, onset, dur)
-              const critStart = pts ? pts.max : addDays(onset, -(INCUBATION.max + PRIMARY.max))
+            {/* Critical period (OP only, keyed to primary/key symptom) */}
+            {toggles.showCritical && p.isOp && keySym && (() => {
+              const dur = keySym.durationDays > 0 ? keySym.durationDays : PRIMARY.avg
+              const pts = getInoculationPoints(keySym.chartType, keySym.onset, dur)
+              const critStart = pts ? pts.max : addDays(keySym.onset, -(INCUBATION.max + PRIMARY.max))
               const critEnd = p.treatmentDate ?? maxDate
               return (
                 <line
@@ -381,11 +452,11 @@ function VcaTimeline({
               )
             })()}
 
-            {/* Interview period (OP only) */}
-            {toggles.showInterview && p.isOp && onset && (() => {
-              const isPrimary = chartType === 'Primary Chancre'
+            {/* Interview period (OP only, keyed to primary/key symptom) */}
+            {toggles.showInterview && p.isOp && keySym && (() => {
+              const isPrimary = keySym.chartType === 'Primary Chancre' || keySym.chartType === 'Historical Primary'
               const days = isPrimary ? INTERVIEW_PERIOD_PRIMARY_DAYS : INTERVIEW_PERIOD_SECONDARY_DAYS
-              const intStart = addDays(onset, -days)
+              const intStart = addDays(keySym.onset, -days)
               const intEnd = p.treatmentDate ?? maxDate
               return (
                 <line
@@ -494,8 +565,10 @@ function VcaTimeline({
 // ---------------------------------------------------------------------------
 
 const LEGEND_ITEMS = [
-  { label: 'Symptom onset', symbol: '▲', color: COLORS.symptomOnset },
-  { label: 'Symptom duration', symbol: '━', color: COLORS.symptomBar },
+  { label: 'Primary symptom onset (e.g. chancre)', symbol: '▲', color: COLORS.primaryOnset },
+  { label: 'Primary symptom duration', symbol: '━', color: COLORS.primaryBar },
+  { label: 'Secondary symptom onset (e.g. rash)', symbol: '▲', color: COLORS.secondaryOnset },
+  { label: 'Secondary symptom duration', symbol: '━', color: COLORS.secondaryBar },
   { label: 'Inoculation points', symbol: '◆', color: COLORS.inoculation },
   { label: 'Critical period', symbol: '━', color: COLORS.critical },
   { label: 'Interview period', symbol: '╌', color: COLORS.interview },
@@ -600,22 +673,18 @@ export function VcaChartPage() {
     }
   }
 
-  // Helper: pick primary symptom entry for a person (last in list, matching Streamlit)
-  function pickPrimarySymptom(symptoms: SymptomEntryRead[]): SymptomEntryRead | null {
-    return symptoms.length > 0 ? symptoms[symptoms.length - 1] : null
-  }
-
   // Build people array: OP first, partners in order
-  const opSymptom = pickPrimarySymptom(caseSymptoms as SymptomEntryRead[])
-  const opChartType = opSymptom ? classifySymptomType(opSymptom.symptom_type) : null
+  const opSymptomBars = buildSymptomBars(
+    caseSymptoms as SymptomEntryRead[],
+    caseData.historical_primary_chancre ?? null,
+    caseData.historical_primary_date ?? null,
+  )
 
   const people: PersonData[] = [
     {
       label: `${caseData.patient_name} (OP)`,
       isOp: true,
-      symptomType: opChartType,
-      symptomOnset: parseDate(opSymptom?.onset_date),
-      symptomDuration: opSymptom?.duration_days ?? 0,
+      symptoms: opSymptomBars,
       treatmentDate: parseDate(caseData.treatment_date),
       firstExposure: null,
       lastExposure: null,
@@ -628,43 +697,32 @@ export function VcaChartPage() {
 
   const dataGaps: string[] = []
 
-  if (!opSymptom && !caseData.treatment_date) {
+  if (opSymptomBars.length === 0 && !caseData.treatment_date) {
     dataGaps.push('OP has no symptoms or treatment date — timeline will be sparse')
   }
 
   for (const p of loadedPartners) {
     const pd = partnerDataMap.get(p.id)
-    const pSym = pickPrimarySymptom(pd?.symptoms ?? [])
-    const pChartType = pSym ? classifySymptomType(pSym.symptom_type) : null
     const rel = pd?.relationship ?? null
     const label = `P${p.partner_number} — ${p.name ?? 'Unnamed'}`
 
     partnerRefMap[String(p.partner_number)] = label
 
-    let modalities: string[] = []
-    if (rel?.exposure_modalities) {
-      try {
-        const parsed = JSON.parse(rel.exposure_modalities)
-        if (Array.isArray(parsed)) modalities = parsed
-      } catch {
-        modalities = [rel.exposure_modalities]
-      }
-    }
+    const partnerSymptomBars = buildSymptomBars(
+      pd?.symptoms ?? [],
+      p.historical_primary_chancre ?? null,
+      p.historical_primary_date ?? null,
+    )
 
     people.push({
       label,
       isOp: false,
-      symptomType: pChartType,
-      symptomOnset: parseDate(pSym?.onset_date),
-      symptomDuration: pSym?.duration_days ?? 0,
+      symptoms: partnerSymptomBars,
       treatmentDate: parseDate(p.treatment_date),
       firstExposure: parseDate(rel?.exposure_first_date),
       lastExposure: parseDate(rel?.exposure_last_date),
     })
 
-    if (!modalities.length) {
-      // suppress — not always required
-    }
     if (!rel?.exposure_first_date) {
       dataGaps.push(
         `P${p.partner_number} (${p.name ?? 'Unnamed'}) has no exposure dates — exposure window cannot be plotted`,
@@ -673,6 +731,16 @@ export function VcaChartPage() {
   }
 
   const partnerQueriesLoading = partnerDataQueries.some((q) => q.isLoading)
+
+  // Symptom counts for display
+  const totalPrimary = people.reduce(
+    (n, p) => n + p.symptoms.filter((s) => s.chartType !== 'Secondary Rash/Lesions').length,
+    0,
+  )
+  const totalSecondary = people.reduce(
+    (n, p) => n + p.symptoms.filter((s) => s.chartType === 'Secondary Rash/Lesions').length,
+    0,
+  )
 
   return (
     <section className="stack-lg">
@@ -684,7 +752,12 @@ export function VcaChartPage() {
         <p className="muted" style={{ fontSize: '0.875rem' }}>
           Case #{caseData.id} — {caseData.patient_name} ·{' '}
           {loadedPartners.length} partner{loadedPartners.length !== 1 ? 's' : ''} ·{' '}
-          {ghostings.length} ghosting record{ghostings.length !== 1 ? 's' : ''}
+          {ghostings.length} ghosting record{ghostings.length !== 1 ? 's' : ''} ·{' '}
+          <span style={{ color: COLORS.primaryOnset }}>{totalPrimary} primary</span>
+          {' + '}
+          <span style={{ color: COLORS.secondaryOnset }}>{totalSecondary} secondary</span>
+          {' symptom'}
+          {totalPrimary + totalSecondary !== 1 ? 's' : ''} · 12-month minimum window
         </p>
       </header>
 
@@ -739,7 +812,7 @@ export function VcaChartPage() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
             gap: '0.4rem',
           }}
         >

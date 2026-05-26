@@ -113,10 +113,12 @@ export type GhostingAnalysisRequest = {
   op_symptoms: GhostingSymptomInput[]
   op_exposure?: GhostingExposureInput | null
   op_treatment_date?: string | null
+  op_body_parts?: string[]
   partner_name: string
   partner_symptoms: GhostingSymptomInput[]
   partner_exposure?: GhostingExposureInput | null
   partner_treatment_date?: string | null
+  partner_body_parts?: string[]
 }
 
 // Minimal relationship shape needed for chart

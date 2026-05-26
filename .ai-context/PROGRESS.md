@@ -1,6 +1,6 @@
 # VCA Monitor — Progress Log
 _Update this at the end of every session. Keep it short — every model reads it._
-_Last updated: 2026-05-25 (session B)_
+_Last updated: 2026-05-25 (session C)_
 
 ---
 
@@ -17,6 +17,42 @@ _Last updated: 2026-05-25 (session B)_
 - [x] Plotly VCA timeline chart (08_vca_chart.py)
 - [x] Quick ghosting with no case required (09_quick_ghost.py)
 - [x] `CasePartnerRelationship` association table with `RelationshipReport` evidence layer
+
+---
+
+## Completed in this session (2026-05-25 session C)
+
+- [x] **Analytics page UX** — All four analytics components (`AnalyticsSummaryCards`, `CentralityTable`,
+  `ClusterPanel`, `CaseAnalyticsPage` node table) updated to use layman's terms with technical terms
+  in parentheses. Each metric has a plain-language description. Centrality table has a collapsible
+  "How are these calculated?" definitions panel.
+
+- [x] **VCA chart: all symptoms + 12-month window** — `VcaChartPage` rebuilt to plot every classified
+  symptom per person (not just the last one). `buildSymptomBars()` reads the `classification` field
+  from `SymptomEntry` directly. Primary chancre symptoms render in red, secondary rash/lesions in
+  purple. Each symptom gets its own onset marker (▲), duration bar, and inoculation diamonds (◆).
+  Chart enforces a 12-month minimum window centered on the data midpoint.
+
+- [x] **Ghosting analysis clarity** — Both `GhostingPage` and `QuickGhostPage` updated:
+  - Hypothesis text panel per scenario tab (plain-language "what this tests" statement with names)
+  - Inoculation date sub-row under exposure criterion: shows avg inoculation date and whether it
+    falls within the ghosted lesion window
+  - Latency shown across all 3 ranges (Optimistic/min, Expected/avg, Conservative/max);
+    all other criteria show expected range only
+  - `VerdictContext` component: per-criterion plain-language failure explanations below verdict badge
+  - `QuickGhostPage` symptom editor overlap fixed: grid → flex-wrap layout
+
+- [x] **Body parts / sex type fix** — `QuickGhostPage` was using old `LX`-vocabulary strings sent
+  inside `exposure_modalities`. Fixed to use `penis/vagina/anus/mouth` vocabulary matching
+  `RelationshipEditor`, sent as `op_body_parts`/`partner_body_parts` top-level API fields
+  (what `_sex_type_compatible()` in the clinical engine actually reads). `GhostingAnalysisRequest`
+  type updated with both fields.
+
+- [x] **Partner create → edit redirect** — `PartnerCreatePage` now navigates to
+  `/cases/${caseId}/partners/${id}/edit` after creating, so the `RelationshipEditor`
+  (exposure dates + body parts grid) is immediately visible instead of going to the list.
+
+- **TypeScript compiles clean throughout.**
 
 ---
 

@@ -7,6 +7,7 @@ import type {
   GhostingCriteriaCheck,
   GhostingScenarioCriteria,
   GhostingSymptomInput,
+  GhostedLesion,
 } from './types'
 
 // ---------------------------------------------------------------------------
@@ -30,7 +31,14 @@ const ANATOMICAL_SITES = [
   'LX',
 ]
 
-const SEX_TYPES = ['Anal LX', 'Oral LX', 'Vaginal LX', 'Penile LX', 'Rectal LX']
+const BODY_PARTS = [
+  { value: 'penis', label: 'Penis' },
+  { value: 'vagina', label: 'Vagina / Vulva' },
+  { value: 'anus', label: 'Anus / Rectum' },
+  { value: 'mouth', label: 'Mouth' },
+] as const
+
+type BodyPartValue = (typeof BODY_PARTS)[number]['value']
 
 const CLINICAL_REF = [
   { phase: 'Incubation', range: '10–21–90 d' },
@@ -55,7 +63,7 @@ type PersonFields = {
   symptoms: SymptomRow[]
   exp_first: string
   exp_last: string
-  sex_types: string[]
+  body_parts: BodyPartValue[]
   treatment_date: string
 }
 
@@ -76,7 +84,7 @@ const DEFAULT_PERSON: PersonFields = {
   symptoms: [],
   exp_first: '',
   exp_last: '',
-  sex_types: [],
+  body_parts: [],
   treatment_date: '',
 }
 
@@ -95,8 +103,22 @@ function toSymptomInputs(rows: SymptomRow[]): GhostingSymptomInput[] {
     }))
 }
 
+function isoAddDays(iso: string, days: number): string {
+  const d = new Date(iso)
+  d.setDate(d.getDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
+function dateInRange(d: string, start: string, end: string): boolean {
+  return d >= start && d <= end
+}
+
+function computeInoculationAvg(symptom: GhostingSymptomInput): string {
+  return isoAddDays(symptom.onset, -21)
+}
+
 // ---------------------------------------------------------------------------
-// Symptom editor sub-component
+// Symptom editor sub-component  (flex-wrap fixes the overlap bug)
 // ---------------------------------------------------------------------------
 
 function SymptomEditor({
@@ -119,33 +141,40 @@ function SymptomEditor({
     <div className="stack-sm">
       <p className="eyebrow">Symptoms</p>
       {fields.length === 0 && (
-        <p style={{ color: '#888', fontSize: '0.85rem', margin: 0 }}>No symptoms — click Add to enter one.</p>
+        <p style={{ color: '#888', fontSize: '0.85rem', margin: 0 }}>
+          No symptoms — click Add to enter one.
+        </p>
       )}
       {fields.map((field, i) => (
         <div
           key={field.id}
           style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 120px 80px 1fr auto',
+            display: 'flex',
+            flexWrap: 'wrap',
             gap: '0.5rem',
-            alignItems: 'end',
+            alignItems: 'flex-end',
           }}
         >
-          <label className="field" style={{ margin: 0 }}>
+          <label className="field" style={{ margin: 0, flex: '2 1 140px', minWidth: 0 }}>
             {i === 0 && <span style={{ fontSize: '0.75rem' }}>Type</span>}
             <select {...register(`${prefix}.symptoms.${i}.type`)}>
               {SYMPTOM_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </label>
-          <label className="field" style={{ margin: 0 }}>
+          <label className="field" style={{ margin: 0, flex: '1 1 130px', minWidth: 110 }}>
             {i === 0 && <span style={{ fontSize: '0.75rem' }}>Onset date</span>}
             <input type="date" {...register(`${prefix}.symptoms.${i}.onset`)} />
           </label>
-          <label className="field" style={{ margin: 0 }}>
+          <label className="field" style={{ margin: 0, flex: '0 1 90px', minWidth: 70 }}>
             {i === 0 && <span style={{ fontSize: '0.75rem' }}>Duration (d)</span>}
-            <input type="number" min={0} max={90} {...register(`${prefix}.symptoms.${i}.duration_days`, { valueAsNumber: true })} />
+            <input
+              type="number"
+              min={0}
+              max={90}
+              {...register(`${prefix}.symptoms.${i}.duration_days`, { valueAsNumber: true })}
+            />
           </label>
-          <label className="field" style={{ margin: 0 }}>
+          <label className="field" style={{ margin: 0, flex: '2 1 140px', minWidth: 0 }}>
             {i === 0 && <span style={{ fontSize: '0.75rem' }}>Anatomical site</span>}
             <select {...register(`${prefix}.symptoms.${i}.anatomical_site`)}>
               <option value="">— none —</option>
@@ -156,7 +185,7 @@ function SymptomEditor({
             type="button"
             className="button"
             onClick={() => remove(i)}
-            style={{ padding: '6px 10px', alignSelf: 'flex-end' }}
+            style={{ padding: '6px 10px', flex: '0 0 auto', alignSelf: 'flex-end' }}
             title="Remove symptom"
           >
             ✕
@@ -176,10 +205,10 @@ function SymptomEditor({
 }
 
 // ---------------------------------------------------------------------------
-// Sex-type checkboxes
+// Body parts checkboxes (penis / vagina / anus / mouth — matches RelationshipEditor)
 // ---------------------------------------------------------------------------
 
-function SexTypeCheckboxes({
+function BodyPartsCheckboxes({
   prefix,
   register,
 }: {
@@ -189,16 +218,17 @@ function SexTypeCheckboxes({
 }) {
   return (
     <div className="stack-xs">
-      <p className="eyebrow" style={{ marginBottom: '0.25rem' }}>Sex type(s)</p>
+      <p className="eyebrow" style={{ marginBottom: '0.25rem' }}>
+        Body parts used during contact
+      </p>
       <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-        {SEX_TYPES.map(st => (
-          <label key={st} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              value={st}
-              {...register(`${prefix}.sex_types`)}
-            />
-            {st.replace(' LX', '')}
+        {BODY_PARTS.map(({ value, label }) => (
+          <label
+            key={value}
+            style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem', cursor: 'pointer' }}
+          >
+            <input type="checkbox" value={value} {...register(`${prefix}.body_parts`)} />
+            {label}
           </label>
         ))}
       </div>
@@ -207,34 +237,10 @@ function SexTypeCheckboxes({
 }
 
 // ---------------------------------------------------------------------------
-// Verdict banner
+// Shared criteria / verdict components
 // ---------------------------------------------------------------------------
 
-function verdictClass(verdict: string): string {
-  if (verdict.includes('SOURCE') && !verdict.includes('UNRELATED') && !verdict.includes('AMBIGUOUS')) return 'badge badge-pass'
-  if (verdict.includes('SPREAD') && !verdict.includes('UNRELATED')) return 'badge badge-pass'
-  if (verdict.includes('AMBIGUOUS')) return 'badge badge-warn'
-  return 'badge badge-fail'
-}
-
-function VerdictBanner({ verdict }: { verdict: string }) {
-  const cls = verdictClass(verdict)
-
-  return (
-    <div style={{ padding: '1rem', borderRadius: '6px', background: 'rgba(0,0,0,0.03)', border: '1px solid #ddd' }}>
-      <p className="eyebrow">Verdict</p>
-      <p style={{ fontSize: '1.2rem', fontWeight: 700, marginTop: '0.25rem' }}>
-        <span className={cls}>{verdict}</span>
-      </p>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Criteria table
-// ---------------------------------------------------------------------------
-
-function CriteriaRow({ name, check }: { name: string; check: GhostingCriteriaCheck }) {
+function StatusBadge({ check }: { check: GhostingCriteriaCheck }) {
   const styles: Record<string, string> = {
     pass: 'badge badge-pass',
     fail: 'badge badge-fail',
@@ -248,33 +254,203 @@ function CriteriaRow({ name, check }: { name: string; check: GhostingCriteriaChe
     na: '— N/A',
   }
   return (
-    <tr>
-      <td style={{ fontWeight: 500 }}>{name}</td>
-      <td><span className={styles[check.status] ?? 'badge'}>{labels[check.status] ?? check.status}</span></td>
-      <td style={{ color: '#555', fontSize: '0.85rem' }}>{check.detail}</td>
-    </tr>
+    <span className={styles[check.status] ?? 'badge'}>
+      {labels[check.status] ?? check.status}
+    </span>
   )
 }
 
-function CriteriaTable({ label, criteria }: { label: string; criteria: GhostingScenarioCriteria }) {
+function EnhancedCriteriaTable({
+  aggressive,
+  expected,
+  conservative,
+  case1Symptom,
+  ghostedLesion,
+  case1Name,
+}: {
+  aggressive: GhostingScenarioCriteria
+  expected: GhostingScenarioCriteria
+  conservative: GhostingScenarioCriteria
+  case1Symptom: GhostingSymptomInput
+  ghostedLesion: GhostedLesion
+  case1Name: string
+}) {
+  const inocAvg = computeInoculationAvg(case1Symptom)
+  const inocInWindow = dateInRange(inocAvg, ghostedLesion.onset, ghostedLesion.end)
+  const tdMuted: React.CSSProperties = { fontSize: '0.875rem', color: '#555' }
+
   return (
-    <div className="stack-sm">
-      <p className="eyebrow">{label}</p>
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>Criterion</th>
-            <th>Result</th>
-            <th>Detail</th>
-          </tr>
-        </thead>
-        <tbody>
-          <CriteriaRow name="Exposure" check={criteria.exposure} />
-          <CriteriaRow name="Exposure modality" check={criteria.exposure_modality} />
-          <CriteriaRow name="Latency" check={criteria.latency} />
-          <CriteriaRow name="Natural order" check={criteria.natural_order} />
-        </tbody>
-      </table>
+    <table className="data-table" style={{ width: '100%' }}>
+      <thead>
+        <tr>
+          <th>Criterion</th>
+          <th>Range</th>
+          <th>Result</th>
+          <th>Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        {/* Exposure */}
+        <tr>
+          <td rowSpan={2} style={{ fontWeight: 500, verticalAlign: 'middle' }}>Exposure</td>
+          <td style={{ ...tdMuted, fontSize: '0.8rem' }}>Expected</td>
+          <td><StatusBadge check={expected.exposure} /></td>
+          <td style={tdMuted}>{expected.exposure.detail}</td>
+        </tr>
+        <tr style={{ background: 'rgba(0,0,0,0.02)' }}>
+          <td style={{ fontSize: '0.78rem', color: '#888', paddingLeft: '1rem' }}>↳ Inoculation date</td>
+          <td>
+            <span className={inocInWindow ? 'badge badge-pass' : 'badge badge-fail'}>
+              {inocInWindow ? '✓ In window' : '✗ Outside'}
+            </span>
+          </td>
+          <td style={{ fontSize: '0.78rem', color: '#666' }}>
+            {case1Name}'s avg inoculation ({inocAvg}) —{' '}
+            {inocInWindow
+              ? `within ghosted lesion (${ghostedLesion.onset} → ${ghostedLesion.end})`
+              : `outside ghosted lesion (${ghostedLesion.onset} → ${ghostedLesion.end})`}
+          </td>
+        </tr>
+
+        {/* Exposure modality */}
+        <tr>
+          <td style={{ fontWeight: 500 }}>Exposure modality</td>
+          <td style={{ ...tdMuted, fontSize: '0.8rem' }}>Expected</td>
+          <td><StatusBadge check={expected.exposure_modality} /></td>
+          <td style={tdMuted}>{expected.exposure_modality.detail}</td>
+        </tr>
+
+        {/* Latency — 3 rows */}
+        <tr>
+          <td rowSpan={3} style={{ fontWeight: 500, verticalAlign: 'middle' }}>Latency</td>
+          <td style={{ fontSize: '0.8rem', color: '#888' }}>Optimistic (min)</td>
+          <td><StatusBadge check={aggressive.latency} /></td>
+          <td style={tdMuted}>{aggressive.latency.detail}</td>
+        </tr>
+        <tr style={{ background: 'rgba(0,0,0,0.02)' }}>
+          <td style={{ fontSize: '0.8rem', fontWeight: 600 }}>Expected (avg)</td>
+          <td><StatusBadge check={expected.latency} /></td>
+          <td style={tdMuted}>{expected.latency.detail}</td>
+        </tr>
+        <tr>
+          <td style={{ fontSize: '0.8rem', color: '#888' }}>Conservative (max)</td>
+          <td><StatusBadge check={conservative.latency} /></td>
+          <td style={tdMuted}>{conservative.latency.detail}</td>
+        </tr>
+
+        {/* Natural order */}
+        <tr>
+          <td style={{ fontWeight: 500 }}>Natural order</td>
+          <td style={{ ...tdMuted, fontSize: '0.8rem' }}>Expected</td>
+          <td><StatusBadge check={expected.natural_order} /></td>
+          <td style={tdMuted}>{expected.natural_order.detail}</td>
+        </tr>
+      </tbody>
+    </table>
+  )
+}
+
+function VerdictBanner({ verdict }: { verdict: string }) {
+  const cls = verdict.includes('SOURCE') && !verdict.includes('UNRELATED') && !verdict.includes('AMBIGUOUS')
+    ? 'badge badge-pass'
+    : verdict.includes('SPREAD') && !verdict.includes('UNRELATED')
+      ? 'badge badge-pass'
+      : verdict.includes('AMBIGUOUS')
+        ? 'badge badge-warn'
+        : 'badge badge-fail'
+
+  return (
+    <div style={{ padding: '1rem', borderRadius: '6px', background: 'rgba(0,0,0,0.03)', border: '1px solid #ddd' }}>
+      <p className="eyebrow">Verdict</p>
+      <p style={{ fontSize: '1.2rem', fontWeight: 700, marginTop: '0.25rem' }}>
+        <span className={cls}>{verdict}</span>
+      </p>
+    </div>
+  )
+}
+
+function VerdictContext({ result }: { result: GhostingAnalysisResult }) {
+  const srcExpected = result.source_scenarios.range_data.expected
+  const sprExpected = result.spread_scenarios.range_data.expected
+  const srcLesion = result.source_scenarios.range_lesions.expected
+  const sprLesion = result.spread_scenarios.range_lesions.expected
+  const c1 = result.case1_name
+  const c2 = result.case2_name
+
+  type Explanation = { scenario: string; text: string }
+  const failures: Explanation[] = []
+
+  if (srcExpected.exposure.status === 'fail') {
+    failures.push({
+      scenario: 'Source',
+      text: `${c1} was likely not infected by ${c2} because the exposure window does not overlap with ${c2}'s ghosted source lesion (${srcLesion.onset} → ${srcLesion.end}). ${c2} would not have been infectious during the recorded contact.`,
+    })
+  }
+  if (srcExpected.exposure_modality.status === 'fail') {
+    failures.push({
+      scenario: 'Source',
+      text: `The type of sexual contact is not compatible with the site of ${c1}'s ${result.case1_symptom.type}. Transmission requires contact with the infected anatomical site.`,
+    })
+  }
+  if (srcExpected.latency.status === 'fail') {
+    failures.push({
+      scenario: 'Source',
+      text: `The timeline between ${c2}'s ghosted source lesion and their secondary symptoms does not fit natural syphilis progression. ${srcExpected.latency.detail}`,
+    })
+  }
+  if (srcExpected.natural_order.status === 'fail') {
+    failures.push({
+      scenario: 'Source',
+      text: `The ghosted source lesion would have occurred after ${c2}'s existing secondary lesion — primary must precede secondary. ${srcExpected.natural_order.detail}`,
+    })
+  }
+
+  if (sprExpected.exposure.status === 'fail') {
+    failures.push({
+      scenario: 'Spread',
+      text: `${c2} was likely not infected by ${c1} because the exposure window does not overlap with ${c1}'s infectious period (${sprLesion.onset} → ${sprLesion.end}).`,
+    })
+  }
+  if (sprExpected.exposure_modality.status === 'fail') {
+    failures.push({
+      scenario: 'Spread',
+      text: `The type of sexual contact is not compatible with the site of ${c1}'s ${result.case1_symptom.type}. ${sprExpected.exposure_modality.detail}`,
+    })
+  }
+  if (sprExpected.latency.status === 'fail') {
+    failures.push({
+      scenario: 'Spread',
+      text: `The time between ${c1}'s infectious period and ${c2}'s secondary symptoms does not fit natural syphilis progression. ${sprExpected.latency.detail}`,
+    })
+  }
+  if (sprExpected.natural_order.status === 'fail') {
+    failures.push({
+      scenario: 'Spread',
+      text: `The ghosted spread lesion would have occurred after ${c2}'s existing secondary lesion — primary must precede secondary. ${sprExpected.natural_order.detail}`,
+    })
+  }
+
+  if (failures.length === 0) {
+    return (
+      <div style={{ background: '#eafaf3', borderRadius: '6px', padding: '0.75rem 1rem', fontSize: '0.875rem', border: '1px solid #1d9e75' }}>
+        <p className="eyebrow">Why this verdict?</p>
+        <p style={{ color: '#1d9e75', marginTop: '0.25rem' }}>
+          All key criteria passed — the verdict is well-supported by the clinical data entered.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ background: '#fdf0f0', borderRadius: '6px', padding: '0.75rem 1rem', fontSize: '0.875rem', border: '1px solid #e24b4a' }}>
+      <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Why this verdict? — criteria that failed</p>
+      <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
+        {failures.map((f, i) => (
+          <li key={i} style={{ marginBottom: '0.5rem' }}>
+            <strong style={{ color: '#c0392b' }}>[{f.scenario}]</strong>{' '}{f.text}
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
@@ -286,10 +462,30 @@ function CriteriaTable({ label, criteria }: { label: string; criteria: GhostingS
 function Results({ result }: { result: GhostingAnalysisResult }) {
   const [logOpen, setLogOpen] = useState(false)
   const [scenarioTab, setScenarioTab] = useState<'source' | 'spread'>('source')
-  const srcExpected = result.source_scenarios.range_data.expected
-  const sprExpected = result.spread_scenarios.range_data.expected
   const srcLesion = result.source_scenarios.range_lesions.expected
   const sprLesion = result.spread_scenarios.range_lesions.expected
+
+  const activeScenario =
+    scenarioTab === 'source' ? result.source_scenarios : result.spread_scenarios
+  const activeGhostedLesion =
+    scenarioTab === 'source' ? result.ghosted_source : result.ghosted_spread
+
+  function buildHypothesis(tab: 'source' | 'spread'): string {
+    const srcAssigned = result.ghosted_source.assigned_to
+    const sprAssigned = result.ghosted_spread.assigned_to
+    if (tab === 'source') {
+      return `Hypothesis: ${srcAssigned} infected ${result.case1_name}. ` +
+        `This scenario back-calculates when ${srcAssigned} would have had an active primary chancre ` +
+        `(ghosted source lesion: ${result.ghosted_source.onset} → ${result.ghosted_source.end}) ` +
+        `that could have been transmitted to ${result.case1_name} during the exposure window. ` +
+        `For this to hold, the exposure must overlap with that infectious window, ` +
+        `and ${result.case1_name}'s back-calculated inoculation date must fall within it.`
+    }
+    return `Hypothesis: ${result.case1_name} infected ${sprAssigned}. ` +
+      `This scenario calculates when ${result.case1_name} would have been contagious ` +
+      `(ghosted spread lesion: ${result.ghosted_spread.onset} → ${result.ghosted_spread.end}) ` +
+      `and whether that infectious period overlaps with the reported contact with ${sprAssigned}.`
+  }
 
   return (
     <section className="stack-lg" style={{ marginTop: '1.5rem' }}>
@@ -298,6 +494,7 @@ function Results({ result }: { result: GhostingAnalysisResult }) {
       </div>
 
       <VerdictBanner verdict={result.verdict} />
+      <VerdictContext result={result} />
 
       {/* Ghosted date metrics */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
@@ -319,7 +516,7 @@ function Results({ result }: { result: GhostingAnalysisResult }) {
         </div>
       </div>
 
-      {/* Case1/Case2 labels */}
+      {/* Case1 anchor info */}
       <div className="panel stack-xs">
         <p className="eyebrow">Analysis roles</p>
         <p style={{ fontSize: '0.9rem' }}>
@@ -327,7 +524,8 @@ function Results({ result }: { result: GhostingAnalysisResult }) {
           <strong>Case 2:</strong> {result.case2_name}
         </p>
         <p style={{ fontSize: '0.85rem', color: '#666' }}>
-          Anchor symptom: {result.case1_symptom.type} — onset {result.case1_symptom.onset}
+          Anchor symptom: {result.case1_symptom.type} — onset {result.case1_symptom.onset} ·
+          avg inoculation date: <strong>{computeInoculationAvg(result.case1_symptom)}</strong>
         </p>
       </div>
 
@@ -350,24 +548,33 @@ function Results({ result }: { result: GhostingAnalysisResult }) {
           </button>
         </nav>
 
-        {scenarioTab === 'source' && (
-          <div className="stack-sm">
-            <CriteriaTable label="Expected range — source" criteria={srcExpected} />
-            <p style={{ fontSize: '0.82rem', color: '#555' }}>
-              Confidence: <strong>{result.source_scenarios.confidence}</strong> &nbsp;·&nbsp;
-              Pass count: {result.source_scenarios.pass_count}
-            </p>
-          </div>
-        )}
-        {scenarioTab === 'spread' && (
-          <div className="stack-sm">
-            <CriteriaTable label="Expected range — spread" criteria={sprExpected} />
-            <p style={{ fontSize: '0.82rem', color: '#555' }}>
-              Confidence: <strong>{result.spread_scenarios.confidence}</strong> &nbsp;·&nbsp;
-              Pass count: {result.spread_scenarios.pass_count}
-            </p>
-          </div>
-        )}
+        {/* Hypothesis */}
+        <div
+          style={{
+            background: '#f8f9fa',
+            borderLeft: '3px solid #378add',
+            padding: '0.75rem 1rem',
+            fontSize: '0.875rem',
+            borderRadius: '0 4px 4px 0',
+          }}
+        >
+          <p className="eyebrow" style={{ marginBottom: '0.25rem' }}>What this scenario tests</p>
+          <p>{buildHypothesis(scenarioTab)}</p>
+        </div>
+
+        <div style={{ fontSize: '0.82rem', color: '#555' }}>
+          Confidence: <strong>{activeScenario.confidence}</strong>
+          &nbsp;·&nbsp;Criteria passed: {activeScenario.pass_count} / 4
+        </div>
+
+        <EnhancedCriteriaTable
+          aggressive={activeScenario.range_data.aggressive}
+          expected={activeScenario.range_data.expected}
+          conservative={activeScenario.range_data.conservative}
+          case1Symptom={result.case1_symptom}
+          ghostedLesion={activeGhostedLesion}
+          case1Name={result.case1_name}
+        />
       </div>
 
       {/* Step-by-step log */}
@@ -436,23 +643,17 @@ export function QuickGhostPage() {
         op_name: values.person_a.name.trim() || 'Person A',
         op_symptoms: aSymptoms,
         op_exposure: aHasExposure
-          ? {
-              first: values.person_a.exp_first,
-              last: values.person_a.exp_last,
-              exposure_modalities: values.person_a.sex_types,
-            }
+          ? { first: values.person_a.exp_first, last: values.person_a.exp_last, exposure_modalities: [] }
           : null,
         op_treatment_date: values.person_a.treatment_date || null,
+        op_body_parts: values.person_a.body_parts,
         partner_name: values.person_b.name.trim() || 'Person B',
         partner_symptoms: bSymptoms,
         partner_exposure: bHasExposure
-          ? {
-              first: values.person_b.exp_first,
-              last: values.person_b.exp_last,
-              exposure_modalities: values.person_b.sex_types,
-            }
+          ? { first: values.person_b.exp_first, last: values.person_b.exp_last, exposure_modalities: [] }
           : null,
         partner_treatment_date: values.person_b.treatment_date || null,
+        partner_body_parts: values.person_b.body_parts,
       })
       setResult(res)
     } catch (err: unknown) {
@@ -517,7 +718,7 @@ export function QuickGhostPage() {
               <SymptomEditor prefix="person_a" control={control} register={register} />
 
               <div className="stack-sm">
-                <p className="eyebrow">Exposure window (A's account of contact with B)</p>
+                <p className="eyebrow">Exposure window</p>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                   <label className="field">
                     <span>First exposure</span>
@@ -528,7 +729,7 @@ export function QuickGhostPage() {
                     <input type="date" {...register('person_a.exp_last')} />
                   </label>
                 </div>
-                <SexTypeCheckboxes prefix="person_a" register={register} />
+                <BodyPartsCheckboxes prefix="person_a" register={register} />
               </div>
 
               <label className="field">
@@ -550,7 +751,7 @@ export function QuickGhostPage() {
               <SymptomEditor prefix="person_b" control={control} register={register} />
 
               <div className="stack-sm">
-                <p className="eyebrow">Exposure window (B's account of contact with A)</p>
+                <p className="eyebrow">Exposure window</p>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                   <label className="field">
                     <span>First exposure</span>
@@ -561,7 +762,7 @@ export function QuickGhostPage() {
                     <input type="date" {...register('person_b.exp_last')} />
                   </label>
                 </div>
-                <SexTypeCheckboxes prefix="person_b" register={register} />
+                <BodyPartsCheckboxes prefix="person_b" register={register} />
               </div>
 
               <label className="field">
@@ -572,7 +773,7 @@ export function QuickGhostPage() {
           </div>
 
           {/* Actions */}
-          <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <button
               className="button button-primary"
               type="submit"
@@ -581,12 +782,7 @@ export function QuickGhostPage() {
             >
               {loading ? 'Running…' : '▶ Run analysis'}
             </button>
-            <button
-              type="button"
-              className="button"
-              onClick={handleClear}
-              disabled={loading}
-            >
+            <button type="button" className="button" onClick={handleClear} disabled={loading}>
               Clear
             </button>
             {apiError && (
