@@ -220,8 +220,8 @@ Pages 07 and 08 must interpret saved symptom rows through the derived timing hel
 | Issue | File(s) | Priority |
 |---|---|---|
 | `st.data_editor` inside `st.form()` — may lose edits on submit | 02, 03 | High |
-| VCA chart (08) not reading `SymptomEntry` — symptom bars blank | 08 | High |
-| VCA chart (08) not reading `LabResultEntry` — lab markers blank | 08 | Medium |
+| VCA chart (08) symptom/lab bars blank — superseded by React `VcaChartPage` | 08 | Low (v1 legacy) |
+| `CaseWriteFields` in `cases/types.ts` still has `lab_1/2/3` legacy fields | frontend | Low |
 | `dropdowns.py` has unused legacy helpers | components/dropdowns.py | Low |
 
 ---
@@ -271,26 +271,24 @@ Streamlit Cloud: SQLite goes to `/tmp` and resets on restart. Demo case auto-see
 - Initial Alembic revision exists at `fastapi_app/migrations/versions/e3f9427a3fbf_initial_schema.py`
 - API tests live in `tests/test_fastapi_cases.py`; migration coverage lives in `tests/test_alembic.py`
 
-**Completed this session:**
-- Alembic migrations applied (`make db-upgrade`) — `vcamon_v2.db` is current
-- Frontend login flow complete and tested end-to-end in open access mode (`AUTH_ENABLED=false`)
-  - `useAuthBootstrap` sequence: `GET /api/auth/status` → `GET /api/auth/me` → resolve `OPEN_ACCESS_PERMISSIONS`
-  - `RequireAuth` route guard, `RequirePermission` permission gates wired on all destructive actions
-  - `LoginPage` handles both auth-enabled (magic link) and auth-disabled (bypass) modes
-  - `TopBar` shows user email + sign-out when auth is enabled
-  - TypeScript compiles clean; full stack verified: FastAPI on `localhost:8000`, Vite on `localhost:5173`
-- React partner form complete (`frontend/src/features/partners/components/PartnerForm.tsx`)
-  - Fixed `historical_primary_chancre`: select string → `bool | null` conversion in `toPartnerPayload`
-  - Fixed `any[]` types → `SymptomEntryRead[]` / `LabResultEntryRead[]`
-  - Added `toLabDraft()` so DB `id` is preserved on edit (prevents duplicate rows)
-  - Added `normalizeLabDrafts()` before submit — blank rows are stripped
-  - Removed dead exposure fields (belong on `CasePartnerRelationship`, not `Partner`)
-  - Fixed `PartnerCreatePage` to sync labs on create (`syncPartnerLabs` alongside `syncPartnerSymptoms`)
+**Current state (2026-05-25 session B — commit `5c57b3f`):**
+- All React pages committed and router-wired: Dashboard, CaseForm, PartnerForm, Ghosting,
+  VcaChart, NetworkGraph, Timeline, MAP, QuickGhost, Analytics
+- `exposure_modalities` fully replaced by `op_body_parts` / `partner_body_parts` across model,
+  queries, schemas, router, React frontend, and v1 Streamlit pages
+- Anatomical compatibility check (`_sex_type_compatible`) uses canonical body-part values:
+  `"penis"`, `"vagina"`, `"anus"`, `"mouth"` — matched against lesion site string
+- Non-reactive treponemal guard in `analyze_case_partner_ghosting` — rejects analysis if
+  either party has a Non-reactive treponemal result
+- `RelationshipEditor` now renders a body-parts checkbox grid (4 rows × OP/Partner columns)
+  instead of a free-text textarea
+- Alembic at head: `ec2923821476` (replace_exposure_modalities_with_body_parts)
+- DB columns on `case_partner_relationships`: `op_body_parts`, `partner_body_parts` (JSON string)
+- 115 tests pass; TypeScript compiles clean
 
 **Next steps:**
 - Set up Supabase project and add credentials to activate real auth (`AUTH_ENABLED=true`)
   - `frontend/.env.local`: add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`
   - `.env`: add `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `AUTH_ENABLED=true`
 - Test authenticated flow end-to-end (magic link → token injection → `/api/auth/me` returns real user)
-- Remaining React page migrations: MAP sheet (page 04), network graph (page 05), timeline (page 06), quick ghost (page 09)
-- Refine RBAC beyond the current rollout-safe operator/supervisor scaffold if product rules become more specific
+- Remaining: RBAC finalization, PDF export, deploy wiring to Supabase PostgreSQL

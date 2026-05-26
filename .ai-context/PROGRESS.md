@@ -1,6 +1,6 @@
 # VCA Monitor — Progress Log
 _Update this at the end of every session. Keep it short — every model reads it._
-_Last updated: 2026-05-25 (session 2)_
+_Last updated: 2026-05-25 (session B)_
 
 ---
 
@@ -20,7 +20,30 @@ _Last updated: 2026-05-25 (session 2)_
 
 ---
 
-## Completed in this session (2026-05-25 session 2)
+## Completed in this session (2026-05-25 session B)
+
+- [x] **`exposure_modalities` → `op_body_parts` / `partner_body_parts` refactor** (commit `5c57b3f`)
+  - `CasePartnerRelationship` column renamed; body parts now tracked per person as canonical values
+    (`"penis"`, `"vagina"`, `"anus"`, `"mouth"`) stored as JSON string.
+  - `clinical.py`: `Exposure` dataclass drops `exposure_modalities`; body parts passed as
+    `case1_body_parts` into `evaluate_criteria` and `run_ghosting_analysis`.
+    `_exposure_modality_compatible` → `_sex_type_compatible` with cleaner site-to-part matching.
+  - `ghosting.py` router: non-reactive treponemal guard added before case-partner analysis;
+    reads new columns from saved relationship record.
+  - `schemas/relationships.py`: `CasePartnerRelationship*` schemas expose `list[str]` with
+    field validator for JSON→list coercion. `RelationshipReport` keeps its own `exposure_modalities`.
+  - `queries.py`: `create/update_case_partner_relationship` use new params; `_serialize_body_parts`
+    converts list → JSON for SQLite storage.
+  - Alembic migration `ec2923821476` applied — DB at head.
+  - React `RelationshipEditor`: textarea replaced with `BodyPartsGrid` checkbox table
+    (4 body-part rows × OP/Partner columns). `partners/types.ts` updated.
+  - `PartnerForm`: `historical_primary_chancre` manual select removed; now derived via
+    `deriveHistoricalPrimary()` from symptom rows.
+  - v1 Streamlit pages 03, 07, 08, 09 adapted — modality strings mapped to canonical body-part
+    values before save; `Exposure()` constructor calls fixed.
+  - **115 tests pass; TypeScript compiles clean.**
+
+## Completed in last session (2026-05-25 session 2)
 
 - [x] **Fix `CaseForm.tsx`** — was broken/incomplete: added missing imports (`LabResultsEditor`, `REASON_FOR_EXAM_OPTIONS`, `TREATMENT_OPTIONS` from `../../labs/constants`); extended `CaseFormValues` with `reason_for_exam`, `treatment`, `nontrepLabs: LabDraft[]`, `trepLabs: LabDraft[]`; fixed `toFormValues` to accept 4 args and map existing lab records via `toLabDraft`; added `normalizeLabDrafts` helper (filters empty rows, injects `test_category`); fixed `handleFormSubmit` to submit normalized labs.
 - [x] **Fix `LabResultsEditor.tsx`** — wrong import path (`../labs/constants` → `../../labs/constants`); added `keyName: "formId"` to both `useFieldArray` calls so DB `id` values survive `reset()`; changed React keys from `field.id` to `field.formId`.
@@ -56,25 +79,24 @@ _Last updated: 2026-05-25 (session 2)_
 
 ## In progress / remaining tech debt
 
+- [ ] **Supabase auth activation** — the true next step.
+  Add `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` to `frontend/.env.local` and
+  `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `AUTH_ENABLED=true` to `.env`. Then verify
+  magic-link → bearer token → `/api/auth/me` returns real user + role.
+
 - [ ] **`CaseCreatePage` / `CaseEditPage` — OP form parity still incomplete**
-  The React case form now has: `patient_name`, `diagnosis_code`, `case_manager`, `treatment_date`, `reason_for_exam`, `treatment`, `medical_info`, symptoms editor, split lab editor (non-trep / trep). The `CaseWriteFields` type in `cases/types.ts` still has some legacy fields (`lab_1`, `lab_2`, `lab_3`, etc.) that are no longer written by the form — clean up if the FastAPI schema no longer needs them. Partner form parity (03) is separate work.
+  `CaseWriteFields` in `cases/types.ts` still has legacy `lab_1`, `lab_2`, `lab_3` fields
+  that the form no longer writes — clean up once FastAPI schema confirms they're unused.
 
-- [ ] **`st.data_editor` inside `st.form()` — still present on pages 02 and 03**
-  All three editors (symptom, non-treponemal labs, treponemal labs) are still
-  inside `st.form()`. This is a known Streamlit limitation; data editors may not
-  return edited rows reliably on form submit. Needs refactor to plain `st.button()` +
-  session_state pattern. Trackd in ADR-008.
+- [ ] **`st.data_editor` inside `st.form()` — pages 02 and 03**
+  Known Streamlit limitation; data editors may not return edited rows reliably on submit.
+  Tracked in ADR-008. Low priority — pages 02/03 are being replaced by React.
 
-- [x] **Page 08 VCA chart legacy field issue** — superseded. The React `VcaChartPage` reads directly from `SymptomEntry` via the FastAPI symptoms endpoints. The Streamlit `08_vca_chart.py` remains broken for new records but is no longer the primary path.
+- [ ] **Supervisor vs. case worker RBAC** — scaffold in place; final policy rules not yet
+  enforced beyond the current delete/MAP-clear gates.
 
-- [ ] **`app/components/dropdowns.py` imports legacy enums**
-  Still imports `LabResult`, `TreponemalResult`, `Symptom`, `LesionType` for
-  the old selectbox helpers (`lab_1_select`, `lab_2_select`, etc.). These helpers
-  are no longer called anywhere. File can be cleaned up or left as legacy.
+- [ ] **PDF export** — not started.
 
-- [ ] **Backend platform work remains**
-  FastAPI now exposes health, cases, partners, labs, symptoms, timeline,
-  relationship/report workflows, ghosting analysis/CRUD, analytics/link
-  endpoints, MAP workflows, Supabase-backed auth scaffolding, and an initial
-  role policy/permissions contract for the frontend. Remaining backend work is
-  now mostly full client login integration, deploy wiring, and finer-grained RBAC.
+- [ ] **Deploy wiring** — Supabase PostgreSQL target, Docker entrypoint, CI deploy step.
+
+- [ ] **`app/components/dropdowns.py`** — imports unused legacy enums. Low priority cleanup.
