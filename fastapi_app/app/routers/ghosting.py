@@ -14,6 +14,8 @@ from app.db.queries import (
     get_case_partner_relationship,
     get_ghosting_by_id,
     get_ghostings,
+    get_lab_results_for_case,
+    get_lab_results_for_partner,
     get_partner_by_id,
     get_symptoms_for_case,
     get_symptoms_for_partner,
@@ -96,6 +98,14 @@ def _get_ghosting_or_404(db: Session, ghosting_id: int):
             detail=f"Ghosting record {ghosting_id} not found",
         )
     return ghosting
+
+
+def _non_reactive_treponemal_name(lab_results) -> str | None:
+    """Return test_type if any treponemal result is Non-reactive, else None."""
+    for lab in lab_results:
+        if lab.test_category == "Treponemal" and lab.result == "Non-reactive":
+            return lab.test_type
+    return None
 
 
 def _parse_modalities(raw_modalities: Any) -> list[str]:
@@ -195,7 +205,6 @@ def _payload_exposure_to_engine(
     return Exposure(
         first=exposure.first,
         last=exposure.last,
-        exposure_modalities=exposure.exposure_modalities,
     )
 
 
@@ -207,7 +216,6 @@ def _relationship_exposure_to_engine(relationship) -> Exposure | None:
     return Exposure(
         first=relationship.exposure_first_date,
         last=relationship.exposure_last_date,
-        exposure_modalities=_parse_modalities(relationship.exposure_modalities),
     )
 
 
@@ -327,6 +335,8 @@ def analyze_ghosting(
             partner_symptoms=_payload_symptoms_to_engine(payload.partner_symptoms),
             partner_exposure=_payload_exposure_to_engine(payload.partner_exposure),
             partner_treatment_date=payload.partner_treatment_date,
+            op_body_parts=payload.op_body_parts,
+            partner_body_parts=payload.partner_body_parts,
         )
     except ValueError as exc:
         raise HTTPException(
@@ -350,6 +360,33 @@ def analyze_case_partner_ghosting(
 ):
     case = _get_case_or_404(db, case_id)
     partner = _get_partner_for_case_or_404(db, case_id, partner_id)
+
+    op_labs = get_lab_results_for_case(db, case_id)
+    op_non_reactive = _non_reactive_treponemal_name(op_labs)
+    if op_non_reactive:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"{case.patient_name} has a Non-reactive {op_non_reactive} result. "
+                "A non-reactive treponemal test indicates the patient is not infected "
+                "and cannot be included in ghosting analysis."
+            ),
+        )
+
+    partner_label = partner.name or f"Partner {partner.partner_number}"
+    partner_non_reactive = _non_reactive_treponemal_name(
+        get_lab_results_for_partner(db, partner_id)
+    )
+    if partner_non_reactive:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"{partner_label} has a Non-reactive {partner_non_reactive} result. "
+                "A non-reactive treponemal test indicates the patient is not infected "
+                "and cannot be included in ghosting analysis."
+            ),
+        )
+
     relationship = get_case_partner_relationship(db, case_id, partner_id)
     shared_exposure = _relationship_exposure_to_engine(relationship)
     fields_set = payload.model_fields_set
@@ -393,6 +430,13 @@ def analyze_case_partner_ghosting(
         else partner.treatment_date
     )
 
+    op_body_parts = (
+        _parse_modalities(relationship.op_body_parts) if relationship else []
+    )
+    partner_body_parts = (
+        _parse_modalities(relationship.partner_body_parts) if relationship else []
+    )
+
     try:
         result = run_ghosting_analysis(
             op_name=case.patient_name,
@@ -403,6 +447,8 @@ def analyze_case_partner_ghosting(
             partner_symptoms=partner_symptoms,
             partner_exposure=partner_exposure,
             partner_treatment_date=partner_treatment_date,
+            op_body_parts=op_body_parts,
+            partner_body_parts=partner_body_parts,
         )
         case1_role, _, _, _ = select_case1(op_symptoms, partner_symptoms)
     except ValueError as exc:

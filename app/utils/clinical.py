@@ -270,7 +270,6 @@ class Symptom:
 class Exposure:
     first: date
     last: date
-    exposure_modalities: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -541,38 +540,44 @@ def _check_exposure(
     )
 
 
-def _exposure_modality_compatible(
+VALID_BODY_PARTS = {"penis", "vagina", "anus", "mouth"}
+
+
+def _sex_type_compatible(
     symptom: Symptom,
-    exposure_modalities: list[str],
+    body_parts: list[str],
 ) -> tuple[str, str]:
-    if not exposure_modalities:
-        return "warn", "Sex types not recorded — cannot check anatomical compatibility."
+    """
+    Check if the lesion's anatomical site is consistent with the body parts
+    this person reported using during sexual contact.
+    """
+    if not body_parts:
+        return "warn", "Body parts not recorded — cannot check anatomical compatibility."
 
-    # Use anatomical_site if available, fall back to type
-    check_string = (symptom.anatomical_site or symptom.type).lower()
-    modality_lower = [s.lower() for s in exposure_modalities]
+    site = (symptom.anatomical_site or symptom.type).lower()
+    parts_lower = [p.lower() for p in body_parts]
+    parts_display = ", ".join(body_parts)
 
-    compatible = False
-    if "anal" in check_string or "rectal" in check_string:
-        compatible = any("anal" in s for s in modality_lower)
-    elif "penile" in check_string or "vaginal" in check_string:
-        compatible = any(k in s for s in modality_lower for k in ("vaginal", "anal"))
-    elif "oral" in check_string:
-        compatible = any("oral" in s for s in modality_lower)
+    if "penile" in site or "penis" in site:
+        site_label, compatible = "Penile", "penis" in parts_lower
+    elif "vaginal" in site or "vagina" in site:
+        site_label, compatible = "Vaginal", "vagina" in parts_lower
+    elif "anal" in site or "rectal" in site or "anus" in site or "rectum" in site:
+        site_label, compatible = "Anal/rectal", "anus" in parts_lower
+    elif "oral" in site or "mouth" in site or "lip" in site:
+        site_label, compatible = "Oral", "mouth" in parts_lower
     else:
-        # No location data or unknown type
         if symptom.anatomical_site is None:
             return "warn", "Lesion location not recorded — cannot verify compatibility."
-        compatible = True  # Lab LX or other non-specific
+        return "pass", f"Non-specific lesion site — anatomical compatibility not applicable."
 
     if compatible:
         return "pass", (
-            f"Lesion location ({symptom.anatomical_site or symptom.type}) is consistent "
-            f"with reported exposure modalities ({', '.join(exposure_modalities)})."
+            f"{site_label} lesion is consistent with reported body parts used ({parts_display})."
         )
     return "fail", (
-        f"Lesion location ({symptom.anatomical_site or symptom.type}) may NOT be consistent "
-        f"with reported exposure modalities ({', '.join(exposure_modalities)}). Manual verification needed."
+        f"{site_label} lesion is NOT consistent with reported body parts used ({parts_display}). "
+        f"The lesion site was not used during sexual contact with this partner."
     )
 
 
@@ -691,6 +696,7 @@ def evaluate_criteria(
     case2_treatment_date: Optional[date],
     date1: Optional[date] = None,
     date2: Optional[date] = None,
+    case1_body_parts: Optional[list[str]] = None,
 ) -> dict:
     """
     Run all four criteria checks for one scenario.
@@ -720,8 +726,8 @@ def evaluate_criteria(
         infectious_start, infectious_end, exposure, scenario
     )
 
-    modality_status, modality_detail = _exposure_modality_compatible(
-        case1_symptom, exposure.exposure_modalities if exposure else []
+    modality_status, modality_detail = _sex_type_compatible(
+        case1_symptom, case1_body_parts or []
     )
     lat_status, lat_detail = _latency_to_secondary(lesion, case2_symptoms)
     ord_status, ord_detail = _natural_order(
@@ -823,6 +829,8 @@ def run_ghosting_analysis(
     partner_symptoms: list[Symptom],
     partner_exposure: Optional[Exposure],
     partner_treatment_date: Optional[date],
+    op_body_parts: Optional[list[str]] = None,
+    partner_body_parts: Optional[list[str]] = None,
 ) -> GhostingResult:
     """
     Full ghosting analysis pipeline following VCA methodology, executing
@@ -843,6 +851,7 @@ def run_ghosting_analysis(
         partner_treatment_date if case1_role == "OP" else op_treatment_date
     )
     case2_exposure = partner_exposure if case1_role == "OP" else op_exposure
+    case1_body_parts = (op_body_parts or []) if case1_role == "OP" else (partner_body_parts or [])
 
     log.append(
         f"Step 1: Case1 = {case1_name} ({case1_role}) with '{case1_symptom.type}' "
@@ -889,6 +898,7 @@ def run_ghosting_analysis(
             case2_treatment_date=case2_treatment,
             date1=d1,
             date2=d2,
+            case1_body_parts=case1_body_parts,
         )
         spread_crit = evaluate_criteria(
             scenario="spread",
@@ -900,6 +910,7 @@ def run_ghosting_analysis(
             case2_treatment_date=case2_treatment,
             date1=d1,
             date2=d2,
+            case1_body_parts=case1_body_parts,
         )
 
         source_range_data[scenario_name] = source_crit

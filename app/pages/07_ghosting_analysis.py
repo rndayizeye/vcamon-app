@@ -396,24 +396,22 @@ run_btn = st.button("Run ghosting analysis", type="primary")
 if run_btn:
     op_symptoms = _rows_to_symptoms(edited_op_sym_df)
     partner_symptoms = _rows_to_symptoms(edited_partner_sym_df)
+    _MODALITY_TO_BODY_PART = {
+        "Anal LX": "anus", "Rectal LX": "anus",
+        "Oral LX": "mouth", "Vaginal LX": "vagina", "Penile LX": "penis",
+    }
     op_exposure = (
-        Exposure(
-            first=op_exp_first,
-            last=op_exp_last,
-            exposure_modalities=op_exposure_modalities,
-        )
+        Exposure(first=op_exp_first, last=op_exp_last)
         if op_exp_first and op_exp_last
         else None
     )
     partner_exposure = (
-        Exposure(
-            first=p_exp_first,
-            last=p_exp_last,
-            exposure_modalities=p_exposure_modalities,
-        )
+        Exposure(first=p_exp_first, last=p_exp_last)
         if p_exp_first and p_exp_last
         else None
     )
+    op_body_parts = list({_MODALITY_TO_BODY_PART[m] for m in op_exposure_modalities if m in _MODALITY_TO_BODY_PART})
+    partner_body_parts = list({_MODALITY_TO_BODY_PART[m] for m in p_exposure_modalities if m in _MODALITY_TO_BODY_PART})
 
     try:
         result = run_ghosting_analysis(
@@ -425,6 +423,8 @@ if run_btn:
             partner_symptoms=partner_symptoms,
             partner_exposure=partner_exposure,
             partner_treatment_date=p_treatment,
+            op_body_parts=op_body_parts,
+            partner_body_parts=partner_body_parts,
         )
         # Cache inputs alongside result for diagram building
         st.session_state["ghosting_result"] = result

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import {
   useCasePartnerRelationship,
   useSaveCasePartnerRelationship,
@@ -7,11 +7,82 @@ import {
 import { LoadingState } from "../../../components/feedback/LoadingState";
 import { ErrorState } from "../../../components/feedback/ErrorState";
 
+const BODY_PARTS = [
+  { value: "penis", label: "Penis" },
+  { value: "vagina", label: "Vagina / Vulva" },
+  { value: "anus", label: "Anus / Rectum" },
+  { value: "mouth", label: "Mouth" },
+] as const;
+
+type BodyPart = (typeof BODY_PARTS)[number]["value"];
+
 type RelationshipFormValues = {
   exposure_first_date: string;
   exposure_last_date: string;
-  exposure_modalities: string;
+  op_body_parts: BodyPart[];
+  partner_body_parts: BodyPart[];
 };
+
+function BodyPartsGrid({
+  opParts,
+  partnerParts,
+  onOpChange,
+  onPartnerChange,
+}: {
+  opParts: BodyPart[];
+  partnerParts: BodyPart[];
+  onOpChange: (parts: BodyPart[]) => void;
+  onPartnerChange: (parts: BodyPart[]) => void;
+}) {
+  function toggle(current: BodyPart[], part: BodyPart): BodyPart[] {
+    return current.includes(part)
+      ? current.filter((p) => p !== part)
+      : [...current, part];
+  }
+
+  return (
+    <fieldset className="field">
+      <legend>Reported sexual contact</legend>
+      <p className="muted" style={{ marginBottom: "0.75rem", fontSize: "0.875rem" }}>
+        Select the body parts each person reported using during contact.
+      </p>
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <thead>
+          <tr>
+            <th style={{ textAlign: "left", paddingBottom: "0.5rem", width: "50%" }} />
+            <th style={{ textAlign: "center", paddingBottom: "0.5rem", width: "25%", fontWeight: 600 }}>
+              OP
+            </th>
+            <th style={{ textAlign: "center", paddingBottom: "0.5rem", width: "25%", fontWeight: 600 }}>
+              Partner
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {BODY_PARTS.map(({ value, label }) => (
+            <tr key={value} style={{ borderTop: "1px solid var(--border, #e5e7eb)" }}>
+              <td style={{ padding: "0.5rem 0", fontSize: "0.9rem" }}>{label}</td>
+              <td style={{ textAlign: "center" }}>
+                <input
+                  type="checkbox"
+                  checked={opParts.includes(value)}
+                  onChange={() => onOpChange(toggle(opParts, value))}
+                />
+              </td>
+              <td style={{ textAlign: "center" }}>
+                <input
+                  type="checkbox"
+                  checked={partnerParts.includes(value)}
+                  onChange={() => onPartnerChange(toggle(partnerParts, value))}
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </fieldset>
+  );
+}
 
 export function RelationshipEditor({
   caseId,
@@ -27,12 +98,14 @@ export function RelationshipEditor({
     register,
     handleSubmit,
     reset,
+    control,
     formState: { isSubmitting },
   } = useForm<RelationshipFormValues>({
     defaultValues: {
       exposure_first_date: "",
       exposure_last_date: "",
-      exposure_modalities: "",
+      op_body_parts: [],
+      partner_body_parts: [],
     },
   });
 
@@ -41,7 +114,8 @@ export function RelationshipEditor({
       reset({
         exposure_first_date: query.data.exposure_first_date || "",
         exposure_last_date: query.data.exposure_last_date || "",
-        exposure_modalities: query.data.exposure_modalities || "",
+        op_body_parts: (query.data.op_body_parts ?? []) as BodyPart[],
+        partner_body_parts: (query.data.partner_body_parts ?? []) as BodyPart[],
       });
     }
   }, [query.data, reset]);
@@ -51,7 +125,8 @@ export function RelationshipEditor({
     const payload = {
       exposure_first_date: values.exposure_first_date || null,
       exposure_last_date: values.exposure_last_date || null,
-      exposure_modalities: values.exposure_modalities || null,
+      op_body_parts: values.op_body_parts,
+      partner_body_parts: values.partner_body_parts,
     };
 
     await saveMutation.mutateAsync({
@@ -89,7 +164,7 @@ export function RelationshipEditor({
       <div className="stack-sm">
         <h2>Exposure Window</h2>
         <p className="muted">
-          Define the exposure dates for this specific OP ↔ Partner relationship.
+          Define the exposure dates and sexual contact for this OP ↔ Partner relationship.
         </p>
       </div>
 
@@ -105,14 +180,24 @@ export function RelationshipEditor({
           </label>
         </div>
 
-        <label className="field">
-          <span>Exposure Modalities</span>
-          <textarea
-            rows={3}
-            placeholder="e.g., Vaginal, Anal, Oral"
-            {...register("exposure_modalities")}
-          />
-        </label>
+        <Controller
+          control={control}
+          name="op_body_parts"
+          render={({ field: opField }) => (
+            <Controller
+              control={control}
+              name="partner_body_parts"
+              render={({ field: partnerField }) => (
+                <BodyPartsGrid
+                  opParts={opField.value}
+                  partnerParts={partnerField.value}
+                  onOpChange={opField.onChange}
+                  onPartnerChange={partnerField.onChange}
+                />
+              )}
+            />
+          )}
+        />
 
         {saveMutation.isError && (
           <p className="error-text">
@@ -129,9 +214,7 @@ export function RelationshipEditor({
             className="button button-primary"
             disabled={isSubmitting || saveMutation.isPending}
           >
-            {isSubmitting || saveMutation.isPending
-              ? "Saving…"
-              : "Save Exposure Window"}
+            {isSubmitting || saveMutation.isPending ? "Saving…" : "Save Exposure Window"}
           </button>
         </div>
       </form>

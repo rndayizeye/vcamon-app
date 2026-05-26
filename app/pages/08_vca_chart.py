@@ -222,9 +222,9 @@ for p in partners:
         primary_sym_partner = partner_symptoms[-1] if partner_symptoms else None
 
     sex_list = []
-    if relationship and relationship.exposure_modalities:
+    if relationship and relationship.op_body_parts:
         try:
-            sex_list = json.loads(relationship.exposure_modalities)
+            sex_list = json.loads(relationship.op_body_parts)
         except Exception:
             sex_list = []
 

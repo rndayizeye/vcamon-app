@@ -6,8 +6,10 @@ Each page imports only what it needs — functions are added here
 as new pages are built rather than all upfront.
 """
 
+import json
 from datetime import date
-from typing import Optional
+from typing import Any, Optional
+
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -52,13 +54,22 @@ def get_case_partner_relationship_by_id(
     )
 
 
+def _serialize_body_parts(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, list):
+        return json.dumps(value) if value else None
+    return value  # already a string
+
+
 def create_case_partner_relationship(
     db: Session,
     case_id: int,
     partner_id: int,
     exposure_first_date: date | None = None,
     exposure_last_date: date | None = None,
-    exposure_modalities: str | None = None,
+    op_body_parts: Any = None,
+    partner_body_parts: Any = None,
 ) -> CasePartnerRelationship:
     """Create a new relationship entry."""
     rel = CasePartnerRelationship(
@@ -66,7 +77,8 @@ def create_case_partner_relationship(
         partner_id=partner_id,
         exposure_first_date=exposure_first_date,
         exposure_last_date=exposure_last_date,
-        exposure_modalities=exposure_modalities,
+        op_body_parts=_serialize_body_parts(op_body_parts),
+        partner_body_parts=_serialize_body_parts(partner_body_parts),
     )
     db.add(rel)
     db.commit()
@@ -82,6 +94,8 @@ def update_case_partner_relationship(
     if not rel:
         return None
     for field, value in kwargs.items():
+        if field in ("op_body_parts", "partner_body_parts"):
+            value = _serialize_body_parts(value)
         setattr(rel, field, value)
     db.commit()
     db.refresh(rel)

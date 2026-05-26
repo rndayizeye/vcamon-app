@@ -294,16 +294,22 @@ if run_btn:
         st.error("At least one person must have a symptom type selected.")
         st.stop()
 
+    _MODALITY_TO_BODY_PART = {
+        "Anal LX": "anus", "Rectal LX": "anus",
+        "Oral LX": "mouth", "Vaginal LX": "vagina", "Penile LX": "penis",
+    }
     a_exposure = (
-        Exposure(first=a_exp_first, last=a_exp_last, exposure_modalities=a_sex)
+        Exposure(first=a_exp_first, last=a_exp_last)
         if a_exp_first and a_exp_last
         else None
     )
     b_exposure = (
-        Exposure(first=b_exp_first, last=b_exp_last, exposure_modalities=b_sex)
+        Exposure(first=b_exp_first, last=b_exp_last)
         if b_exp_first and b_exp_last
         else None
     )
+    a_body_parts = list({_MODALITY_TO_BODY_PART[m] for m in a_sex if m in _MODALITY_TO_BODY_PART})
+    b_body_parts = list({_MODALITY_TO_BODY_PART[m] for m in b_sex if m in _MODALITY_TO_BODY_PART})
 
     try:
         result = run_ghosting_analysis(
@@ -315,6 +321,8 @@ if run_btn:
             partner_symptoms=b_symptoms,
             partner_exposure=b_exposure,
             partner_treatment_date=b_treatment,
+            op_body_parts=a_body_parts,
+            partner_body_parts=b_body_parts,
         )
         st.session_state["qg_result"] = result
         st.session_state["qg_inputs"] = {

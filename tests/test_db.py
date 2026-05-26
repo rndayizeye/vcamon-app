@@ -289,11 +289,13 @@ class TestRelationshipCRUD:
             partner_id=sample_partner.id,
             exposure_first_date=date(2024, 1, 1),
             exposure_last_date=date(2024, 1, 15),
-            exposure_modalities='["Anal LX", "Oral LX"]',
+            op_body_parts=["penis", "mouth"],
+            partner_body_parts=["anus"],
         )
         assert rel.id is not None
         assert rel.exposure_first_date == date(2024, 1, 1)
-        assert rel.exposure_modalities == '["Anal LX", "Oral LX"]'
+        assert rel.op_body_parts == '["penis", "mouth"]'
+        assert rel.partner_body_parts == '["anus"]'
 
     def test_get_relationship_returns_correct_record(
         self, db, sample_case, sample_partner
@@ -339,7 +341,7 @@ class TestRelationshipReportCRUD:
             reporter="OP",
             exposure_first_date=date(2024, 1, 1),
             exposure_last_date=date(2024, 1, 15),
-            exposure_modalities='["Anal LX"]',
+            exposure_modalities='["Anal LX"]',  # RelationshipReport keeps exposure_modalities
         )
         assert report.id is not None
         assert report.reporter == "OP"

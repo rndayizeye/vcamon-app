@@ -547,13 +547,16 @@ def test_relationship_and_report_crud(client: TestClient):
         json={
             "exposure_first_date": "2024-01-01",
             "exposure_last_date": "2024-01-15",
-            "exposure_modalities": '["Anal LX"]',
+            "op_body_parts": ["penis"],
+            "partner_body_parts": ["anus"],
         },
     )
     assert relationship_response.status_code == 201
     relationship = relationship_response.json()
     assert relationship["case_id"] == case["id"]
     assert relationship["partner_id"] == partner["id"]
+    assert relationship["op_body_parts"] == ["penis"]
+    assert relationship["partner_body_parts"] == ["anus"]
 
     duplicate_response = client.post(
         f"/api/cases/{case['id']}/partners/{partner['id']}/relationship",
@@ -569,10 +572,10 @@ def test_relationship_and_report_crud(client: TestClient):
 
     update_relationship = client.patch(
         f"/api/cases/{case['id']}/partners/{partner['id']}/relationship",
-        json={"exposure_modalities": '["Oral LX"]'},
+        json={"op_body_parts": ["penis", "mouth"]},
     )
     assert update_relationship.status_code == 200
-    assert update_relationship.json()["exposure_modalities"] == '["Oral LX"]'
+    assert update_relationship.json()["op_body_parts"] == ["penis", "mouth"]
 
     report_response = client.post(
         f"/api/cases/relationships/{relationship['id']}/reports",
@@ -637,9 +640,9 @@ def test_ghosting_analysis_endpoint(client: TestClient):
             "op_exposure": {
                 "first": "2019-09-03",
                 "last": "2020-02-25",
-                "exposure_modalities": ["Anal LX"],
             },
             "op_treatment_date": "2020-03-10",
+            "op_body_parts": ["penis"],
             "partner_name": "Samuel",
             "partner_symptoms": [
                 {
@@ -652,8 +655,8 @@ def test_ghosting_analysis_endpoint(client: TestClient):
             "partner_exposure": {
                 "first": "2019-09-01",
                 "last": "2020-02-15",
-                "exposure_modalities": ["Anal LX"],
             },
+            "partner_body_parts": ["anus"],
             "partner_treatment_date": "2020-02-15",
         },
     )
@@ -715,7 +718,8 @@ def test_case_partner_ghosting_analysis_uses_saved_data(client: TestClient):
         json={
             "exposure_first_date": "2019-09-01",
             "exposure_last_date": "2020-02-25",
-            "exposure_modalities": '["Anal LX"]',
+            "op_body_parts": ["penis"],
+            "partner_body_parts": ["anus"],
         },
     )
     assert relationship.status_code == 201

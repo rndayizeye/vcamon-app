@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import json
 from datetime import date, datetime
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ORMBaseModel(BaseModel):
@@ -12,13 +14,29 @@ class ORMBaseModel(BaseModel):
 class CasePartnerRelationshipCreate(BaseModel):
     exposure_first_date: date | None = None
     exposure_last_date: date | None = None
-    exposure_modalities: str | None = None
+    op_body_parts: list[str] = []
+    partner_body_parts: list[str] = []
 
 
 class CasePartnerRelationshipUpdate(BaseModel):
     exposure_first_date: date | None = None
     exposure_last_date: date | None = None
-    exposure_modalities: str | None = None
+    op_body_parts: list[str] | None = None
+    partner_body_parts: list[str] | None = None
+
+
+def _parse_body_parts(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(v) for v in value if v]
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+            return [str(v) for v in parsed if v] if isinstance(parsed, list) else []
+        except (ValueError, TypeError):
+            return []
+    return []
 
 
 class CasePartnerRelationshipRead(ORMBaseModel):
@@ -27,7 +45,13 @@ class CasePartnerRelationshipRead(ORMBaseModel):
     partner_id: int
     exposure_first_date: date | None
     exposure_last_date: date | None
-    exposure_modalities: str | None
+    op_body_parts: list[str] = []
+    partner_body_parts: list[str] = []
+
+    @field_validator("op_body_parts", "partner_body_parts", mode="before")
+    @classmethod
+    def parse_body_parts_field(cls, value: Any) -> list[str]:
+        return _parse_body_parts(value)
 
 
 class RelationshipReportCreate(BaseModel):

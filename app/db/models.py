@@ -605,7 +605,8 @@ class CasePartnerRelationship(Base):
     # Relationship-specific clinical details (Consensus Narrative)
     exposure_first_date: Mapped[date | None] = mapped_column(Date)
     exposure_last_date: Mapped[date | None] = mapped_column(Date)
-    exposure_modalities: Mapped[str | None] = mapped_column(String(200))  # JSON array
+    op_body_parts: Mapped[str | None] = mapped_column(String(200))  # JSON array
+    partner_body_parts: Mapped[str | None] = mapped_column(String(200))  # JSON array
 
     case: Mapped["Case"] = relationship("Case", back_populates="relationships")
     partner: Mapped["Partner"] = relationship("Partner", back_populates="relationships")

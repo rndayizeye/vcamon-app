@@ -419,44 +419,24 @@ with st.form("partner_form", border=True):
             format="MM/DD/YYYY",
         )
 
-        exposure_modalities_display = ["Anal", "Oral", "Vaginal", "Penile", "Rectal"]
-        exposure_modalities_value = [
-            "Anal LX",
-            "Oral LX",
-            "Vaginal LX",
-            "Penile LX",
-            "Rectal LX",
-        ]
+        _BODY_PART_DISPLAY = ["Anal / Rectal", "Oral", "Vaginal", "Penile"]
+        _BODY_PART_VALUE = ["anus", "mouth", "vagina", "penis"]
 
         current_sex = []
-        if relationship and relationship.exposure_modalities:
+        if relationship and relationship.op_body_parts:
             try:
-                stored = json.loads(relationship.exposure_modalities)
+                stored = json.loads(relationship.op_body_parts)
                 current_sex = [
-                    exposure_modalities_display[exposure_modalities_value.index(s)]
+                    _BODY_PART_DISPLAY[_BODY_PART_VALUE.index(s)]
                     for s in stored
-                    if s in exposure_modalities_value
+                    if s in _BODY_PART_VALUE
                 ]
-            except json.JSONDecodeError:
-                pass
-        elif (
-            partner
-            and hasattr(partner, "exposure_modalities")
-            and partner.exposure_modalities
-        ):
-            try:
-                stored = json.loads(partner.exposure_modalities)
-                current_sex = [
-                    exposure_modalities_display[exposure_modalities_value.index(s)]
-                    for s in stored
-                    if s in exposure_modalities_value
-                ]
-            except json.JSONDecodeError:
+            except (json.JSONDecodeError, ValueError):
                 pass
 
         exposure_modalities_selected = st.multiselect(
-            "Sex type(s) reported",
-            options=exposure_modalities_display,
+            "Sex type(s) reported (OP's body parts)",
+            options=_BODY_PART_DISPLAY,
             default=current_sex,
         )
 
@@ -571,25 +551,18 @@ if submitted or add_another or go_map:
                 partner_id = saved.id
                 st.success(f"Partner {saved.partner_number} updated — {saved.name}")
                 # Update or create the relationship record
-                exposure_modalities_json = (
-                    json.dumps(
-                        [
-                            exposure_modalities_value[
-                                exposure_modalities_display.index(s)
-                            ]
-                            for s in exposure_modalities_selected
-                        ]
-                    )
-                    if exposure_modalities_selected
-                    else None
-                )
+                op_parts = [
+                    _BODY_PART_VALUE[_BODY_PART_DISPLAY.index(s)]
+                    for s in exposure_modalities_selected
+                    if s in _BODY_PART_DISPLAY
+                ]
                 if relationship:
                     relationship = update_case_partner_relationship(
                         db,
                         relationship.id,
                         exposure_first_date=exposure_first,
                         exposure_last_date=exposure_last,
-                        exposure_modalities=exposure_modalities_json,
+                        op_body_parts=op_parts,
                     )
                 else:
                     relationship = create_case_partner_relationship(
@@ -598,7 +571,7 @@ if submitted or add_another or go_map:
                         partner.id,
                         exposure_first_date=exposure_first,
                         exposure_last_date=exposure_last,
-                        exposure_modalities=exposure_modalities_json,
+                        op_body_parts=op_parts,
                     )
             else:
                 saved = create_partner(
@@ -610,26 +583,18 @@ if submitted or add_another or go_map:
                 st.success(f"Partner {saved.partner_number} added — {saved.name}")
                 set_active_partner_id(saved.id)
                 partner_id = saved.id
-                # Create the relationship record for the new partner
-                exposure_modalities_json = (
-                    json.dumps(
-                        [
-                            exposure_modalities_value[
-                                exposure_modalities_display.index(s)
-                            ]
-                            for s in exposure_modalities_selected
-                        ]
-                    )
-                    if exposure_modalities_selected
-                    else None
-                )
+                op_parts = [
+                    _BODY_PART_VALUE[_BODY_PART_DISPLAY.index(s)]
+                    for s in exposure_modalities_selected
+                    if s in _BODY_PART_DISPLAY
+                ]
                 relationship = create_case_partner_relationship(
                     db,
                     case_id,
                     saved.id,
                     exposure_first_date=exposure_first,
                     exposure_last_date=exposure_last,
-                    exposure_modalities=exposure_modalities_json,
+                    op_body_parts=op_parts,
                 )
 
             # Sync Relationship Reports

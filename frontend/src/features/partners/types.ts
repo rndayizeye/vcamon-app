@@ -31,13 +31,15 @@ export type CasePartnerRelationshipRead = {
   partner_id: number;
   exposure_first_date: string | null;
   exposure_last_date: string | null;
-  exposure_modalities: string | null;
+  op_body_parts: string[];
+  partner_body_parts: string[];
 };
 
 export type CasePartnerRelationshipCreate = {
   exposure_first_date?: string | null;
   exposure_last_date?: string | null;
-  exposure_modalities?: string | null;
+  op_body_parts?: string[];
+  partner_body_parts?: string[];
 };
 
 export type CasePartnerRelationshipUpdate = Partial<CasePartnerRelationshipCreate>;

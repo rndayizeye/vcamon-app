@@ -7,7 +7,7 @@ import type {
   SymptomEntryRead,
   SymptomEntryWriteInput,
 } from "../../symptoms/types";
-import { normalizeSymptomDrafts, toSymptomDraft } from "../../symptoms/utils";
+import { deriveHistoricalPrimary, normalizeSymptomDrafts, toSymptomDraft } from "../../symptoms/utils";
 import { SymptomEntriesEditor } from "../../cases/components/SymptomEntriesEditor";
 import { LabResultsEditor } from "../../cases/components/LabResultsEditor";
 import { REASON_FOR_EXAM_OPTIONS, TREATMENT_OPTIONS } from "../../labs/constants";
@@ -30,8 +30,6 @@ type PartnerFormValues = {
   treatment_date: string;
   treatment: string;
   medical_info: string;
-  historical_primary_chancre: string;
-  historical_primary_date: string;
   symptoms: SymptomEntryDraft[];
   nontrepLabs: LabDraft[];
   trepLabs: LabDraft[];
@@ -44,8 +42,6 @@ const EMPTY_FORM_VALUES: PartnerFormValues = {
   treatment_date: "",
   treatment: "",
   medical_info: "",
-  historical_primary_chancre: "",
-  historical_primary_date: "",
   symptoms: [],
   nontrepLabs: [],
   trepLabs: [],
@@ -77,30 +73,16 @@ function toFormValues(
   nontrepLabs: LabResultEntryRead[] = [],
   trepLabs: LabResultEntryRead[] = [],
 ): PartnerFormValues {
-  if (!partnerData) {
-    return {
-      ...EMPTY_FORM_VALUES,
-      symptoms: symptoms.map(toSymptomDraft),
-      nontrepLabs: nontrepLabs.map(toLabDraft),
-      trepLabs: trepLabs.map(toLabDraft),
-    };
-  }
-
-  const hpc = partnerData.historical_primary_chancre;
-
   return {
     partner_number:
-      partnerData.partner_number != null
+      partnerData?.partner_number != null
         ? String(partnerData.partner_number)
         : "",
-    name: partnerData.name || "",
-    reason_for_exam: partnerData.reason_for_exam || "",
-    treatment_date: partnerData.treatment_date || "",
-    treatment: partnerData.treatment || "",
-    medical_info: partnerData.medical_info || "",
-    historical_primary_chancre:
-      hpc === true ? "true" : hpc === false ? "false" : "",
-    historical_primary_date: partnerData.historical_primary_date || "",
+    name: partnerData?.name || "",
+    reason_for_exam: partnerData?.reason_for_exam || "",
+    treatment_date: partnerData?.treatment_date || "",
+    treatment: partnerData?.treatment || "",
+    medical_info: partnerData?.medical_info || "",
     symptoms: symptoms.map(toSymptomDraft),
     nontrepLabs: nontrepLabs.map(toLabDraft),
     trepLabs: trepLabs.map(toLabDraft),
@@ -121,9 +103,15 @@ function normalizeLabDrafts(
     }));
 }
 
-function toPartnerPayload(values: PartnerFormValues): PartnerCreateInput {
-  const hpc = values.historical_primary_chancre;
+function toPartnerPayload(
+  values: PartnerFormValues,
+  symptoms: SymptomEntryWriteInput[],
+): PartnerCreateInput {
   const partnerNumber = values.partner_number.trim();
+  const historicalPrimary = deriveHistoricalPrimary(
+    symptoms,
+    values.treatment_date || null,
+  );
 
   return {
     partner_number: partnerNumber ? Number(partnerNumber) : null,
@@ -132,9 +120,8 @@ function toPartnerPayload(values: PartnerFormValues): PartnerCreateInput {
     treatment_date: normalizeDate(values.treatment_date),
     treatment: normalizeText(values.treatment),
     medical_info: normalizeText(values.medical_info),
-    historical_primary_chancre:
-      hpc === "true" ? true : hpc === "false" ? false : null,
-    historical_primary_date: normalizeDate(values.historical_primary_date),
+    historical_primary_chancre: historicalPrimary.historical_primary_chancre,
+    historical_primary_date: historicalPrimary.historical_primary_date,
   };
 }
 
@@ -206,7 +193,7 @@ export function PartnerForm({
         "Treponemal",
       );
       await onSubmit({
-        partner: toPartnerPayload(values),
+        partner: toPartnerPayload(values, normalizedSymptoms),
         symptoms: normalizedSymptoms,
         nontrepLabs: normalizedNontrepLabs,
         trepLabs: normalizedTrepLabs,
@@ -282,19 +269,6 @@ export function PartnerForm({
           <input type="date" {...register("treatment_date")} />
         </label>
 
-        <label className="field">
-          <span>Historical primary chancre?</span>
-          <select {...register("historical_primary_chancre")}>
-            <option value="">Unknown</option>
-            <option value="true">Yes</option>
-            <option value="false">No</option>
-          </select>
-        </label>
-
-        <label className="field">
-          <span>Historical primary date</span>
-          <input type="date" {...register("historical_primary_date")} />
-        </label>
       </div>
 
       <label className="field">

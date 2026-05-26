@@ -51,7 +51,6 @@ class GhostingSymptomInput(BaseModel):
 class GhostingExposureInput(BaseModel):
     first: date
     last: date
-    exposure_modalities: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_date_order(self) -> "GhostingExposureInput":
@@ -67,10 +66,12 @@ class GhostingAnalysisRequest(BaseModel):
     op_symptoms: list[GhostingSymptomInput] = Field(default_factory=list)
     op_exposure: GhostingExposureInput | None = None
     op_treatment_date: date | None = None
+    op_body_parts: list[str] = Field(default_factory=list)
     partner_name: str = Field(min_length=1)
     partner_symptoms: list[GhostingSymptomInput] = Field(default_factory=list)
     partner_exposure: GhostingExposureInput | None = None
     partner_treatment_date: date | None = None
+    partner_body_parts: list[str] = Field(default_factory=list)
 
 
 class GhostingCaseAnalysisRequest(BaseModel):
