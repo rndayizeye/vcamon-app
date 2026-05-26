@@ -27,8 +27,6 @@ export type LabResultEntry = {
   result: string | null;
 };
 
-// New React create/edit forms should submit diagnosis_code.
-// lot remains a legacy compatibility field in backend responses.
 export type CaseWriteFields = {
   diagnosis_code?: string | null;
   case_manager?: string | null;
@@ -36,21 +34,9 @@ export type CaseWriteFields = {
   reason_for_exam?: string | null;
   treatment_date?: string | null;
   medical_info?: string | null;
-  lab_1?: string | null;
-  lab_2?: string | null;
-  lab_3?: string | null;
   treatment?: string | null;
-  lesion_type?: string | null;
-  symptom?: string | null;
-  symptom_classification?: string | null;
-  symptom_onset_date?: string | null;
-  symptom_duration_days?: number | null;
-  symptom_ongoing?: boolean | null;
   historical_primary_chancre?: boolean | null;
   historical_primary_date?: string | null;
-  lab_1_date?: string | null;
-  lab_2_date?: string | null;
-  lab_3_date?: string | null;
 };
 
 export type CaseCreateInput = CaseWriteFields & {
