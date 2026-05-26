@@ -9,3 +9,11 @@ Ghosting: DONE (2026-05-25)
 - Latency now shown in 3 rows (Optimistic/min, Expected/avg, Conservative/max); all other criteria show expected range only.
 - VerdictContext panel added below verdict badge: per-criterion plain-language explanation of each failure (e.g. "ghosted source lesion would have occurred after secondary — violates primary-before-secondary order").
 - QuickGhostPage SymptomEditor: changed from grid to flex-wrap layout; onset date and duration inputs no longer overlap on narrow containers.
+05-26-2026
+VCA chart redesign: PLANNED — approved plan at `.claude/plans/read-ai-context-feedback-md-new-feedback-async-canyon.md`. Implement at start of next session.
+- Inoculation: one set per person (primary preferred, secondary fallback). Primary → ► max, ▲ avg, ◄ min. Secondary → ▲ avg only.
+- Draw line from max inoculation point to treatment date, labeled "Infectious window".
+- Treatment date: vertical line (replaces ★ star marker).
+- Non-reactive labs: gray dashed vertical line per non-reactive result (RPR titer=Neg or treponemal result=Non-reactive).
+- Overlap fix: exposure/interview at y-22, symptoms at y, inoculation at y+22, ghosted lesions at y+34.
+- Reference screenshot: documents/Screenshot_vca.png

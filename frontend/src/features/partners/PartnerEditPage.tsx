@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePartner, useUpdatePartner } from "./hooks";
@@ -26,6 +26,16 @@ export function PartnerEditPage() {
   const labsQuery = usePartnerLabs(safePartnerId);
   const updatePartner = useUpdatePartner();
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const initialSymptoms = useMemo(() => symptomsQuery.data ?? [], [symptomsQuery.data]);
+  const initialNontrepLabs = useMemo(
+    () => labsQuery.data?.filter(l => l.test_category === "Non-treponemal") ?? [],
+    [labsQuery.data],
+  );
+  const initialTrepLabs = useMemo(
+    () => labsQuery.data?.filter(l => l.test_category === "Treponemal") ?? [],
+    [labsQuery.data],
+  );
 
   if (partnerQuery.isLoading || symptomsQuery.isLoading || labsQuery.isLoading) {
     return <LoadingState message="Loading partner data…" />;
@@ -99,9 +109,9 @@ export function PartnerEditPage() {
       <PartnerForm
         mode="edit"
         initialPartner={partnerQuery.data}
-        initialSymptoms={symptomsQuery.data ?? []}
-        initialNontrepLabs={labsQuery.data?.filter(l => l.test_category === "Non-treponemal") || []}
-        initialTrepLabs={labsQuery.data?.filter(l => l.test_category === "Treponemal") || []}
+        initialSymptoms={initialSymptoms}
+        initialNontrepLabs={initialNontrepLabs}
+        initialTrepLabs={initialTrepLabs}
         onSubmit={handleSubmit}
         submitting={updatePartner.isPending}
         errorMessage={

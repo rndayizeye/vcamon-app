@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ApiError } from "../../lib/api-client";
 import type {
@@ -51,30 +51,31 @@ export function useAuthBootstrap(): AuthBootstrapState {
   const [permissions, setPermissions] =
     useState<AuthPermissions>(EMPTY_PERMISSIONS);
   const [error, setError] = useState<string | null>(null);
+  const refreshing = useRef(false);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    if (refreshing.current) return;
+    refreshing.current = true;
 
     try {
       const nextStatus = await getAuthStatus();
-      setStatus(nextStatus);
-      setBackendAuthEnabled(nextStatus.enabled);
-
       try {
         const me = await getAuthMe();
+        // Single batched update — one re-render for the whole auth state
+        setStatus(nextStatus);
+        setBackendAuthEnabled(nextStatus.enabled);
         setAuthenticated(me.authenticated);
         setUser(me.user);
-        setPermissions(
-          nextStatus.enabled ? me.permissions : OPEN_ACCESS_PERMISSIONS,
-        );
+        setPermissions(nextStatus.enabled ? me.permissions : OPEN_ACCESS_PERMISSIONS);
+        setError(null);
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) {
+          setStatus(nextStatus);
+          setBackendAuthEnabled(nextStatus.enabled);
           setAuthenticated(false);
           setUser(null);
-          setPermissions(
-            nextStatus.enabled ? EMPTY_PERMISSIONS : OPEN_ACCESS_PERMISSIONS,
-          );
+          setPermissions(nextStatus.enabled ? EMPTY_PERMISSIONS : OPEN_ACCESS_PERMISSIONS);
+          setError(null);
         } else {
           throw err;
         }
@@ -83,14 +84,11 @@ export function useAuthBootstrap(): AuthBootstrapState {
       setAuthenticated(false);
       setUser(null);
       setPermissions(EMPTY_PERMISSIONS);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to bootstrap authentication",
-      );
+      setError(err instanceof Error ? err.message : "Unable to bootstrap authentication");
     } finally {
       setLoading(false);
       setSessionChecked(true);
+      refreshing.current = false;
     }
   }, []);
 

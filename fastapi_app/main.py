@@ -1,6 +1,14 @@
+import os
+import pathlib
+
+from dotenv import load_dotenv
+
+load_dotenv(pathlib.Path(__file__).parent.parent / ".env")
+
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from fastapi_app.app.auth import (
     AuthConfigurationError,
@@ -13,59 +21,72 @@ from fastapi_app.app.auth import (
 from fastapi_app.app.routers import router
 
 
+async def _auth_dispatch(request: Request, call_next):
+    settings = get_auth_settings()
+    request.state.auth_user = None
+
+    if (
+        request.method == "OPTIONS"
+        or not settings.enabled
+        or is_public_path(request.url.path)
+    ):
+        return await call_next(request)
+
+    access_token = extract_bearer_token(request.headers.get("Authorization"))
+    if not access_token:
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={"detail": "Missing or invalid bearer token"},
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    try:
+        user = authenticate_access_token(access_token, settings)
+    except AuthConfigurationError as exc:
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"detail": str(exc)},
+        )
+    except AuthServiceError as exc:
+        return JSONResponse(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            content={"detail": str(exc)},
+        )
+
+    if not user:
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={"detail": "Invalid or expired access token"},
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    request.state.auth_user = user
+    return await call_next(request)
+
+
 def create_app() -> FastAPI:
     app = FastAPI(title="VCA Monitor API", version="0.1.0")
 
+    # Auth must be added first (innermost) so CORS (outermost) wraps all
+    # responses including early 401s — Starlette applies middleware in reverse
+    # registration order.
+    app.add_middleware(BaseHTTPMiddleware, dispatch=_auth_dispatch)
+
+    _cors_origins = [
+        o.strip()
+        for o in os.getenv(
+            "CORS_ORIGINS",
+            "http://localhost:5173,http://127.0.0.1:5173",
+        ).split(",")
+        if o.strip()
+    ]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # In production, replace with specific origins
+        allow_origins=_cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
-    @app.middleware("http")
-    async def auth_middleware(request: Request, call_next):
-        settings = get_auth_settings()
-        request.state.auth_user = None
-
-        if (
-            request.method == "OPTIONS"
-            or not settings.enabled
-            or is_public_path(request.url.path)
-        ):
-            return await call_next(request)
-
-        access_token = extract_bearer_token(request.headers.get("Authorization"))
-        if not access_token:
-            return JSONResponse(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                content={"detail": "Missing or invalid bearer token"},
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-        try:
-            user = authenticate_access_token(access_token, settings)
-        except AuthConfigurationError as exc:
-            return JSONResponse(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                content={"detail": str(exc)},
-            )
-        except AuthServiceError as exc:
-            return JSONResponse(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                content={"detail": str(exc)},
-            )
-
-        if not user:
-            return JSONResponse(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                content={"detail": "Invalid or expired access token"},
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-        request.state.auth_user = user
-        return await call_next(request)
 
     app.include_router(router, prefix="/api")
 

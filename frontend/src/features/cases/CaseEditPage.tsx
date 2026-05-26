@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -27,6 +27,16 @@ export function CaseEditPage() {
   const symptomsQuery = useCaseSymptoms(safeCaseId);
   const labsQuery = useCaseLabs(safeCaseId);
   const updateMutation = useUpdateCase(safeCaseId);
+
+  const initialSymptoms = useMemo(() => symptomsQuery.data ?? [], [symptomsQuery.data]);
+  const initialNontrepLabs = useMemo(
+    () => labsQuery.data?.filter(l => l.test_category === "Non-treponemal") ?? [],
+    [labsQuery.data],
+  );
+  const initialTrepLabs = useMemo(
+    () => labsQuery.data?.filter(l => l.test_category === "Treponemal") ?? [],
+    [labsQuery.data],
+  );
 
   if (!permissions.can_write) {
     return (
@@ -135,9 +145,9 @@ export function CaseEditPage() {
       <CaseForm
         mode="edit"
         initialCase={caseQuery.data}
-        initialSymptoms={symptomsQuery.data || []}
-        initialNontrepLabs={labsQuery.data?.filter(l => l.test_category === "Non-treponemal") || []}
-        initialTrepLabs={labsQuery.data?.filter(l => l.test_category === "Treponemal") || []}
+        initialSymptoms={initialSymptoms}
+        initialNontrepLabs={initialNontrepLabs}
+        initialTrepLabs={initialTrepLabs}
         onSubmit={handleUpdate}
         submitting={updateMutation.isPending}
         errorMessage={
