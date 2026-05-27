@@ -7,10 +7,12 @@ import { LoadingState } from '../../components/feedback/LoadingState'
 import { getCase } from '../cases/api'
 import { getCasePartnerRelationship, getPartnersForCase } from '../partners/api'
 import { listCaseSymptoms, listPartnerSymptoms } from '../symptoms/api'
+import { listCaseLabs, listPartnerLabs } from '../labs/api'
 import { listCaseGhostings } from './api'
 import type { GhostingRecord, PartnerSummary, RelationshipSummary } from './types'
 import type { CaseRead } from '../cases/types'
 import type { SymptomEntryRead } from '../symptoms/types'
+import type { LabResultEntryRead } from '../labs/types'
 
 // ---------------------------------------------------------------------------
 // Clinical constants (mirrored from app/utils/clinical.py)
@@ -19,11 +21,11 @@ import type { SymptomEntryRead } from '../symptoms/types'
 const INCUBATION = { min: 10, avg: 21, max: 90 }
 const PRIMARY = { min: 7, avg: 21, max: 35 }
 const LATENCY = { min: 0, avg: 28, max: 70 }
-const INTERVIEW_PERIOD_PRIMARY_DAYS = 125  // INCUBATION.max + PRIMARY.max
+const INTERVIEW_PERIOD_PRIMARY_DAYS = 125
 const INTERVIEW_PERIOD_SECONDARY_DAYS = 237
 
 // ---------------------------------------------------------------------------
-// Chart colors (matching Streamlit VCA training material convention)
+// Chart colors
 // ---------------------------------------------------------------------------
 
 const COLORS = {
@@ -35,10 +37,12 @@ const COLORS = {
   exposureOp: '#EF9F27',
   critical: '#1D9E75',
   inoculation: '#1D9E75',
+  infectiousWindow: '#1D9E75',
   ghostedSource: '#EF9F27',
   ghostedSpread: '#D85A30',
   treatment: '#2C2C2A',
   interview: '#1D9E75',
+  nonReactiveLab: '#9E7BC4',
   grid: 'rgba(180,178,169,0.25)',
   axis: '#999',
 }
@@ -51,8 +55,14 @@ const LEFT_MARGIN = 170
 const RIGHT_MARGIN = 24
 const TOP_MARGIN = 16
 const BOTTOM_MARGIN = 56
-const ROW_HEIGHT = 80
-const MIN_CHART_SPAN_MS = 365 * 24 * 60 * 60 * 1000  // 12-month minimum
+const ROW_HEIGHT = 100
+const MIN_CHART_SPAN_MS = 365 * 24 * 60 * 60 * 1000
+
+// Sub-track offsets relative to row center y
+const Y_EXPOSURE = -28
+const Y_SYMPTOM = 0
+const Y_INOC = 24
+const Y_GHOST = 38
 
 // ---------------------------------------------------------------------------
 // Date utilities
@@ -154,6 +164,16 @@ function getInoculationPoints(
   return null
 }
 
+// Pick the single key symptom for inoculation: primary > historical > first secondary
+function getPersonKeySymptom(symptoms: SymptomBar[]): SymptomBar | null {
+  return (
+    symptoms.find((s) => s.chartType === 'Primary Chancre') ??
+    symptoms.find((s) => s.chartType === 'Historical Primary') ??
+    symptoms.find((s) => s.chartType === 'Secondary Rash/Lesions') ??
+    null
+  )
+}
+
 function symptomColor(chartType: SymptomChartType): { onset: string; bar: string } {
   if (chartType === 'Secondary Rash/Lesions') {
     return { onset: COLORS.secondaryOnset, bar: COLORS.secondaryBar }
@@ -161,7 +181,6 @@ function symptomColor(chartType: SymptomChartType): { onset: string; bar: string
   return { onset: COLORS.primaryOnset, bar: COLORS.primaryBar }
 }
 
-// Parse ghosted lesion date pair from the notes string saved by the engine
 function parseGhostingDates(notes: string | null): [Date, Date] | null {
   if (!notes) return null
   const matches = notes.match(/\d{4}-\d{2}-\d{2}/g)
@@ -175,22 +194,19 @@ function parseGhostingDates(notes: string | null): [Date, Date] | null {
 // SVG marker helpers
 // ---------------------------------------------------------------------------
 
-function trianglePoints(cx: number, cy: number, r: number): string {
+// ▲ upward (symptom onset)
+function upTrianglePoints(cx: number, cy: number, r: number): string {
   return `${cx},${cy - r} ${cx - r},${cy + r} ${cx + r},${cy + r}`
 }
 
-function diamondPoints(cx: number, cy: number, r: number): string {
-  return `${cx},${cy - r} ${cx + r},${cy} ${cx},${cy + r} ${cx - r},${cy}`
+// ► right-pointing (max inoculation — earliest calendar date)
+function rightTrianglePoints(cx: number, cy: number, r: number): string {
+  return `${cx + r},${cy} ${cx - r},${cy - r} ${cx - r},${cy + r}`
 }
 
-function starPath(cx: number, cy: number, r: number): string {
-  const pts: string[] = []
-  for (let i = 0; i < 10; i++) {
-    const angle = (i * Math.PI) / 5 - Math.PI / 2
-    const rad = i % 2 === 0 ? r : r * 0.42
-    pts.push(`${cx + rad * Math.cos(angle)},${cy + rad * Math.sin(angle)}`)
-  }
-  return `M${pts.join('L')}Z`
+// ◄ left-pointing (min inoculation — latest calendar date)
+function leftTrianglePoints(cx: number, cy: number, r: number): string {
+  return `${cx - r},${cy} ${cx + r},${cy - r} ${cx + r},${cy + r}`
 }
 
 // ---------------------------------------------------------------------------
@@ -201,6 +217,7 @@ type PersonData = {
   label: string
   isOp: boolean
   symptoms: SymptomBar[]
+  labs: LabResultEntryRead[]
   treatmentDate: Date | null
   firstExposure: Date | null
   lastExposure: Date | null
@@ -227,9 +244,9 @@ function VcaTimeline({
     showGhosted: boolean
     showCritical: boolean
     showInterview: boolean
+    showLabLines: boolean
   }
 }) {
-  // Collect all dates to determine raw data range
   const allDates: Date[] = []
   for (const p of people) {
     if (p.treatmentDate) allDates.push(p.treatmentDate)
@@ -239,9 +256,16 @@ function VcaTimeline({
       allDates.push(sym.onset)
       const dur = sym.durationDays > 0 ? sym.durationDays : PRIMARY.avg
       allDates.push(addDays(sym.onset, dur))
-      // Include inoculation range so chart always shows the full estimated window
-      const inoc = getInoculationPoints(sym.chartType, sym.onset, dur)
+    }
+    const keySym = getPersonKeySymptom(p.symptoms)
+    if (keySym) {
+      const dur = keySym.durationDays > 0 ? keySym.durationDays : PRIMARY.avg
+      const inoc = getInoculationPoints(keySym.chartType, keySym.onset, dur)
       if (inoc) allDates.push(inoc.max)
+    }
+    for (const lab of p.labs) {
+      const d = parseDate(lab.collection_date)
+      if (d) allDates.push(d)
     }
   }
   for (const g of ghostings) {
@@ -250,14 +274,15 @@ function VcaTimeline({
   }
 
   const today = new Date()
-  const rawMin = allDates.length > 0
-    ? addDays(new Date(Math.min(...allDates.map((d) => d.getTime()))), -30)
-    : addDays(today, -365)
-  const rawMax = allDates.length > 0
-    ? addDays(new Date(Math.max(...allDates.map((d) => d.getTime()))), 30)
-    : today
+  const rawMin =
+    allDates.length > 0
+      ? addDays(new Date(Math.min(...allDates.map((d) => d.getTime()))), -30)
+      : addDays(today, -365)
+  const rawMax =
+    allDates.length > 0
+      ? addDays(new Date(Math.max(...allDates.map((d) => d.getTime()))), 30)
+      : today
 
-  // Enforce 12-month minimum window centered on the data midpoint
   let minDate = rawMin
   let maxDate = rawMax
   const rawSpan = rawMax.getTime() - rawMin.getTime()
@@ -320,203 +345,281 @@ function VcaTimeline({
       {/* Per-person chart elements */}
       {people.map((p, i) => {
         const y = rowY(i)
-        // For OP-only overlays (critical/interview period), prefer primary symptom
-        const keySym =
-          p.symptoms.find((s) => s.chartType === 'Primary Chancre') ??
-          p.symptoms.find((s) => s.chartType === 'Historical Primary') ??
-          p.symptoms[0] ??
-          null
+        const yExp = y + Y_EXPOSURE
+        const yInoc = y + Y_INOC
+        const keySym = getPersonKeySymptom(p.symptoms)
 
         return (
           <g key={`person-${i}`}>
-            {/* All symptom bars (primary = red, secondary = purple) */}
-            {p.symptoms.map((sym, si) => {
-              const dur = sym.durationDays > 0 ? sym.durationDays : PRIMARY.avg
-              const { onset: onsetColor, bar: barColor } = symptomColor(sym.chartType)
-              const xOnset = dateToX(sym.onset)
-
-              return (
-                <g key={`sym-${si}`}>
-                  {/* Duration bar */}
-                  {toggles.showDurations && (
+            {/* Non-reactive lab vertical lines */}
+            {toggles.showLabLines &&
+              p.labs
+                .filter((l) => l.titer === 'Non-Reactive' || l.result === 'Non-reactive')
+                .map((lab, li) => {
+                  const d = parseDate(lab.collection_date)
+                  if (!d) return null
+                  return (
                     <line
-                      x1={xOnset}
-                      y1={y}
-                      x2={dateToX(addDays(sym.onset, dur))}
-                      y2={y}
-                      stroke={barColor}
-                      strokeWidth={7}
-                      strokeLinecap="round"
+                      key={`lab-nr-${li}`}
+                      x1={dateToX(d)}
+                      y1={y - ROW_HEIGHT / 2 + 6}
+                      x2={dateToX(d)}
+                      y2={y + ROW_HEIGHT / 2 - 6}
+                      stroke={COLORS.nonReactiveLab}
+                      strokeWidth={1.5}
+                      strokeDasharray="3 3"
+                      opacity={0.7}
                     >
                       <title>
-                        {p.label} — {sym.typeName} ({sym.chartType}) · Onset{' '}
-                        {sym.onset.toISOString().slice(0, 10)} · Est. end{' '}
-                        {addDays(sym.onset, dur).toISOString().slice(0, 10)}
+                        {p.label} — Non-reactive {lab.test_type}:{' '}
+                        {d.toISOString().slice(0, 10)}
                       </title>
                     </line>
-                  )}
+                  )
+                })}
 
-                  {/* Onset marker (▲) */}
-                  <polygon points={trianglePoints(xOnset, y, 7)} fill={onsetColor}>
+            {/* Exposure window (Y_EXPOSURE sub-track) */}
+            {p.firstExposure &&
+              p.lastExposure &&
+              (() => {
+                const color = p.isOp ? COLORS.exposureOp : COLORS.exposurePartner
+                const dash = p.isOp ? '3 5' : '8 5'
+                const label = p.isOp ? 'OP elicited exposure' : 'Partner reported exposure'
+                return (
+                  <line
+                    x1={dateToX(p.firstExposure)}
+                    y1={yExp}
+                    x2={dateToX(p.lastExposure)}
+                    y2={yExp}
+                    stroke={color}
+                    strokeWidth={5}
+                    strokeDasharray={dash}
+                    strokeLinecap="round"
+                  >
                     <title>
-                      {p.label} — {sym.typeName} onset: {sym.onset.toISOString().slice(0, 10)} ·{' '}
-                      {sym.chartType}
+                      {p.label} — {label}: {p.firstExposure.toISOString().slice(0, 10)} →{' '}
+                      {p.lastExposure.toISOString().slice(0, 10)}
                     </title>
-                  </polygon>
+                  </line>
+                )
+              })()}
 
-                  {/* Inoculation points (◆) */}
-                  {toggles.showInoc && (() => {
-                    const pts = getInoculationPoints(sym.chartType, sym.onset, dur)
-                    if (!pts) return null
-                    return (
-                      <g>
-                        {(
-                          [
-                            { d: pts.min, label: 'Min inoculation' },
-                            { d: pts.avg, label: 'Avg inoculation' },
-                            { d: pts.max, label: 'Max inoculation' },
-                          ] as const
-                        ).map(({ d, label }) => (
-                          <polygon
-                            key={label}
-                            points={diamondPoints(dateToX(d), y, 7)}
-                            fill={COLORS.inoculation}
-                          >
-                            <title>
-                              {p.label} — {sym.typeName}: {label}:{' '}
-                              {d.toISOString().slice(0, 10)}
-                            </title>
-                          </polygon>
-                        ))}
-                      </g>
-                    )
-                  })()}
-                </g>
+            {/* Symptom bars (on the inoculation track) */}
+            {toggles.showDurations && p.symptoms.map((sym, si) => {
+              const dur = sym.durationDays > 0 ? sym.durationDays : PRIMARY.avg
+              const { bar: barColor } = symptomColor(sym.chartType)
+              return (
+                <line
+                  key={`sym-${si}`}
+                  x1={dateToX(sym.onset)}
+                  y1={yInoc}
+                  x2={dateToX(addDays(sym.onset, dur))}
+                  y2={yInoc}
+                  stroke={barColor}
+                  strokeWidth={7}
+                  strokeLinecap="round"
+                >
+                  <title>
+                    {p.label} — {sym.typeName} ({sym.chartType}) · Onset{' '}
+                    {sym.onset.toISOString().slice(0, 10)} · Est. end{' '}
+                    {addDays(sym.onset, dur).toISOString().slice(0, 10)}
+                  </title>
+                </line>
               )
             })}
 
-            {/* Treatment marker (★) */}
-            {p.treatmentDate && (
-              <path d={starPath(dateToX(p.treatmentDate), y, 8)} fill={COLORS.treatment}>
-                <title>
-                  {p.label} — Treatment: {p.treatmentDate.toISOString().slice(0, 10)}
-                </title>
-              </path>
-            )}
+            {/* Treatment date: vertical line spanning row (replaces ★) */}
+            {p.treatmentDate &&
+              (() => {
+                const xTx = dateToX(p.treatmentDate)
+                const halfH = ROW_HEIGHT / 2 - 6
+                return (
+                  <line
+                    x1={xTx}
+                    y1={y - halfH}
+                    x2={xTx}
+                    y2={y + halfH}
+                    stroke={COLORS.treatment}
+                    strokeWidth={2}
+                  >
+                    <title>
+                      {p.label} — Treatment: {p.treatmentDate.toISOString().slice(0, 10)}
+                    </title>
+                  </line>
+                )
+              })()}
 
-            {/* Exposure window */}
-            {p.firstExposure && p.lastExposure && (() => {
-              const color = p.isOp ? COLORS.exposureOp : COLORS.exposurePartner
-              const dash = p.isOp ? '3 5' : '8 5'
-              const label = p.isOp ? 'OP elicited exposure' : 'Partner reported exposure'
-              return (
-                <line
-                  x1={dateToX(p.firstExposure)}
-                  y1={y}
-                  x2={dateToX(p.lastExposure)}
-                  y2={y}
-                  stroke={color}
-                  strokeWidth={5}
-                  strokeDasharray={dash}
-                  strokeLinecap="round"
-                >
-                  <title>
-                    {p.label} — {label}: {p.firstExposure.toISOString().slice(0, 10)} →{' '}
-                    {p.lastExposure.toISOString().slice(0, 10)}
-                  </title>
-                </line>
-              )
-            })()}
+            {/* Inoculation: one set per person at Y_INOC sub-track */}
+            {toggles.showInoc &&
+              keySym &&
+              (() => {
+                const dur = keySym.durationDays > 0 ? keySym.durationDays : PRIMARY.avg
+                const pts = getInoculationPoints(keySym.chartType, keySym.onset, dur)
+                if (!pts) return null
+                const isPrimary = keySym.chartType !== 'Secondary Rash/Lesions'
 
-            {/* Critical period (OP only, keyed to primary/key symptom) */}
-            {toggles.showCritical && p.isOp && keySym && (() => {
-              const dur = keySym.durationDays > 0 ? keySym.durationDays : PRIMARY.avg
-              const pts = getInoculationPoints(keySym.chartType, keySym.onset, dur)
-              const critStart = pts ? pts.max : addDays(keySym.onset, -(INCUBATION.max + PRIMARY.max))
-              const critEnd = p.treatmentDate ?? maxDate
-              return (
-                <line
-                  x1={dateToX(critStart)}
-                  y1={y - 14}
-                  x2={dateToX(critEnd)}
-                  y2={y - 14}
-                  stroke={COLORS.critical}
-                  strokeWidth={3}
-                  strokeLinecap="round"
-                >
-                  <title>
-                    Critical period: {critStart.toISOString().slice(0, 10)} →{' '}
-                    {critEnd.toISOString().slice(0, 10)}
-                  </title>
-                </line>
-              )
-            })()}
+                return (
+                  <g>
+                    {/* Infectious window: max inoculation → treatment date */}
+                    {p.treatmentDate && (
+                      <line
+                        x1={dateToX(pts.max)}
+                        y1={yInoc}
+                        x2={dateToX(p.treatmentDate)}
+                        y2={yInoc}
+                        stroke={COLORS.infectiousWindow}
+                        strokeWidth={2}
+                        strokeDasharray="6 3"
+                        opacity={0.4}
+                      >
+                        <title>
+                          Infectious window: {pts.max.toISOString().slice(0, 10)} →{' '}
+                          {p.treatmentDate.toISOString().slice(0, 10)}
+                        </title>
+                      </line>
+                    )}
 
-            {/* Interview period (OP only, keyed to primary/key symptom) */}
-            {toggles.showInterview && p.isOp && keySym && (() => {
-              const isPrimary = keySym.chartType === 'Primary Chancre' || keySym.chartType === 'Historical Primary'
-              const days = isPrimary ? INTERVIEW_PERIOD_PRIMARY_DAYS : INTERVIEW_PERIOD_SECONDARY_DAYS
-              const intStart = addDays(keySym.onset, -days)
-              const intEnd = p.treatmentDate ?? maxDate
-              return (
-                <line
-                  x1={dateToX(intStart)}
-                  y1={y + 14}
-                  x2={dateToX(intEnd)}
-                  y2={y + 14}
-                  stroke={COLORS.interview}
-                  strokeWidth={2}
-                  strokeDasharray="12 4"
-                  strokeLinecap="round"
-                >
-                  <title>
-                    Interview period: {intStart.toISOString().slice(0, 10)} →{' '}
-                    {intEnd.toISOString().slice(0, 10)}
-                  </title>
-                </line>
-              )
-            })()}
+                    {/* ▲ avg inoculation (always shown) */}
+                    <polygon
+                      points={upTrianglePoints(dateToX(pts.avg), yInoc, 7)}
+                      fill={COLORS.inoculation}
+                    >
+                      <title>
+                        {p.label} — {keySym.typeName}: Avg inoculation:{' '}
+                        {pts.avg.toISOString().slice(0, 10)}
+                      </title>
+                    </polygon>
+
+                    {/* ► max and ◄ min (primary only) */}
+                    {isPrimary && (
+                      <>
+                        <polygon
+                          points={rightTrianglePoints(dateToX(pts.max), yInoc, 7)}
+                          fill={COLORS.inoculation}
+                          opacity={0.75}
+                        >
+                          <title>
+                            {p.label} — Max inoculation (earliest):{' '}
+                            {pts.max.toISOString().slice(0, 10)}
+                          </title>
+                        </polygon>
+                        <polygon
+                          points={leftTrianglePoints(dateToX(pts.min), yInoc, 7)}
+                          fill={COLORS.inoculation}
+                          opacity={0.75}
+                        >
+                          <title>
+                            {p.label} — Min inoculation (latest):{' '}
+                            {pts.min.toISOString().slice(0, 10)}
+                          </title>
+                        </polygon>
+                      </>
+                    )}
+                  </g>
+                )
+              })()}
+
+            {/* Critical period (OP only) */}
+            {toggles.showCritical &&
+              p.isOp &&
+              keySym &&
+              (() => {
+                const dur = keySym.durationDays > 0 ? keySym.durationDays : PRIMARY.avg
+                const pts = getInoculationPoints(keySym.chartType, keySym.onset, dur)
+                const critStart = pts
+                  ? pts.max
+                  : addDays(keySym.onset, -(INCUBATION.max + PRIMARY.max))
+                const critEnd = p.treatmentDate ?? maxDate
+                return (
+                  <line
+                    x1={dateToX(critStart)}
+                    y1={y - 14}
+                    x2={dateToX(critEnd)}
+                    y2={y - 14}
+                    stroke={COLORS.critical}
+                    strokeWidth={3}
+                    strokeLinecap="round"
+                  >
+                    <title>
+                      Critical period: {critStart.toISOString().slice(0, 10)} →{' '}
+                      {critEnd.toISOString().slice(0, 10)}
+                    </title>
+                  </line>
+                )
+              })()}
+
+            {/* Interview period (OP only) */}
+            {toggles.showInterview &&
+              p.isOp &&
+              keySym &&
+              (() => {
+                const isPrimary =
+                  keySym.chartType === 'Primary Chancre' ||
+                  keySym.chartType === 'Historical Primary'
+                const days = isPrimary
+                  ? INTERVIEW_PERIOD_PRIMARY_DAYS
+                  : INTERVIEW_PERIOD_SECONDARY_DAYS
+                const intStart = addDays(keySym.onset, -days)
+                const intEnd = p.treatmentDate ?? maxDate
+                return (
+                  <line
+                    x1={dateToX(intStart)}
+                    y1={y + 14}
+                    x2={dateToX(intEnd)}
+                    y2={y + 14}
+                    stroke={COLORS.interview}
+                    strokeWidth={2}
+                    strokeDasharray="12 4"
+                    strokeLinecap="round"
+                  >
+                    <title>
+                      Interview period: {intStart.toISOString().slice(0, 10)} →{' '}
+                      {intEnd.toISOString().slice(0, 10)}
+                    </title>
+                  </line>
+                )
+              })()}
           </g>
         )
       })}
 
-      {/* Ghosted lesions */}
+      {/* Ghosted lesions (Y_GHOST sub-track) */}
       {toggles.showGhosted &&
-        ghostings.map((g, i) => {
+        ghostings.map((g, gi) => {
           const dates = parseGhostingDates(g.notes)
           if (!dates) return null
           const [gOnset, gEnd] = dates
           const yRef = partnerRefMap[g.to_ref ?? ''] ?? g.to_ref ?? ''
           const personIdx = people.findIndex((p) => p.label === yRef)
           if (personIdx < 0) return null
-          const y = rowY(personIdx)
+          const yGhost = rowY(personIdx) + Y_GHOST
           const isSource = (g.ghosting_type ?? '').toLowerCase().includes('source')
           const color = isSource ? COLORS.ghostedSource : COLORS.ghostedSpread
           const gLabel = isSource ? 'Ghosted source' : 'Ghosted spread'
           const fromLabel = partnerRefMap[g.from_ref ?? ''] ?? g.from_ref ?? '?'
 
           return (
-            <g key={`ghost-${i}`}>
+            <g key={`ghost-${gi}`}>
               <line
                 x1={dateToX(gOnset)}
-                y1={y + 20}
+                y1={yGhost}
                 x2={dateToX(gEnd)}
-                y2={y + 20}
+                y2={yGhost}
                 stroke={color}
                 strokeWidth={4}
                 strokeDasharray="10 4 3 4"
                 strokeLinecap="round"
               >
                 <title>
-                  {gLabel}: {gOnset.toISOString().slice(0, 10)} → {gEnd.toISOString().slice(0, 10)}{' '}
-                  · From: {fromLabel}
+                  {gLabel}: {gOnset.toISOString().slice(0, 10)} →{' '}
+                  {gEnd.toISOString().slice(0, 10)} · From: {fromLabel}
                 </title>
               </line>
               {[gOnset, gEnd].map((d, j) => (
                 <circle
                   key={j}
                   cx={dateToX(d)}
-                  cy={y + 20}
+                  cy={yGhost}
                   r={4}
                   fill="none"
                   stroke={color}
@@ -565,18 +668,18 @@ function VcaTimeline({
 // ---------------------------------------------------------------------------
 
 const LEGEND_ITEMS = [
-  { label: 'Primary symptom onset (e.g. chancre)', symbol: '▲', color: COLORS.primaryOnset },
-  { label: 'Primary symptom duration', symbol: '━', color: COLORS.primaryBar },
-  { label: 'Secondary symptom onset (e.g. rash)', symbol: '▲', color: COLORS.secondaryOnset },
-  { label: 'Secondary symptom duration', symbol: '━', color: COLORS.secondaryBar },
-  { label: 'Inoculation points', symbol: '◆', color: COLORS.inoculation },
+  { label: 'Primary symptom', symbol: '━', color: COLORS.primaryBar },
+  { label: 'Secondary symptom', symbol: '━', color: COLORS.secondaryBar },
+  { label: 'Inoculation avg (▲), max (►), min (◄)', symbol: '▲', color: COLORS.inoculation },
+  { label: 'Infectious window (max inoc → Rx)', symbol: '╌', color: COLORS.infectiousWindow },
+  { label: 'Treatment date', symbol: '│', color: COLORS.treatment },
   { label: 'Critical period', symbol: '━', color: COLORS.critical },
   { label: 'Interview period', symbol: '╌', color: COLORS.interview },
   { label: 'Partner exposure window', symbol: '╌', color: COLORS.exposurePartner },
   { label: 'OP elicited exposure', symbol: '·····', color: COLORS.exposureOp },
-  { label: 'Treatment', symbol: '★', color: COLORS.treatment },
   { label: 'Ghosted source lesion', symbol: '╌·╌', color: COLORS.ghostedSource },
   { label: 'Ghosted spread lesion', symbol: '╌·╌', color: COLORS.ghostedSpread },
+  { label: 'Non-reactive lab', symbol: '╎', color: COLORS.nonReactiveLab },
 ]
 
 // ---------------------------------------------------------------------------
@@ -595,6 +698,7 @@ export function VcaChartPage() {
   const [showGhosted, setShowGhosted] = useState(true)
   const [showCritical, setShowCritical] = useState(true)
   const [showInterview, setShowInterview] = useState(true)
+  const [showLabLines, setShowLabLines] = useState(true)
 
   useEffect(() => {
     const el = containerRef.current
@@ -606,35 +710,35 @@ export function VcaChartPage() {
     return () => obs.disconnect()
   }, [])
 
-  // Base data: case + partners + ghostings + case symptoms
   const baseQuery = useQuery({
     queryKey: ['cases', parsedCaseId, 'vca-chart-base'],
     queryFn: async () => {
-      const [caseData, partners, ghostings, caseSymptoms] = await Promise.all([
+      const [caseData, partners, ghostings, caseSymptoms, caseLabs] = await Promise.all([
         getCase(parsedCaseId) as Promise<CaseRead>,
         getPartnersForCase(parsedCaseId) as Promise<PartnerSummary[]>,
         listCaseGhostings(parsedCaseId),
         listCaseSymptoms(parsedCaseId),
+        listCaseLabs(parsedCaseId) as Promise<LabResultEntryRead[]>,
       ])
-      return { caseData, partners, ghostings, caseSymptoms }
+      return { caseData, partners, ghostings, caseSymptoms, caseLabs }
     },
     enabled: parsedCaseId > 0,
   })
 
   const partners = baseQuery.data?.partners ?? []
 
-  // Per-partner data: relationship + symptoms
   const partnerDataQueries = useQueries({
     queries: partners.map((p) => ({
       queryKey: ['cases', parsedCaseId, 'partners', p.id, 'chart-data'],
       queryFn: async () => {
-        const [relationship, symptoms] = await Promise.all([
+        const [relationship, symptoms, labs] = await Promise.all([
           (getCasePartnerRelationship(parsedCaseId, p.id) as Promise<RelationshipSummary>).catch(
             () => null,
           ),
           listPartnerSymptoms(p.id) as Promise<SymptomEntryRead[]>,
+          listPartnerLabs(p.id) as Promise<LabResultEntryRead[]>,
         ])
-        return { partnerId: p.id, relationship, symptoms }
+        return { partnerId: p.id, relationship, symptoms, labs }
       },
       enabled: !!baseQuery.data && partners.length > 0,
     })),
@@ -658,22 +762,26 @@ export function VcaChartPage() {
     )
   }
 
-  const { caseData, partners: loadedPartners, ghostings, caseSymptoms } = baseQuery.data!
+  const { caseData, partners: loadedPartners, ghostings, caseSymptoms, caseLabs } = baseQuery.data!
 
   const partnerDataMap = new Map<
     number,
-    { relationship: RelationshipSummary | null; symptoms: SymptomEntryRead[] }
+    {
+      relationship: RelationshipSummary | null
+      symptoms: SymptomEntryRead[]
+      labs: LabResultEntryRead[]
+    }
   >()
   for (const q of partnerDataQueries) {
     if (q.data) {
       partnerDataMap.set(q.data.partnerId, {
         relationship: q.data.relationship,
         symptoms: q.data.symptoms,
+        labs: q.data.labs,
       })
     }
   }
 
-  // Build people array: OP first, partners in order
   const opSymptomBars = buildSymptomBars(
     caseSymptoms as SymptomEntryRead[],
     caseData.historical_primary_chancre ?? null,
@@ -685,6 +793,7 @@ export function VcaChartPage() {
       label: `${caseData.patient_name} (OP)`,
       isOp: true,
       symptoms: opSymptomBars,
+      labs: caseLabs,
       treatmentDate: parseDate(caseData.treatment_date),
       firstExposure: null,
       lastExposure: null,
@@ -718,6 +827,7 @@ export function VcaChartPage() {
       label,
       isOp: false,
       symptoms: partnerSymptomBars,
+      labs: pd?.labs ?? [],
       treatmentDate: parseDate(p.treatment_date),
       firstExposure: parseDate(rel?.exposure_first_date),
       lastExposure: parseDate(rel?.exposure_last_date),
@@ -732,7 +842,6 @@ export function VcaChartPage() {
 
   const partnerQueriesLoading = partnerDataQueries.some((q) => q.isLoading)
 
-  // Symptom counts for display
   const totalPrimary = people.reduce(
     (n, p) => n + p.symptoms.filter((s) => s.chartType !== 'Secondary Rash/Lesions').length,
     0,
@@ -774,23 +883,27 @@ export function VcaChartPage() {
       >
         <span style={{ fontWeight: 600, marginRight: '0.25rem' }}>Show:</span>
         {[
-          { label: 'Symptom bars', value: showDurations, set: setShowDurations },
+          { label: 'Symptoms', value: showDurations, set: setShowDurations },
           { label: 'Inoculation points', value: showInoc, set: setShowInoc },
           { label: 'Ghosted lesions', value: showGhosted, set: setShowGhosted },
           { label: 'Critical period', value: showCritical, set: setShowCritical },
           { label: 'Interview period', value: showInterview, set: setShowInterview },
+          { label: 'Non-reactive labs', value: showLabLines, set: setShowLabLines },
         ].map(({ label, value, set }) => (
-          <label key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer' }}>
+          <label
+            key={label}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer' }}
+          >
             <input type="checkbox" checked={value} onChange={(e) => set(e.target.checked)} />
             {label}
           </label>
         ))}
       </div>
 
-      {/* SVG chart */}
+      {/* SVG chart — breaks out of page-content padding to use the full body width */}
       <div
         className="panel"
-        style={{ padding: '1rem', overflowX: 'auto' }}
+        style={{ padding: '0.5rem 0', margin: '0 -1.5rem', borderRadius: 0, overflowX: 'auto' }}
         ref={containerRef}
       >
         {partnerQueriesLoading ? (
@@ -800,8 +913,15 @@ export function VcaChartPage() {
             people={people}
             ghostings={ghostings}
             partnerRefMap={partnerRefMap}
-            containerWidth={Math.max(containerWidth - 32, 600)}
-            toggles={{ showDurations, showInoc, showGhosted, showCritical, showInterview }}
+            containerWidth={Math.max(containerWidth, 600)}
+            toggles={{
+              showDurations,
+              showInoc,
+              showGhosted,
+              showCritical,
+              showInterview,
+              showLabLines,
+            }}
           />
         )}
       </div>
@@ -812,12 +932,15 @@ export function VcaChartPage() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
             gap: '0.4rem',
           }}
         >
           {LEGEND_ITEMS.map(({ label, symbol, color }) => (
-            <span key={label} style={{ fontSize: '0.85rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <span
+              key={label}
+              style={{ fontSize: '0.85rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}
+            >
               <span style={{ color, fontSize: '1rem', minWidth: '1.5rem', textAlign: 'center' }}>
                 {symbol}
               </span>
