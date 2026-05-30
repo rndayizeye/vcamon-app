@@ -9,6 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 os.environ["DATABASE_URL"] = "sqlite://"
+os.environ["AUTH_ENABLED"] = "false"
 
 from app.db.database import Base
 from fastapi_app.app.auth import clear_auth_settings_cache
@@ -135,12 +136,12 @@ def test_auth_enabled_allows_cors_preflight_without_token(
     response = client.options(
         "/api/cases/",
         headers={
-            "Origin": "http://localhost:3000",
+            "Origin": "http://localhost:5173",
             "Access-Control-Request-Method": "GET",
         },
     )
     assert response.status_code == 200
-    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
     assert response.headers["access-control-allow-credentials"] == "true"
 
 

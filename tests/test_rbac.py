@@ -1,0 +1,413 @@
+from __future__ import annotations
+
+import os
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+os.environ.setdefault("DATABASE_URL", "sqlite://")
+os.environ["AUTH_ENABLED"] = "false"
+
+from app.db.database import Base
+from fastapi_app.app import auth as auth_module
+from fastapi_app.app.auth import clear_auth_settings_cache
+from fastapi_app.app.db import get_db
+from fastapi_app.main import app
+
+WORKER = {"Authorization": "Bearer worker-token"}
+SUPERVISOR = {"Authorization": "Bearer supervisor-token"}
+
+
+def _fake_user(settings, token: str) -> dict:
+    if "supervisor" in token:
+        return {
+            "id": "user-supervisor",
+            "email": "supervisor@example.com",
+            "role": "authenticated",
+            "app_metadata": {"role": "supervisor"},
+            "user_metadata": {},
+        }
+    return {
+        "id": "user-worker",
+        "email": "worker@example.com",
+        "role": "authenticated",
+        "app_metadata": {"role": "case_worker"},
+        "user_metadata": {},
+    }
+
+
+@pytest.fixture(autouse=True)
+def _reset_cache():
+    clear_auth_settings_cache()
+    yield
+    clear_auth_settings_cache()
+
+
+@pytest.fixture
+def auth_client(monkeypatch: pytest.MonkeyPatch):
+    """TestClient with AUTH_ENABLED=true and fake Supabase user lookup."""
+    monkeypatch.setenv("AUTH_ENABLED", "true")
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_ANON_KEY", "sb_key_example")
+    monkeypatch.setattr(auth_module, "fetch_supabase_user", _fake_user)
+    clear_auth_settings_cache()
+
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    Base.metadata.create_all(bind=engine)
+
+    def override_get_db():
+        db = TestingSessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    with TestClient(app) as client:
+        yield client
+
+    app.dependency_overrides.clear()
+    clear_auth_settings_cache()
+
+
+# ─── Permission flag assertions ───────────────────────────────────────────────
+
+
+def test_case_worker_permission_flags(auth_client: TestClient):
+    resp = auth_client.get("/api/auth/permissions", headers=WORKER)
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "can_read": True,
+        "can_write": True,
+        "can_run_analysis": True,
+        "can_delete_records": False,
+        "can_clear_map": False,
+        "can_delete_cases": False,
+        "can_manage_users": False,
+    }
+
+
+def test_supervisor_permission_flags(auth_client: TestClient):
+    resp = auth_client.get("/api/auth/permissions", headers=SUPERVISOR)
+    assert resp.status_code == 200
+    assert all(resp.json().values())
+
+
+def test_authenticated_jwt_role_has_operator_permissions(
+    auth_client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    """The 'authenticated' JWT role with no app_metadata.role override is treated as operator."""
+    monkeypatch.setattr(
+        auth_module,
+        "fetch_supabase_user",
+        lambda s, t: {
+            "id": "user-plain",
+            "email": "plain@example.com",
+            "role": "authenticated",
+            "app_metadata": {},
+            "user_metadata": {},
+        },
+    )
+    clear_auth_settings_cache()
+
+    resp = auth_client.get("/api/auth/permissions", headers={"Authorization": "Bearer any-token"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["can_read"] is True
+    assert data["can_write"] is True
+    assert data["can_run_analysis"] is True
+    assert data["can_delete_records"] is False
+    assert data["can_manage_users"] is False
+
+
+def test_unauthenticated_request_blocked(auth_client: TestClient):
+    resp = auth_client.get("/api/cases/")
+    assert resp.status_code == 401
+    assert resp.headers["www-authenticate"] == "Bearer"
+
+
+# ─── Cases ────────────────────────────────────────────────────────────────────
+
+
+def test_case_worker_cannot_delete_case(auth_client: TestClient):
+    case = auth_client.post("/api/cases/", json={"patient_name": "Protected"}, headers=WORKER).json()
+    resp = auth_client.delete(f"/api/cases/{case['id']}", headers=WORKER)
+    assert resp.status_code == 403
+    assert "Insufficient role" in resp.json()["detail"]
+
+
+def test_supervisor_can_delete_case(auth_client: TestClient):
+    case = auth_client.post("/api/cases/", json={"patient_name": "To Delete"}, headers=WORKER).json()
+    assert auth_client.delete(f"/api/cases/{case['id']}", headers=SUPERVISOR).status_code == 204
+    assert auth_client.get(f"/api/cases/{case['id']}", headers=WORKER).status_code == 404
+
+
+def test_case_worker_cannot_delete_partner(auth_client: TestClient):
+    case = auth_client.post("/api/cases/", json={"patient_name": "Index"}, headers=WORKER).json()
+    partner = auth_client.post(
+        f"/api/cases/{case['id']}/partners", json={"name": "P1"}, headers=WORKER
+    ).json()
+    resp = auth_client.delete(f"/api/cases/partners/{partner['id']}", headers=WORKER)
+    assert resp.status_code == 403
+
+
+def test_supervisor_can_delete_partner(auth_client: TestClient):
+    case = auth_client.post("/api/cases/", json={"patient_name": "Index"}, headers=WORKER).json()
+    partner = auth_client.post(
+        f"/api/cases/{case['id']}/partners", json={"name": "P1"}, headers=WORKER
+    ).json()
+    assert auth_client.delete(f"/api/cases/partners/{partner['id']}", headers=SUPERVISOR).status_code == 204
+    assert auth_client.get(f"/api/cases/partners/{partner['id']}", headers=WORKER).status_code == 404
+
+
+# ─── MAP ──────────────────────────────────────────────────────────────────────
+
+
+def test_case_worker_cannot_clear_case_map(auth_client: TestClient):
+    case = auth_client.post("/api/cases/", json={"patient_name": "MAP Case"}, headers=WORKER).json()
+    assert auth_client.delete(f"/api/cases/{case['id']}/map", headers=WORKER).status_code == 403
+
+
+def test_supervisor_can_clear_case_map(auth_client: TestClient):
+    case = auth_client.post("/api/cases/", json={"patient_name": "MAP Case"}, headers=WORKER).json()
+    auth_client.put(
+        f"/api/cases/{case['id']}/map",
+        json={"items": [{"item_number": 1, "p_value": True}]},
+        headers=WORKER,
+    )
+    assert auth_client.delete(f"/api/cases/{case['id']}/map", headers=SUPERVISOR).status_code == 204
+    sheet = auth_client.get(f"/api/cases/{case['id']}/map", headers=WORKER).json()
+    assert sheet["summary"]["checked_p"] == 0
+
+
+def test_case_worker_cannot_clear_partner_map(auth_client: TestClient):
+    case = auth_client.post("/api/cases/", json={"patient_name": "MAP Case"}, headers=WORKER).json()
+    partner = auth_client.post(
+        f"/api/cases/{case['id']}/partners", json={"name": "P1"}, headers=WORKER
+    ).json()
+    resp = auth_client.delete(
+        f"/api/cases/{case['id']}/partners/{partner['id']}/map", headers=WORKER
+    )
+    assert resp.status_code == 403
+
+
+def test_supervisor_can_clear_partner_map(auth_client: TestClient):
+    case = auth_client.post("/api/cases/", json={"patient_name": "MAP Case"}, headers=WORKER).json()
+    partner = auth_client.post(
+        f"/api/cases/{case['id']}/partners", json={"name": "P1"}, headers=WORKER
+    ).json()
+    auth_client.put(
+        f"/api/cases/{case['id']}/partners/{partner['id']}/map",
+        json={"items": [{"item_number": 21, "p_value": True}]},
+        headers=WORKER,
+    )
+    resp = auth_client.delete(
+        f"/api/cases/{case['id']}/partners/{partner['id']}/map", headers=SUPERVISOR
+    )
+    assert resp.status_code == 204
+    sheet = auth_client.get(
+        f"/api/cases/{case['id']}/partners/{partner['id']}/map", headers=WORKER
+    ).json()
+    assert sheet["summary"]["checked_p"] == 0
+
+
+# ─── Labs ─────────────────────────────────────────────────────────────────────
+
+
+def test_case_worker_cannot_delete_lab(auth_client: TestClient):
+    case = auth_client.post("/api/cases/", json={"patient_name": "Lab Index"}, headers=WORKER).json()
+    lab = auth_client.post(
+        f"/api/cases/{case['id']}/labs",
+        json={"test_category": "Non-treponemal", "test_type": "RPR", "collection_date": "2024-01-01"},
+        headers=WORKER,
+    ).json()
+    assert auth_client.delete(f"/api/cases/labs/{lab['id']}", headers=WORKER).status_code == 403
+
+
+def test_supervisor_can_delete_lab(auth_client: TestClient):
+    case = auth_client.post("/api/cases/", json={"patient_name": "Lab Index"}, headers=WORKER).json()
+    lab = auth_client.post(
+        f"/api/cases/{case['id']}/labs",
+        json={"test_category": "Non-treponemal", "test_type": "RPR", "collection_date": "2024-01-01"},
+        headers=WORKER,
+    ).json()
+    assert auth_client.delete(f"/api/cases/labs/{lab['id']}", headers=SUPERVISOR).status_code == 204
+    assert auth_client.get(f"/api/cases/labs/{lab['id']}", headers=WORKER).status_code == 404
+
+
+# ─── Symptoms ─────────────────────────────────────────────────────────────────
+
+
+def test_case_worker_cannot_delete_symptom(auth_client: TestClient):
+    case = auth_client.post("/api/cases/", json={"patient_name": "Sx Index"}, headers=WORKER).json()
+    sx = auth_client.post(
+        f"/api/cases/{case['id']}/symptoms",
+        json={"symptom_type": "Penile LX", "onset_date": "2024-01-01", "date_kind": "Onset reported"},
+        headers=WORKER,
+    ).json()
+    assert auth_client.delete(f"/api/cases/symptoms/{sx['id']}", headers=WORKER).status_code == 403
+
+
+def test_supervisor_can_delete_symptom(auth_client: TestClient):
+    case = auth_client.post("/api/cases/", json={"patient_name": "Sx Index"}, headers=WORKER).json()
+    sx = auth_client.post(
+        f"/api/cases/{case['id']}/symptoms",
+        json={"symptom_type": "Penile LX", "onset_date": "2024-01-01", "date_kind": "Onset reported"},
+        headers=WORKER,
+    ).json()
+    assert auth_client.delete(f"/api/cases/symptoms/{sx['id']}", headers=SUPERVISOR).status_code == 204
+    assert auth_client.get(f"/api/cases/symptoms/{sx['id']}", headers=WORKER).status_code == 404
+
+
+# ─── Timeline ─────────────────────────────────────────────────────────────────
+
+
+def test_case_worker_cannot_delete_timeline_event(auth_client: TestClient):
+    case = auth_client.post("/api/cases/", json={"patient_name": "TL Index"}, headers=WORKER).json()
+    event = auth_client.post(
+        f"/api/cases/{case['id']}/timeline",
+        json={"event_date": "2024-01-01", "event_type": "Treatment"},
+        headers=WORKER,
+    ).json()
+    assert auth_client.delete(f"/api/cases/timeline/{event['id']}", headers=WORKER).status_code == 403
+
+
+def test_supervisor_can_delete_timeline_event(auth_client: TestClient):
+    case = auth_client.post("/api/cases/", json={"patient_name": "TL Index"}, headers=WORKER).json()
+    event = auth_client.post(
+        f"/api/cases/{case['id']}/timeline",
+        json={"event_date": "2024-01-01", "event_type": "Treatment"},
+        headers=WORKER,
+    ).json()
+    assert auth_client.delete(f"/api/cases/timeline/{event['id']}", headers=SUPERVISOR).status_code == 204
+    assert auth_client.get(f"/api/cases/timeline/{event['id']}", headers=WORKER).status_code == 404
+
+
+# ─── Ghostings ────────────────────────────────────────────────────────────────
+
+
+def test_case_worker_cannot_delete_ghosting(auth_client: TestClient):
+    case = auth_client.post("/api/cases/", json={"patient_name": "Ghost Index"}, headers=WORKER).json()
+    ghosting = auth_client.post(
+        f"/api/cases/{case['id']}/ghostings",
+        json={"ghosting_type": "Ghosting a Source"},
+        headers=WORKER,
+    ).json()
+    assert auth_client.delete(f"/api/cases/ghostings/{ghosting['id']}", headers=WORKER).status_code == 403
+
+
+def test_supervisor_can_delete_ghosting(auth_client: TestClient):
+    case = auth_client.post("/api/cases/", json={"patient_name": "Ghost Index"}, headers=WORKER).json()
+    ghosting = auth_client.post(
+        f"/api/cases/{case['id']}/ghostings",
+        json={"ghosting_type": "Ghosting a Source"},
+        headers=WORKER,
+    ).json()
+    assert auth_client.delete(f"/api/cases/ghostings/{ghosting['id']}", headers=SUPERVISOR).status_code == 204
+    assert auth_client.get(f"/api/cases/ghostings/{ghosting['id']}", headers=WORKER).status_code == 404
+
+
+# ─── Arrow links ──────────────────────────────────────────────────────────────
+
+
+def test_case_worker_cannot_delete_arrow_link(auth_client: TestClient):
+    case = auth_client.post("/api/cases/", json={"patient_name": "Link Index"}, headers=WORKER).json()
+    auth_client.post(f"/api/cases/{case['id']}/partners", json={"name": "P1"}, headers=WORKER)
+    link = auth_client.post(
+        f"/api/cases/{case['id']}/links",
+        json={"from_ref": "OP", "to_ref": "1"},
+        headers=WORKER,
+    ).json()
+    assert auth_client.delete(f"/api/cases/links/{link['id']}", headers=WORKER).status_code == 403
+
+
+def test_supervisor_can_delete_arrow_link(auth_client: TestClient):
+    case = auth_client.post("/api/cases/", json={"patient_name": "Link Index"}, headers=WORKER).json()
+    auth_client.post(f"/api/cases/{case['id']}/partners", json={"name": "P1"}, headers=WORKER)
+    link = auth_client.post(
+        f"/api/cases/{case['id']}/links",
+        json={"from_ref": "OP", "to_ref": "1"},
+        headers=WORKER,
+    ).json()
+    assert auth_client.delete(f"/api/cases/links/{link['id']}", headers=SUPERVISOR).status_code == 204
+    assert auth_client.get(f"/api/cases/links/{link['id']}", headers=WORKER).status_code == 404
+
+
+# ─── Relationships ────────────────────────────────────────────────────────────
+
+
+def _create_relationship(auth_client: TestClient) -> tuple[dict, dict, dict]:
+    case = auth_client.post("/api/cases/", json={"patient_name": "Rel Index"}, headers=WORKER).json()
+    partner = auth_client.post(
+        f"/api/cases/{case['id']}/partners", json={"name": "P1"}, headers=WORKER
+    ).json()
+    rel = auth_client.post(
+        f"/api/cases/{case['id']}/partners/{partner['id']}/relationship",
+        json={},
+        headers=WORKER,
+    ).json()
+    return case, partner, rel
+
+
+def test_case_worker_cannot_delete_relationship(auth_client: TestClient):
+    _, _, rel = _create_relationship(auth_client)
+    assert (
+        auth_client.delete(f"/api/cases/relationships/{rel['id']}", headers=WORKER).status_code == 403
+    )
+
+
+def test_supervisor_can_delete_relationship(auth_client: TestClient):
+    case, partner, rel = _create_relationship(auth_client)
+    assert (
+        auth_client.delete(f"/api/cases/relationships/{rel['id']}", headers=SUPERVISOR).status_code == 204
+    )
+    assert (
+        auth_client.get(
+            f"/api/cases/{case['id']}/partners/{partner['id']}/relationship",
+            headers=WORKER,
+        ).status_code
+        == 404
+    )
+
+
+def test_case_worker_cannot_delete_relationship_report(auth_client: TestClient):
+    _, _, rel = _create_relationship(auth_client)
+    report = auth_client.post(
+        f"/api/cases/relationships/{rel['id']}/reports",
+        json={"reporter": "OP"},
+        headers=WORKER,
+    ).json()
+    assert (
+        auth_client.delete(f"/api/cases/relationships/reports/{report['id']}", headers=WORKER).status_code
+        == 403
+    )
+
+
+def test_supervisor_can_delete_relationship_report(auth_client: TestClient):
+    _, _, rel = _create_relationship(auth_client)
+    report = auth_client.post(
+        f"/api/cases/relationships/{rel['id']}/reports",
+        json={"reporter": "OP"},
+        headers=WORKER,
+    ).json()
+    assert (
+        auth_client.delete(
+            f"/api/cases/relationships/reports/{report['id']}", headers=SUPERVISOR
+        ).status_code
+        == 204
+    )
+    assert (
+        auth_client.get(
+            f"/api/cases/relationships/reports/{report['id']}", headers=WORKER
+        ).status_code
+        == 404
+    )
