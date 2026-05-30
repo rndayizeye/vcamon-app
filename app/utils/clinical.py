@@ -59,6 +59,10 @@ INTERVIEW_PERIOD_SECONDARY_DAYS = (
 # Warn threshold for exposure check — half average incubation (10 days)
 EXPOSURE_WARN_MARGIN_DAYS = INCUBATION["avg"] // 2  # 10
 
+# Max gap (days) allowed between a ghosted chancre and the comparison patient's
+# OWN confirmed primary chancre before that transmission direction is ruled out.
+PRIMARY_CONSISTENCY_TOLERANCE_DAYS = INCUBATION["avg"]  # 21
+
 # Plausible latency between a (ghosted) primary chancre healing and the onset of
 # secondary symptoms is the natural-history latency band itself: LATENCY min..max
 # (0–70 days per the VCA training). There is no fixed 5-week floor in the method.
@@ -741,6 +745,42 @@ def _natural_order(
             f"({case2_treatment_date}) — symptoms should not appear after treatment."
         )
 
+    # Consistency with the comparison patient's OWN confirmed primary chancre.
+    # The ghosted lesion is Case2's chancre for this scenario, so if Case2 has a
+    # confirmed primary chancre the two should coincide. A real chancre far from
+    # the ghosted window means this direction is biologically impossible (e.g.
+    # Case2 had not yet been infected when they supposedly transmitted, or had
+    # already had their chancre before the supposed exposure).
+    confirmed_primaries = [
+        s for s in case2_symptoms
+        if s.type in ("Primary Chancre", "Historical Primary")
+    ]
+    if confirmed_primaries:
+        known = min(confirmed_primaries, key=lambda s: s.onset)
+        known_end = known.onset + timedelta(
+            days=known.duration_days if known.duration_days > 0 else PRIMARY["avg"]
+        )
+        if lesion.end < known.onset:
+            gap = (known.onset - lesion.end).days
+        elif known_end < lesion.onset:
+            gap = (lesion.onset - known_end).days
+        else:
+            gap = 0  # windows overlap
+
+        if gap > PRIMARY_CONSISTENCY_TOLERANCE_DAYS:
+            fail_issues.append(
+                f"Ghosted chancre ({lesion.onset} -> {lesion.end}) is {gap} day(s) from "
+                f"{case2_name}'s confirmed primary chancre ({known.onset} -> {known_end}) - "
+                f"inconsistent with their actual disease timeline, so this transmission "
+                f"direction is not possible."
+            )
+        elif gap > 0:
+            warn_issues.append(
+                f"Ghosted chancre ({lesion.onset} -> {lesion.end}) is {gap} day(s) from "
+                f"{case2_name}'s confirmed primary chancre ({known.onset} -> {known_end}) - "
+                f"close but not coinciding; manual review."
+            )
+
     if fail_issues:
         return "fail", " | ".join(fail_issues + warn_issues)
     if warn_issues:
@@ -898,7 +938,10 @@ def determine_verdict(
         for range_name, criteria in res.range_data.items():
             nat = criteria.get("natural_order", {})
             lat = criteria.get("latency", {})
-            if nat.get("status") == "warn" or (
+            if (
+                nat.get("status") == "warn"
+                and "primary-secondary overlap" in (nat.get("detail") or "").lower()
+            ) or (
                 lat.get("status") == "fail"
                 and "overlap" in (lat.get("detail") or "").lower()
             ):

@@ -37,6 +37,7 @@ from app.utils.clinical import (
     _anatomical_compatibility,
     _best_primary_symptom,
     _latency_to_secondary,
+    _natural_order,
     _scenario_passes,
     avg_inoculation_date,  # both aliases
     calc_d2,  # both aliases
@@ -749,6 +750,70 @@ class TestAnatomicalCompatibility:
         assert _best_primary_symptom([unsited, sited]) is sited
         secondary = Symptom("Secondary Rash/Lesions", date(2020, 3, 1), 0)
         assert _best_primary_symptom([secondary]) is None
+
+
+class TestGhostedConsistentWithKnownPrimary:
+    """A ghosted chancre must be consistent with the comparison patient's OWN
+    confirmed primary chancre, when one exists — otherwise that transmission
+    direction is impossible (fixes the two-confirmed-primaries gap)."""
+
+    def _lesion(self, onset, end):
+        return GhostedLesion(
+            lesion_type="ghosted_source",
+            onset=onset,
+            end=end,
+            derived_from_symptom="Primary Chancre",
+            assigned_to="partner",
+        )
+
+    def _primary(self, onset, dur=0):
+        return [Symptom("Primary Chancre", onset, dur, anatomical_site="Penile LX")]
+
+    def test_no_confirmed_primary_is_unaffected(self):
+        status, _ = _natural_order(self._lesion(date(2020, 1, 8), date(2020, 1, 28)), [], None)
+        assert status == "pass"
+
+    def test_overlapping_windows_pass(self):
+        lesion = self._lesion(date(2020, 3, 1), date(2020, 3, 22))
+        status, _ = _natural_order(lesion, self._primary(date(2020, 3, 5)), None)
+        assert status == "pass"
+
+    def test_real_chancre_far_after_ghost_fails(self):
+        # slide-17 shape: ghosted source in Jan, real chancre in Mar -> impossible.
+        lesion = self._lesion(date(2020, 1, 8), date(2020, 1, 28))
+        status, detail = _natural_order(lesion, self._primary(date(2020, 3, 5)), None)
+        assert status == "fail"
+        assert "not possible" in detail
+
+    def test_near_miss_warns(self):
+        # Gap within tolerance (21d) but not overlapping -> warn, not fail.
+        lesion = self._lesion(date(2020, 2, 1), date(2020, 2, 20))
+        status, _ = _natural_order(lesion, self._primary(date(2020, 3, 5)), None)
+        assert status == "warn"
+
+
+class TestSlide17DirectionEndToEnd:
+    """Full-pipeline regression: when both have confirmed primaries, the earlier
+    chancre is the source. Samuel (2/8) infected Johnny (3/5)."""
+
+    def test_samuel_is_source_not_johnny(self, johnny_chancre, samuel_chancre):
+        result = run_ghosting_analysis(
+            op_name="Johnny",
+            op_symptoms=[johnny_chancre],
+            op_exposure=Exposure(date(2019, 9, 3), date(2020, 2, 25)),
+            op_treatment_date=date(2020, 3, 10),
+            partner_name="Samuel",
+            partner_symptoms=[samuel_chancre],
+            partner_exposure=Exposure(date(2019, 9, 1), date(2020, 2, 15)),
+            partner_treatment_date=date(2020, 2, 17),
+            op_body_parts=["penis", "anus"],
+            partner_body_parts=["anus", "penis"],
+        )
+        assert result.case1_name == "Samuel"
+        assert "Samuel) is the SOURCE" in result.verdict
+        assert "Johnny) is a SPREAD" in result.verdict
+        # Neither has a secondary symptom, so no primary-secondary overlap note.
+        assert "Primary-secondary overlap" not in result.verdict
 
 
 class TestVerdictDirection:
