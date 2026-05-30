@@ -599,7 +599,7 @@ function VcaTimeline({
           const dates = parseGhostingDates(g.notes)
           if (!dates) return null
           const [gOnset, gEnd] = dates
-          const yRef = partnerRefMap[g.from_ref ?? ''] ?? g.from_ref ?? ''
+          const yRef = partnerRefMap[g.to_ref ?? ''] ?? g.to_ref ?? ''
           const personIdx = people.findIndex((p) => p.label === yRef)
           if (personIdx < 0) return null
           const yGhost = rowY(personIdx) + Y_INOC
