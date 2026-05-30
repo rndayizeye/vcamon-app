@@ -548,7 +548,21 @@ def _check_exposure(
     )
 
 
-VALID_BODY_PARTS = {"penis", "vagina", "anus", "mouth"}
+def _confirmed_primaries(symptoms: list[Symptom]) -> list[Symptom]:
+    """Primaries that were actually OBSERVED on this patient — used to rule out a
+    transmission direction in ``_natural_order``.
+
+    Deliberately excludes "Ghosted Primary": a ghosted primary is itself a
+    derived/inferred lesion, so it cannot be used as independent evidence to
+    contradict a scenario's ghosted window. Contrast ``_best_primary_symptom``,
+    which DOES include ghosted primaries — there it only needs a representative
+    lesion for the anatomical-site check, where an inferred site is acceptable.
+    """
+    return [
+        s
+        for s in symptoms
+        if s.type in ("Primary Chancre", "Historical Primary")
+    ]
 
 
 def _sex_type_compatible(
@@ -591,7 +605,12 @@ def _sex_type_compatible(
 
 def _best_primary_symptom(symptoms: list[Symptom]) -> Optional[Symptom]:
     """Pick the comparison patient's representative primary chancre for the
-    anatomical check, preferring one with a known anatomical site."""
+    anatomical check, preferring one with a known anatomical site.
+
+    Includes "Ghosted Primary" on purpose (unlike ``_confirmed_primaries``): this
+    only needs a representative lesion site for the anatomical-compatibility
+    check, not independent evidence to rule out a direction.
+    """
     primaries = [
         s
         for s in symptoms
@@ -715,6 +734,17 @@ def _natural_order(
     case2_treatment_date: Optional[date],
     case2_name: str = "the comparison patient",
 ) -> tuple[str, str]:
+    """Check the ghosted lesion against the comparison patient's own timeline.
+
+    Three checks fold into this one criterion (rather than adding new keys to the
+    criteria dict, which would ripple into the API schema and the React UI):
+      1. primary-before-secondary ordering,
+      2. lesion must predate the patient's treatment,
+      3. two-confirmed-primaries viability — when the comparison patient has an
+         OBSERVED primary chancre (see ``_confirmed_primaries``), the ghosted
+         window must coincide with it within ``PRIMARY_CONSISTENCY_TOLERANCE_DAYS``;
+         a far-off real chancre makes this transmission direction impossible.
+    """
     fail_issues: list[str] = []
     warn_issues: list[str] = []
 
@@ -751,10 +781,7 @@ def _natural_order(
     # the ghosted window means this direction is biologically impossible (e.g.
     # Case2 had not yet been infected when they supposedly transmitted, or had
     # already had their chancre before the supposed exposure).
-    confirmed_primaries = [
-        s for s in case2_symptoms
-        if s.type in ("Primary Chancre", "Historical Primary")
-    ]
+    confirmed_primaries = _confirmed_primaries(case2_symptoms)
     if confirmed_primaries:
         known = min(confirmed_primaries, key=lambda s: s.onset)
         known_end = known.onset + timedelta(

@@ -26,10 +26,23 @@ from app.utils.clinical import (
     PRIMARY,
     SECONDARY,
     Exposure,
-    Symptom,
     run_ghosting_analysis,
 )
 from app.utils.ghosting_plot import build_scenario_figure
+from app.utils.quick_inputs import (
+    LOCATION_OPTIONS as _LOCATION_OPTIONS,
+)
+from app.utils.quick_inputs import (
+    SEX_DISPLAY,
+    SYMPTOM_TYPES,
+    body_parts_from_modalities,
+)
+from app.utils.quick_inputs import (
+    rows_to_symptoms as _rows_to_symptoms,
+)
+from app.utils.quick_inputs import (
+    sex_display_to_values as _sex_display_to_values,
+)
 from app.utils.session_state import (
     get_active_case_id,
     init_session_state,
@@ -122,55 +135,9 @@ st.divider()
 # Input form — two columns, Person A and Person B
 # ---------------------------------------------------------------------------
 
-# Display labels without "LX" — map back to full values for the engine
-SEX_DISPLAY = ["Anal", "Oral", "Vaginal", "Penile", "Rectal"]
-SEX_VALUE = ["Anal LX", "Oral LX", "Vaginal LX", "Penile LX", "Rectal LX"]
-_display_to_value = dict(zip(SEX_DISPLAY, SEX_VALUE))
-
-# Anatomical location options for primary chancre — used in sex-type compatibility check
-_LOCATION_OPTIONS = [
-    "Anal LX",
-    "Oral LX",
-    "Vaginal LX",
-    "Penile LX",
-    "Rectal LX",
-    "Non-genital LX",
-    "LX",
-]
-
-
-def _sex_display_to_values(selected_labels: list[str]) -> list[str]:
-    """Convert display labels back to full engine values."""
-    return [_display_to_value[s] for s in selected_labels if s in _display_to_value]
-
-
-def _rows_to_symptoms(df: pd.DataFrame) -> list[Symptom]:
-    """Convert a symptom data-editor DataFrame into engine Symptom objects."""
-    syms = []
-    for row in df.to_dict("records"):
-        sym_type = row.get("Type")
-        onset = row.get("Onset Date")
-        if not sym_type or (isinstance(sym_type, float) and pd.isna(sym_type)):
-            continue
-        if onset is None or (not isinstance(onset, date) and pd.isna(onset)):
-            continue
-        onset_d = onset if isinstance(onset, date) else pd.to_datetime(onset).date()
-        dur = row.get("Duration")
-        duration_days = int(dur) if pd.notna(dur) else 0
-        loc = row.get("Location")
-        anatomical_site = (
-            loc if loc and not (isinstance(loc, float) and pd.isna(loc)) else None
-        )
-        syms.append(
-            Symptom(
-                type=sym_type,
-                onset=onset_d,
-                duration_days=duration_days,
-                anatomical_site=anatomical_site,
-            )
-        )
-    return syms
-
+# Input vocabulary (SEX_DISPLAY, _LOCATION_OPTIONS, SYMPTOM_TYPES) and the
+# row→Symptom / sex-type conversions are shared with the standalone Quick VCA
+# tool via app.utils.quick_inputs.
 
 col_a, col_b = st.columns(2)
 
@@ -185,12 +152,7 @@ with col_a:
         column_config={
             "Type": st.column_config.SelectboxColumn(
                 "Symptom type",
-                options=[
-                    "Primary Chancre",
-                    "Historical Primary",
-                    "Ghosted Primary",
-                    "Secondary Rash/Lesions",
-                ],
+                options=SYMPTOM_TYPES,
                 required=True,
             ),
             "Onset Date": st.column_config.DateColumn("Onset date", required=True),
@@ -232,12 +194,7 @@ with col_b:
         column_config={
             "Type": st.column_config.SelectboxColumn(
                 "Symptom type",
-                options=[
-                    "Primary Chancre",
-                    "Historical Primary",
-                    "Ghosted Primary",
-                    "Secondary Rash/Lesions",
-                ],
+                options=SYMPTOM_TYPES,
                 required=True,
             ),
             "Onset Date": st.column_config.DateColumn("Onset date", required=True),
@@ -294,10 +251,6 @@ if run_btn:
         st.error("At least one person must have a symptom type selected.")
         st.stop()
 
-    _MODALITY_TO_BODY_PART = {
-        "Anal LX": "anus", "Rectal LX": "anus",
-        "Oral LX": "mouth", "Vaginal LX": "vagina", "Penile LX": "penis",
-    }
     a_exposure = (
         Exposure(first=a_exp_first, last=a_exp_last)
         if a_exp_first and a_exp_last
@@ -308,8 +261,8 @@ if run_btn:
         if b_exp_first and b_exp_last
         else None
     )
-    a_body_parts = list({_MODALITY_TO_BODY_PART[m] for m in a_sex if m in _MODALITY_TO_BODY_PART})
-    b_body_parts = list({_MODALITY_TO_BODY_PART[m] for m in b_sex if m in _MODALITY_TO_BODY_PART})
+    a_body_parts = body_parts_from_modalities(a_sex)
+    b_body_parts = body_parts_from_modalities(b_sex)
 
     try:
         result = run_ghosting_analysis(

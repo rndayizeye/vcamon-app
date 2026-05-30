@@ -45,49 +45,26 @@ from app.utils.clinical import (
     PRIMARY,
     SECONDARY,
     Exposure,
-    Symptom,
     run_ghosting_analysis,
 )
 from app.utils.ghosting_plot import build_scenario_figure
+from app.utils.quick_inputs import (
+    LOCATION_OPTIONS as _LOCATION_OPTIONS,
+    SEX_DISPLAY,
+    SYM_COLUMNS as _SYM_COLUMNS,
+    SYMPTOM_TYPES as _SYMPTOM_TYPES,
+    body_parts_from_modalities as _body_parts,
+    rows_to_symptoms as _rows_to_symptoms,
+    sex_display_to_values as _sex_values,
+)
 from presets import PRESETS
 
 st.set_page_config(page_title="Quick VCA", page_icon="🔎", layout="wide")
 
 # ---------------------------------------------------------------------------
-# Vocabulary
+# Vocabulary (input maps/helpers shared with app/pages/09_quick_ghost.py via
+# app.utils.quick_inputs)
 # ---------------------------------------------------------------------------
-
-SEX_DISPLAY = ["Anal", "Oral", "Vaginal", "Penile", "Rectal"]
-_SEX_DISPLAY_TO_VALUE = {
-    "Anal": "Anal LX",
-    "Oral": "Oral LX",
-    "Vaginal": "Vaginal LX",
-    "Penile": "Penile LX",
-    "Rectal": "Rectal LX",
-}
-_MODALITY_TO_BODY_PART = {
-    "Anal LX": "anus",
-    "Rectal LX": "anus",
-    "Oral LX": "mouth",
-    "Vaginal LX": "vagina",
-    "Penile LX": "penis",
-}
-_SYMPTOM_TYPES = [
-    "Primary Chancre",
-    "Historical Primary",
-    "Ghosted Primary",
-    "Secondary Rash/Lesions",
-]
-_LOCATION_OPTIONS = [
-    "Anal LX",
-    "Oral LX",
-    "Vaginal LX",
-    "Penile LX",
-    "Rectal LX",
-    "Non-genital LX",
-    "LX",
-]
-_SYM_COLUMNS = ["Type", "Onset Date", "Duration", "Location"]
 
 
 def _empty_sym_df() -> pd.DataFrame:
@@ -98,39 +75,6 @@ def _sym_df_from_rows(rows: list[dict] | None) -> pd.DataFrame:
     if not rows:
         return _empty_sym_df()
     return pd.DataFrame(rows, columns=_SYM_COLUMNS)
-
-
-def _sex_values(display_labels: list[str]) -> list[str]:
-    return [_SEX_DISPLAY_TO_VALUE[s] for s in display_labels if s in _SEX_DISPLAY_TO_VALUE]
-
-
-def _body_parts(sex_values: list[str]) -> list[str]:
-    return list({_MODALITY_TO_BODY_PART[m] for m in sex_values if m in _MODALITY_TO_BODY_PART})
-
-
-def _rows_to_symptoms(df: pd.DataFrame) -> list[Symptom]:
-    syms: list[Symptom] = []
-    for row in df.to_dict("records"):
-        sym_type = row.get("Type")
-        onset = row.get("Onset Date")
-        if not sym_type or (isinstance(sym_type, float) and pd.isna(sym_type)):
-            continue
-        if onset is None or (not isinstance(onset, date) and pd.isna(onset)):
-            continue
-        onset_d = onset if isinstance(onset, date) else pd.to_datetime(onset).date()
-        dur = row.get("Duration")
-        duration_days = int(dur) if pd.notna(dur) else 0
-        loc = row.get("Location")
-        anatomical_site = loc if loc and not (isinstance(loc, float) and pd.isna(loc)) else None
-        syms.append(
-            Symptom(
-                type=sym_type,
-                onset=onset_d,
-                duration_days=duration_days,
-                anatomical_site=anatomical_site,
-            )
-        )
-    return syms
 
 
 # ---------------------------------------------------------------------------
