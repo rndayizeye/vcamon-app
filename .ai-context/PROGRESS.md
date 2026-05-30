@@ -1,6 +1,6 @@
 # VCA Monitor — Progress Log
 _Update this at the end of every session. Keep it short — every model reads it._
-_Last updated: 2026-05-25 (session C)_
+_Last updated: 2026-05-30 (session H)_
 
 ---
 
@@ -17,6 +17,33 @@ _Last updated: 2026-05-25 (session C)_
 - [x] Plotly VCA timeline chart (08_vca_chart.py)
 - [x] Quick ghosting with no case required (09_quick_ghost.py)
 - [x] `CasePartnerRelationship` association table with `RelationshipReport` evidence layer
+
+---
+
+## Completed in this session (2026-05-30 session H)
+
+- [x] **RBAC end-to-end test suite** (`tests/test_rbac.py` — commit `bc9c570`)
+  - 26 new tests covering all 11 supervisor-only delete endpoints across every domain:
+    cases, partners, MAP clear (case + partner), labs, symptoms, timeline events,
+    ghostings, arrow links, relationships, relationship reports.
+  - Permission-flag assertions for `case_worker`, `supervisor`, and bare `authenticated`
+    JWT role; unauthenticated → 401 verified.
+  - Fixed `test_fastapi_cases.py`: added `AUTH_ENABLED=false` at module level so the
+    real `.env` (which has `AUTH_ENABLED=true`) no longer breaks 20 non-RBAC tests.
+  - Fixed CORS preflight test to use an allowed origin (`localhost:5173`).
+  - **141/141 tests pass.**
+
+- [x] **PDF / Print export for VCA Chart** (commits `2d7e92c` — no new dependencies)
+  - "Print / Export PDF" button added to the VCA Timeline page header. Clicking calls
+    `window.print()`, which triggers the browser's native Save as PDF dialog.
+  - Print-only case summary `<dl>` in the header (patient name, LOT/diagnosis, treatment
+    date, partner count) — invisible on screen, rendered at the top of every printed page.
+  - `@media print` CSS: hides sidebar, topbar, layer-toggle panel, legend, and data-gaps
+    notice; collapses `app-body` to single column; sets landscape `@page` with 1.5 cm margins.
+  - `.no-print` / `.print-only` utility classes added to `index.css`.
+  - `vca-chart-panel` class on the chart container strips the negative-margin screen bleed
+    for print so the SVG fills the page cleanly.
+  - TypeScript compiles clean; verified live in headless Chromium (Playwright).
 
 ---
 

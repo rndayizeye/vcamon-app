@@ -76,7 +76,11 @@ _Current sprint. Move items to PROGRESS.md when done._
     - [ ] Add frontend relationship/exposure derivations and summaries once the partner relationship editor exists.
 - [ ] **Role-Based Access Control:**
     - [x] Added an initial supervisor vs. case worker/operator policy scaffold in FastAPI.
-    - [ ] Fully implement the final supervisor vs. case worker role separation.
+    - [x] Fully implement the final supervisor vs. case worker role separation — all 11
+          supervisor-only delete endpoints covered by `tests/test_rbac.py` (session H).
 - [ ] **Additional Features:**
-    - Implement PDF export of case summaries.
-    - Migrate remaining Streamlit pages (02, 03 form parity; 05 network graph; 06 timeline; 09 quick ghost).
+    - [x] PDF export of VCA chart — "Print / Export PDF" button on VCA Timeline page;
+          browser Save as PDF with print CSS layout (session H).
+    - [ ] Migrate remaining Streamlit pages (02, 03 form parity; 05 network graph; 06 timeline; 09 quick ghost).
+    - [ ] Deploy wiring — Supabase PostgreSQL target, Docker entrypoint, CI deploy step.
+    - [ ] Push 28 unpushed commits to origin/main.
