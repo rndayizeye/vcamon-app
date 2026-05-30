@@ -19,3 +19,23 @@ services:
       SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:-}
       SUPABASE_AUTH_TIMEOUT_SECONDS: ${SUPABASE_AUTH_TIMEOUT_SECONDS:-5}
     restart: unless-stopped
+
+  fastapi:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/project/data # ← only needed when DATABASE_URL is SQLite
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////project/data/vcamon_v2.db}
+      APP_ENV: ${APP_ENV:-production}
+      AUTH_ENABLED: ${AUTH_ENABLED:-true}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:-}
+      SUPABASE_AUTH_TIMEOUT_SECONDS: ${SUPABASE_AUTH_TIMEOUT_SECONDS:-5}
+    restart: unless-stopped
