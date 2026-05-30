@@ -668,11 +668,14 @@ def test_ghosting_analysis_endpoint(client: TestClient):
     assert payload["case2_name"] == "Johnny Smith"
     assert payload["case1_symptom"]["type"] == "Primary Chancre"
     assert payload["ghosted_source"]["lesion_type"] == "ghosted_source"
+    # Samuel's chancre (2/8) precedes Johnny's (3/5), so the supported direction is
+    # Samuel -> Johnny (the spread scenario). A ghosted source onto Johnny in
+    # January contradicts his actual March chancre, so the source scenario fails.
     assert (
-        payload["source_scenarios"]["pass_count"]
-        >= payload["spread_scenarios"]["pass_count"]
+        payload["spread_scenarios"]["pass_count"]
+        >= payload["source_scenarios"]["pass_count"]
     )
-    assert "SOURCE" in payload["verdict"]
+    assert "Samuel) is the SOURCE" in payload["verdict"]
     assert payload["suggested_records"] == []
 
 

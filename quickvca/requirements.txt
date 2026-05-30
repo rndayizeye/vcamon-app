@@ -1,0 +1,8 @@
+# Standalone Quick VCA — runtime deps.
+# The clinical engine is imported from the parent repo (app/utils/clinical.py),
+# which transitively imports app/db/models.py for a few shared enums, so
+# SQLAlchemy is required even though Quick VCA never touches a database.
+streamlit>=1.33
+plotly>=5.18
+pandas>=2.0
+SQLAlchemy>=2.0

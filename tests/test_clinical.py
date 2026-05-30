@@ -32,12 +32,18 @@ from app.utils.clinical import (
     PRIMARY,
     Exposure,
     GhostedLesion,
+    ScenarioResult,
     Symptom,
+    _anatomical_compatibility,
+    _best_primary_symptom,
+    _latency_to_secondary,
+    _natural_order,
     _scenario_passes,
     avg_inoculation_date,  # both aliases
     calc_d2,  # both aliases
     calc_date1,
     calc_date2,
+    determine_verdict,
     calc_ghosted_source,
     calc_ghosted_spread,
     derive_symptom_capture_metadata,
@@ -299,7 +305,6 @@ class TestExposureCriterion:
             case2_exposure=exposure,
             op_exposure=None,
             case2_treatment_date=None,
-            date1=None,
             date2=None,
         )
         return result["exposure"]
@@ -328,7 +333,6 @@ class TestExposureCriterion:
             case2_exposure=exposure,
             op_exposure=None,
             case2_treatment_date=None,
-            date1=None,
             date2=None,
         )
         return result["exposure"]
@@ -555,6 +559,324 @@ class TestFullPipeline:
 # ---------------------------------------------------------------------------
 # _scenario_passes
 # ---------------------------------------------------------------------------
+
+
+class TestSpreadInfectiousWindowTreatmentClip:
+    """Spread infectious window must end at Case1's treatment date (VCA: infectious
+    only while the chancre is present, until adequately treated)."""
+
+    def _spread_exposure(self, case1_symptom, exposure, treatment, key="avg", date2=None):
+        lesion = GhostedLesion(
+            lesion_type="ghosted_spread",
+            onset=date(2020, 1, 1),
+            end=date(2020, 1, 10),
+            derived_from_symptom=case1_symptom.type,
+            assigned_to="partner",
+        )
+        return evaluate_criteria(
+            scenario="spread",
+            lesion=lesion,
+            case1_symptom=case1_symptom,
+            case2_symptoms=[],
+            case2_exposure=exposure,
+            op_exposure=None,
+            case2_treatment_date=None,
+            date2=date2,
+            case1_treatment_date=treatment,
+            constant_key=key,
+        )["exposure"]
+
+    def test_treatment_truncates_infectious_window_to_fail(self):
+        # Primary chancre 2/1–2/22 (21d). Exposure 2/20–2/28 overlaps the
+        # untreated window, but treatment on 2/5 cuts infectiousness to 2/1–2/5.
+        sym = Symptom("Primary Chancre", date(2020, 2, 1), 21)
+        window = Exposure(first=date(2020, 2, 20), last=date(2020, 2, 28))
+
+        untreated = self._spread_exposure(sym, window, treatment=None)
+        treated = self._spread_exposure(sym, window, treatment=date(2020, 2, 5))
+
+        assert untreated["status"] == "pass"
+        assert treated["status"] == "fail"
+
+
+class TestSecondaryAnchorSpreadWindow:
+    """When Case1's anchor is a secondary symptom, the spread infectious window is
+    Case1's GHOSTED primary chancre (centred on Date2), not the secondary onset."""
+
+    def _spread_exposure(self, sym, exposure, date2):
+        lesion = GhostedLesion(
+            lesion_type="ghosted_spread",
+            onset=date(2019, 1, 1),
+            end=date(2019, 1, 10),
+            derived_from_symptom=sym.type,
+            assigned_to="partner",
+        )
+        return evaluate_criteria(
+            scenario="spread",
+            lesion=lesion,
+            case1_symptom=sym,
+            case2_symptoms=[],
+            case2_exposure=exposure,
+            op_exposure=None,
+            case2_treatment_date=None,
+            date2=date2,
+            constant_key="avg",
+        )["exposure"]
+
+    def test_window_centres_on_date2_not_secondary_onset(self):
+        sym = Symptom("Secondary Rash/Lesions", date(2020, 6, 1), 0)
+        date2 = calc_date2(sym)  # midpoint of Case1's ghosted primary chancre
+
+        near_primary = Exposure(
+            first=date2 - timedelta(days=3), last=date2 + timedelta(days=3)
+        )
+        near_secondary = Exposure(
+            first=sym.onset - timedelta(days=3), last=sym.onset + timedelta(days=3)
+        )
+
+        assert self._spread_exposure(sym, near_primary, date2)["status"] == "pass"
+        # Exposure sitting at the secondary rash must NOT register as the
+        # infectious window (that was the old bug).
+        assert self._spread_exposure(sym, near_secondary, date2)["status"] == "fail"
+
+
+class TestLatencyBand:
+    """Latency-to-secondary uses the natural-history band (0..LATENCY['max']);
+    there is no fixed 5-week floor."""
+
+    def _lesion(self, end):
+        return GhostedLesion(
+            lesion_type="ghosted_source",
+            onset=end - timedelta(days=PRIMARY["avg"]),
+            end=end,
+            derived_from_symptom="Primary Chancre",
+            assigned_to="partner",
+        )
+
+    def _sec(self, onset):
+        return [Symptom("Secondary Rash/Lesions", onset, 0)]
+
+    def test_no_secondary_is_na(self):
+        status, _ = _latency_to_secondary(self._lesion(date(2020, 3, 1)), [])
+        assert status == "na"
+
+    def test_gap_within_band_passes(self):
+        lesion = self._lesion(date(2020, 3, 1))
+        status, _ = _latency_to_secondary(lesion, self._sec(date(2020, 3, 29)))  # 28d
+        assert status == "pass"
+
+    def test_short_gap_no_longer_fails(self):
+        # 20-day gap < old 35-day floor — must now PASS (it is within latency band).
+        lesion = self._lesion(date(2020, 3, 1))
+        status, _ = _latency_to_secondary(lesion, self._sec(date(2020, 3, 21)))  # 20d
+        assert status == "pass"
+
+    def test_gap_exceeding_max_latency_warns(self):
+        lesion = self._lesion(date(2020, 3, 1))
+        far = date(2020, 3, 1) + timedelta(days=LATENCY["max"] + 5)
+        status, _ = _latency_to_secondary(lesion, self._sec(far))
+        assert status == "warn"
+
+    def test_overlap_still_fails(self):
+        lesion = self._lesion(date(2020, 3, 20))  # onset ~2/28, end 3/20
+        # secondary onset inside the lesion window → overlap → fail
+        status, detail = _latency_to_secondary(lesion, self._sec(date(2020, 3, 10)))
+        assert status == "fail"
+        assert "overlap" in detail.lower()
+
+
+class TestAnatomicalCompatibility:
+    """VCA criterion 2 is two-sided and direction-aware: both the source's and the
+    recipient's known chancre sites must match the body parts each used."""
+
+    def _criteria(self, scenario, case1_symptom, case2_symptoms, c1_parts, c2_parts):
+        lesion = GhostedLesion(
+            lesion_type=f"ghosted_{scenario}",
+            onset=date(2020, 2, 1),
+            end=date(2020, 2, 20),
+            derived_from_symptom=case1_symptom.type,
+            assigned_to="partner",
+        )
+        return evaluate_criteria(
+            scenario=scenario,
+            lesion=lesion,
+            case1_symptom=case1_symptom,
+            case2_symptoms=case2_symptoms,
+            case2_exposure=None,
+            op_exposure=None,
+            case2_treatment_date=None,
+            case1_body_parts=c1_parts,
+            case2_body_parts=c2_parts,
+        )["exposure_modality"]
+
+    def test_spread_source_site_mismatch_fails(self):
+        # Case1 is the source in spread; penile chancre but only oral sex reported.
+        case1 = Symptom("Primary Chancre", date(2020, 3, 5), 0, anatomical_site="Penile LX")
+        result = self._criteria("spread", case1, [], ["mouth"], [])
+        assert result["status"] == "fail"
+
+    def test_source_scenario_validates_case2_as_source(self):
+        # Direction-awareness: in the source scenario Case2 is the source, so a
+        # Case2 site/parts mismatch must FAIL even when Case1 is fully compatible.
+        # (The old one-sided check looked only at Case1 and would have passed.)
+        case1 = Symptom("Primary Chancre", date(2020, 3, 5), 0, anatomical_site="Penile LX")
+        case2 = [Symptom("Primary Chancre", date(2020, 2, 8), 7, anatomical_site="Penile LX")]
+        result = self._criteria(
+            "source", case1, case2, c1_parts=["penis"], c2_parts=["mouth"]
+        )
+        assert result["status"] == "fail"
+
+    def test_both_sides_compatible_passes(self):
+        case1 = Symptom("Primary Chancre", date(2020, 3, 5), 0, anatomical_site="Penile LX")
+        case2 = [Symptom("Primary Chancre", date(2020, 4, 1), 0, anatomical_site="Vaginal LX")]
+        result = self._criteria(
+            "spread", case1, case2, c1_parts=["penis"], c2_parts=["vagina"]
+        )
+        assert result["status"] == "pass"
+
+    def test_aggregator_fail_dominates(self):
+        src = Symptom("Primary Chancre", date(2020, 1, 1), 0, anatomical_site="Penile LX")
+        rcp = Symptom("Primary Chancre", date(2020, 2, 1), 0, anatomical_site="Penile LX")
+        status, _ = _anatomical_compatibility(src, ["penis"], rcp, ["mouth"])
+        assert status == "fail"
+
+    def test_aggregator_warns_when_no_data(self):
+        status, _ = _anatomical_compatibility(None, [], None, [])
+        assert status == "warn"
+
+    def test_best_primary_prefers_sited_and_skips_secondary(self):
+        sited = Symptom("Primary Chancre", date(2020, 2, 1), 0, anatomical_site="Penile LX")
+        unsited = Symptom("Primary Chancre", date(2020, 1, 1), 0)
+        assert _best_primary_symptom([unsited, sited]) is sited
+        secondary = Symptom("Secondary Rash/Lesions", date(2020, 3, 1), 0)
+        assert _best_primary_symptom([secondary]) is None
+
+
+class TestGhostedConsistentWithKnownPrimary:
+    """A ghosted chancre must be consistent with the comparison patient's OWN
+    confirmed primary chancre, when one exists — otherwise that transmission
+    direction is impossible (fixes the two-confirmed-primaries gap)."""
+
+    def _lesion(self, onset, end):
+        return GhostedLesion(
+            lesion_type="ghosted_source",
+            onset=onset,
+            end=end,
+            derived_from_symptom="Primary Chancre",
+            assigned_to="partner",
+        )
+
+    def _primary(self, onset, dur=0):
+        return [Symptom("Primary Chancre", onset, dur, anatomical_site="Penile LX")]
+
+    def test_no_confirmed_primary_is_unaffected(self):
+        status, _ = _natural_order(self._lesion(date(2020, 1, 8), date(2020, 1, 28)), [], None)
+        assert status == "pass"
+
+    def test_overlapping_windows_pass(self):
+        lesion = self._lesion(date(2020, 3, 1), date(2020, 3, 22))
+        status, _ = _natural_order(lesion, self._primary(date(2020, 3, 5)), None)
+        assert status == "pass"
+
+    def test_real_chancre_far_after_ghost_fails(self):
+        # slide-17 shape: ghosted source in Jan, real chancre in Mar -> impossible.
+        lesion = self._lesion(date(2020, 1, 8), date(2020, 1, 28))
+        status, detail = _natural_order(lesion, self._primary(date(2020, 3, 5)), None)
+        assert status == "fail"
+        assert "not possible" in detail
+
+    def test_near_miss_warns(self):
+        # Gap within tolerance (21d) but not overlapping -> warn, not fail.
+        lesion = self._lesion(date(2020, 2, 1), date(2020, 2, 20))
+        status, _ = _natural_order(lesion, self._primary(date(2020, 3, 5)), None)
+        assert status == "warn"
+
+
+class TestSlide17DirectionEndToEnd:
+    """Full-pipeline regression: when both have confirmed primaries, the earlier
+    chancre is the source. Samuel (2/8) infected Johnny (3/5)."""
+
+    def test_samuel_is_source_not_johnny(self, johnny_chancre, samuel_chancre):
+        result = run_ghosting_analysis(
+            op_name="Johnny",
+            op_symptoms=[johnny_chancre],
+            op_exposure=Exposure(date(2019, 9, 3), date(2020, 2, 25)),
+            op_treatment_date=date(2020, 3, 10),
+            partner_name="Samuel",
+            partner_symptoms=[samuel_chancre],
+            partner_exposure=Exposure(date(2019, 9, 1), date(2020, 2, 15)),
+            partner_treatment_date=date(2020, 2, 17),
+            op_body_parts=["penis", "anus"],
+            partner_body_parts=["anus", "penis"],
+        )
+        assert result.case1_name == "Samuel"
+        assert "Samuel) is the SOURCE" in result.verdict
+        assert "Johnny) is a SPREAD" in result.verdict
+        # Neither has a secondary symptom, so no primary-secondary overlap note.
+        assert "Primary-secondary overlap" not in result.verdict
+
+
+class TestVerdictDirection:
+    """The source scenario asks 'Did Case2 infect Case1?' so when it wins, Case2 is
+    the SOURCE; the spread scenario asks 'Did Case1 infect Case2?' so Case1 is the
+    SOURCE when it wins. Regression guard for the swapped-attribution bug."""
+
+    def _empty(self):
+        return ScenarioResult(
+            range_data={}, range_lesions={}, confidence="Unrelated", pass_count=0
+        )
+
+    def test_source_win_credits_case2(self):
+        verdict = determine_verdict(
+            source_confidence="Robust",
+            spread_confidence="Unrelated",
+            case1_role="OP",
+            case1_name="Carmela",
+            case2_name="Johannes",
+            source_results=self._empty(),
+            spread_results=self._empty(),
+        )
+        assert "Partner (Johannes) is the SOURCE" in verdict
+        assert "OP (Carmela) is a SPREAD" in verdict
+
+    def test_spread_win_credits_case1(self):
+        verdict = determine_verdict(
+            source_confidence="Unrelated",
+            spread_confidence="Robust",
+            case1_role="OP",
+            case1_name="Carmela",
+            case2_name="Johannes",
+            source_results=self._empty(),
+            spread_results=self._empty(),
+        )
+        assert "OP (Carmela) is the SOURCE" in verdict
+        assert "Partner (Johannes) is a SPREAD" in verdict
+
+    def test_partner_anchor_role_labels(self):
+        # Case1 is the partner; source wins → Case2 (OP) is the source.
+        verdict = determine_verdict(
+            source_confidence="Likely",
+            spread_confidence="Unrelated",
+            case1_role="partner",
+            case1_name="Samuel",
+            case2_name="Johnny",
+            source_results=self._empty(),
+            spread_results=self._empty(),
+        )
+        assert "OP (Johnny) is the SOURCE" in verdict
+        assert "Partner (Samuel) is a SPREAD" in verdict
+
+    def test_equal_confidence_is_ambiguous(self):
+        verdict = determine_verdict(
+            "Likely", "Likely", "OP", "A", "B", self._empty(), self._empty()
+        )
+        assert "AMBIGUOUS" in verdict
+
+    def test_no_confidence_is_unrelated(self):
+        verdict = determine_verdict(
+            "Unrelated", "Unrelated", "OP", "A", "B", self._empty(), self._empty()
+        )
+        assert "UNRELATED" in verdict
 
 
 class TestScenarioPasses:
