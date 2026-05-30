@@ -870,21 +870,22 @@ def determine_verdict(
     s_rank = conf_rank.get(source_confidence, 0)
     sp_rank = conf_rank.get(spread_confidence, 0)
 
+    # Display labels with role prefix. Case2's role is the complement of Case1's.
+    case2_role = "partner" if case1_role == "OP" else "OP"
+
+    def _label(name: str, role: str) -> str:
+        return f"{'OP' if role == 'OP' else 'Partner'} ({name})"
+
+    case1_label = _label(case1_name, case1_role)
+    case2_label = _label(case2_name, case2_role)
+
     # --- Base directional conclusion ---
+    # source scenario = "Did Case2 infect Case1?" → Case2 is the SOURCE.
+    # spread scenario = "Did Case1 infect Case2?" → Case1 is the SOURCE.
     if s_rank > sp_rank and s_rank > 0:
-        if case1_role == "OP":
-            verdict = f"OP ({case1_name}) is the SOURCE of infection for partner ({case2_name})."
-        else:
-            verdict = f"Partner ({case1_name}) is the SOURCE of infection for OP ({case2_name})."
+        verdict = f"{case2_label} is the SOURCE — {case1_label} is a SPREAD."
     elif sp_rank > s_rank and sp_rank > 0:
-        if case1_role == "OP":
-            verdict = (
-                f"Partner ({case2_name}) is the SOURCE — OP ({case1_name}) is a SPREAD."
-            )
-        else:
-            verdict = (
-                f"OP ({case2_name}) is the SOURCE — partner ({case1_name}) is a SPREAD."
-            )
+        verdict = f"{case1_label} is the SOURCE — {case2_label} is a SPREAD."
     elif s_rank > 0 and s_rank == sp_rank:
         verdict = "AMBIGUOUS — both source and spread scenarios show similar confidence. Manual review required."
     else:

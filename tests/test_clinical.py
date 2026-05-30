@@ -32,6 +32,7 @@ from app.utils.clinical import (
     PRIMARY,
     Exposure,
     GhostedLesion,
+    ScenarioResult,
     Symptom,
     _anatomical_compatibility,
     _best_primary_symptom,
@@ -41,6 +42,7 @@ from app.utils.clinical import (
     calc_d2,  # both aliases
     calc_date1,
     calc_date2,
+    determine_verdict,
     calc_ghosted_source,
     calc_ghosted_spread,
     derive_symptom_capture_metadata,
@@ -747,6 +749,69 @@ class TestAnatomicalCompatibility:
         assert _best_primary_symptom([unsited, sited]) is sited
         secondary = Symptom("Secondary Rash/Lesions", date(2020, 3, 1), 0)
         assert _best_primary_symptom([secondary]) is None
+
+
+class TestVerdictDirection:
+    """The source scenario asks 'Did Case2 infect Case1?' so when it wins, Case2 is
+    the SOURCE; the spread scenario asks 'Did Case1 infect Case2?' so Case1 is the
+    SOURCE when it wins. Regression guard for the swapped-attribution bug."""
+
+    def _empty(self):
+        return ScenarioResult(
+            range_data={}, range_lesions={}, confidence="Unrelated", pass_count=0
+        )
+
+    def test_source_win_credits_case2(self):
+        verdict = determine_verdict(
+            source_confidence="Robust",
+            spread_confidence="Unrelated",
+            case1_role="OP",
+            case1_name="Carmela",
+            case2_name="Johannes",
+            source_results=self._empty(),
+            spread_results=self._empty(),
+        )
+        assert "Partner (Johannes) is the SOURCE" in verdict
+        assert "OP (Carmela) is a SPREAD" in verdict
+
+    def test_spread_win_credits_case1(self):
+        verdict = determine_verdict(
+            source_confidence="Unrelated",
+            spread_confidence="Robust",
+            case1_role="OP",
+            case1_name="Carmela",
+            case2_name="Johannes",
+            source_results=self._empty(),
+            spread_results=self._empty(),
+        )
+        assert "OP (Carmela) is the SOURCE" in verdict
+        assert "Partner (Johannes) is a SPREAD" in verdict
+
+    def test_partner_anchor_role_labels(self):
+        # Case1 is the partner; source wins → Case2 (OP) is the source.
+        verdict = determine_verdict(
+            source_confidence="Likely",
+            spread_confidence="Unrelated",
+            case1_role="partner",
+            case1_name="Samuel",
+            case2_name="Johnny",
+            source_results=self._empty(),
+            spread_results=self._empty(),
+        )
+        assert "OP (Johnny) is the SOURCE" in verdict
+        assert "Partner (Samuel) is a SPREAD" in verdict
+
+    def test_equal_confidence_is_ambiguous(self):
+        verdict = determine_verdict(
+            "Likely", "Likely", "OP", "A", "B", self._empty(), self._empty()
+        )
+        assert "AMBIGUOUS" in verdict
+
+    def test_no_confidence_is_unrelated(self):
+        verdict = determine_verdict(
+            "Unrelated", "Unrelated", "OP", "A", "B", self._empty(), self._empty()
+        )
+        assert "UNRELATED" in verdict
 
 
 class TestScenarioPasses:
