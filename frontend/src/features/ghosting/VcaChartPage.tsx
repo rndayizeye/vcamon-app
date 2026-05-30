@@ -418,44 +418,73 @@ function VcaTimeline({
             {toggles.showDurations && p.symptoms.map((sym, si) => {
               const dur = sym.durationDays > 0 ? sym.durationDays : PRIMARY.avg
               const { bar: barColor } = symptomColor(sym.chartType)
+              const xOnset = dateToX(sym.onset)
+              const xEnd = dateToX(addDays(sym.onset, dur))
+              const barPx = xEnd - xOnset
+              const stageLabel = sym.chartType === 'Secondary Rash/Lesions' ? '2°' : '1°'
               return (
-                <line
-                  key={`sym-${si}`}
-                  x1={dateToX(sym.onset)}
-                  y1={yInoc}
-                  x2={dateToX(addDays(sym.onset, dur))}
-                  y2={yInoc}
-                  stroke={barColor}
-                  strokeWidth={7}
-                  strokeLinecap="round"
-                >
-                  <title>
-                    {p.label} — {sym.typeName} ({sym.chartType}) · Onset{' '}
-                    {sym.onset.toISOString().slice(0, 10)} · Est. end{' '}
-                    {addDays(sym.onset, dur).toISOString().slice(0, 10)}
-                  </title>
-                </line>
+                <g key={`sym-${si}`}>
+                  <line
+                    x1={xOnset}
+                    y1={yInoc}
+                    x2={xEnd}
+                    y2={yInoc}
+                    stroke={barColor}
+                    strokeWidth={7}
+                    strokeLinecap="round"
+                  >
+                    <title>
+                      {p.label} — {sym.typeName} ({sym.chartType}) · Onset{' '}
+                      {sym.onset.toISOString().slice(0, 10)} · Est. end{' '}
+                      {addDays(sym.onset, dur).toISOString().slice(0, 10)}
+                    </title>
+                  </line>
+                  {barPx > 18 && (
+                    <text
+                      x={xOnset + 3}
+                      y={yInoc + 3}
+                      fontSize={7}
+                      fontWeight={700}
+                      fill="white"
+                      style={{ userSelect: 'none', pointerEvents: 'none' }}
+                    >
+                      {stageLabel}
+                    </text>
+                  )}
+                </g>
               )
             })}
 
-            {/* Treatment date: vertical line spanning row (replaces ★) */}
+            {/* Treatment date: vertical line spanning row + "Rx" label */}
             {p.treatmentDate &&
               (() => {
                 const xTx = dateToX(p.treatmentDate)
                 const halfH = ROW_HEIGHT / 2 - 6
                 return (
-                  <line
-                    x1={xTx}
-                    y1={y - halfH}
-                    x2={xTx}
-                    y2={y + halfH}
-                    stroke={COLORS.treatment}
-                    strokeWidth={2}
-                  >
-                    <title>
-                      {p.label} — Treatment: {p.treatmentDate.toISOString().slice(0, 10)}
-                    </title>
-                  </line>
+                  <g>
+                    <line
+                      x1={xTx}
+                      y1={y - halfH}
+                      x2={xTx}
+                      y2={y + halfH}
+                      stroke={COLORS.treatment}
+                      strokeWidth={2}
+                    >
+                      <title>
+                        {p.label} — Treatment: {p.treatmentDate.toISOString().slice(0, 10)}
+                      </title>
+                    </line>
+                    <text
+                      x={xTx + 3}
+                      y={y - halfH + 10}
+                      fontSize={9}
+                      fontWeight={700}
+                      fill={COLORS.treatment}
+                      style={{ userSelect: 'none', pointerEvents: 'none' }}
+                    >
+                      Rx
+                    </text>
+                  </g>
                 )
               })()}
 
@@ -529,9 +558,8 @@ function VcaTimeline({
                 )
               })()}
 
-            {/* Critical period (OP only) */}
+            {/* Critical period */}
             {toggles.showCritical &&
-              p.isOp &&
               keySym &&
               (() => {
                 const dur = keySym.durationDays > 0 ? keySym.durationDays : PRIMARY.avg
@@ -540,27 +568,46 @@ function VcaTimeline({
                   ? pts.max
                   : addDays(keySym.onset, -(INCUBATION.max + PRIMARY.max))
                 const critEnd = p.treatmentDate ?? maxDate
+                const x1 = dateToX(critStart)
+                const x2 = dateToX(critEnd)
+                const lineY = y - 14
                 return (
-                  <line
-                    x1={dateToX(critStart)}
-                    y1={y - 14}
-                    x2={dateToX(critEnd)}
-                    y2={y - 14}
-                    stroke={COLORS.critical}
-                    strokeWidth={3}
-                    strokeLinecap="round"
-                  >
-                    <title>
-                      Critical period: {critStart.toISOString().slice(0, 10)} →{' '}
-                      {critEnd.toISOString().slice(0, 10)}
-                    </title>
-                  </line>
+                  <g>
+                    <line
+                      x1={x1}
+                      y1={lineY}
+                      x2={x2}
+                      y2={lineY}
+                      stroke={COLORS.critical}
+                      strokeWidth={3}
+                      strokeLinecap="round"
+                    >
+                      <title>
+                        {p.label} — Critical period: {critStart.toISOString().slice(0, 10)} →{' '}
+                        {critEnd.toISOString().slice(0, 10)}
+                      </title>
+                    </line>
+                    {/* End-cap ticks */}
+                    <line x1={x1} y1={lineY - 4} x2={x1} y2={lineY + 4} stroke={COLORS.critical} strokeWidth={1.5} />
+                    <line x1={x2} y1={lineY - 4} x2={x2} y2={lineY + 4} stroke={COLORS.critical} strokeWidth={1.5} />
+                    {(x2 - x1) > 50 && (
+                      <text
+                        x={x1 + 3}
+                        y={lineY + 11}
+                        fontSize={7}
+                        fill={COLORS.critical}
+                        opacity={0.85}
+                        style={{ userSelect: 'none', pointerEvents: 'none' }}
+                      >
+                        Critical
+                      </text>
+                    )}
+                  </g>
                 )
               })()}
 
-            {/* Interview period (OP only) */}
+            {/* Interview period */}
             {toggles.showInterview &&
-              p.isOp &&
               keySym &&
               (() => {
                 const isPrimary =
@@ -571,22 +618,42 @@ function VcaTimeline({
                   : INTERVIEW_PERIOD_SECONDARY_DAYS
                 const intStart = addDays(keySym.onset, -days)
                 const intEnd = p.treatmentDate ?? maxDate
+                const x1 = dateToX(intStart)
+                const x2 = dateToX(intEnd)
+                const lineY = y + 14
                 return (
-                  <line
-                    x1={dateToX(intStart)}
-                    y1={y + 14}
-                    x2={dateToX(intEnd)}
-                    y2={y + 14}
-                    stroke={COLORS.interview}
-                    strokeWidth={2}
-                    strokeDasharray="12 4"
-                    strokeLinecap="round"
-                  >
-                    <title>
-                      Interview period: {intStart.toISOString().slice(0, 10)} →{' '}
-                      {intEnd.toISOString().slice(0, 10)}
-                    </title>
-                  </line>
+                  <g>
+                    <line
+                      x1={x1}
+                      y1={lineY}
+                      x2={x2}
+                      y2={lineY}
+                      stroke={COLORS.interview}
+                      strokeWidth={2}
+                      strokeDasharray="12 4"
+                      strokeLinecap="round"
+                    >
+                      <title>
+                        {p.label} — Interview period: {intStart.toISOString().slice(0, 10)} →{' '}
+                        {intEnd.toISOString().slice(0, 10)}
+                      </title>
+                    </line>
+                    {/* End-cap ticks */}
+                    <line x1={x1} y1={lineY - 4} x2={x1} y2={lineY + 4} stroke={COLORS.interview} strokeWidth={1.5} />
+                    <line x1={x2} y1={lineY - 4} x2={x2} y2={lineY + 4} stroke={COLORS.interview} strokeWidth={1.5} />
+                    {(x2 - x1) > 50 && (
+                      <text
+                        x={x1 + 3}
+                        y={lineY - 6}
+                        fontSize={7}
+                        fill={COLORS.interview}
+                        opacity={0.85}
+                        style={{ userSelect: 'none', pointerEvents: 'none' }}
+                      >
+                        Interview
+                      </text>
+                    )}
+                  </g>
                 )
               })()}
           </g>
@@ -683,8 +750,8 @@ const LEGEND_ITEMS = [
   { label: 'Inoculation avg (▲), max (►), min (◄)', symbol: '▲', color: COLORS.inoculation },
   { label: 'Infectious window (max inoc → Rx)', symbol: '╌', color: COLORS.infectiousWindow },
   { label: 'Treatment date', symbol: '│', color: COLORS.treatment },
-  { label: 'Critical period', symbol: '━', color: COLORS.critical },
-  { label: 'Interview period', symbol: '╌', color: COLORS.interview },
+  { label: 'Critical period (max inoc → Rx)', symbol: '━', color: COLORS.critical },
+  { label: 'Interview period (onset − days → Rx)', symbol: '╌', color: COLORS.interview },
   { label: 'Partner exposure window', symbol: '╌', color: COLORS.exposurePartner },
   { label: 'OP elicited exposure', symbol: '·····', color: COLORS.exposureOp },
   { label: 'Ghosted source lesion', symbol: '╌·╌', color: COLORS.ghostedSource },
