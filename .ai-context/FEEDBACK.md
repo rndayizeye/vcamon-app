@@ -17,3 +17,19 @@ VCA chart redesign: PLANNED — approved plan at `.claude/plans/read-ai-context-
 - Non-reactive labs: gray dashed vertical line per non-reactive result (RPR titer=Neg or treponemal result=Non-reactive).
 - Overlap fix: exposure/interview at y-22, symptoms at y, inoculation at y+22, ghosted lesions at y+34.
 - Reference screenshot: documents/Screenshot_vca.png
+
+05-30-2026
+the text is shifted such that check boxes are next to the wong label on the VCA chat and quick ghost page.
+Remove the subtitle under Ghosting Analysis :"Case #1 — Test Patient · NCSDDC Visual Case Analysis (2022)"
+
+Use Source Spread Analysis instead of "VERDICT". In the next text block use the "Why?" use Detail from the Criteria table that correspond to all that passed. This brings helps support the Verdict/ Source Spread analysis.
+Under "Anchor symptoms" avoid using P1 since it means sex partner but we used it here to refer to patient 1- with the highest ranking symptoms or case 1. Use "Patient 1" instead. You dont need to specify that we are calling anchor patient "P1' in calclations. 
+
+Under "What this scenario test" remove "Hypothesis" and make it one sentence. This scenario test whether [patient without sx name] infected [name of patient with symptoms]
+
+For any text that is prsented to the user- use actual names not the variable name used to calculate VCA or ghosting.
+Save ghosted in no rendering correctly.
+
+Define Processing range in the "VCA Range-Based Ghosting Analysis" log also avoid variable names use actual names instead in the log.
+Verdict that is ambiguous should not have a green color, its confusing.
+Partner page: Add partner button is overlapping with the title Partners.

@@ -181,14 +181,16 @@ function EnhancedCriteriaTable({
 function VerdictBanner({ verdict }: { verdict: string }) {
   const upper = verdict.toUpperCase()
   let cls = 'verdict-error'
-  if (upper.includes('SOURCE') && !upper.includes('UNRELATED')) cls = 'verdict-success'
-  else if (upper.includes('SPREAD') && !upper.includes('UNRELATED')) cls = 'verdict-info'
+  if (upper.includes('UNRELATED')) cls = 'verdict-error'
   else if (upper.includes('AMBIGUOUS')) cls = 'verdict-warning'
+  else if (upper.includes('⚠') || upper.includes('OVERLAP')) cls = 'verdict-warning'
+  else if (upper.includes('SOURCE')) cls = 'verdict-success'
+  else if (upper.includes('SPREAD')) cls = 'verdict-info'
 
-  const style: Record<string, string> = {
+  const color: Record<string, string> = {
     'verdict-success': '#1d9e75',
     'verdict-info': '#378add',
-    'verdict-warning': '#ef9f27',
+    'verdict-warning': '#8a6d00',
     'verdict-error': '#e24b4a',
   }
   const bg: Record<string, string> = {
@@ -203,19 +205,22 @@ function VerdictBanner({ verdict }: { verdict: string }) {
       style={{
         padding: '1rem 1.25rem',
         borderRadius: '8px',
-        border: `1.5px solid ${style[cls]}`,
+        border: `1.5px solid ${color[cls]}`,
         background: bg[cls],
         fontWeight: 600,
         fontSize: '1rem',
-        color: style[cls],
+        color: color[cls],
       }}
     >
-      Verdict: {verdict}
+      <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', opacity: 0.7, display: 'block', marginBottom: '0.25rem' }}>
+        SOURCE SPREAD ANALYSIS
+      </span>
+      {verdict}
     </div>
   )
 }
 
-/** Plain-language explanation of each failing criterion. */
+/** Supporting evidence (passing criteria) and any failures that limit confidence. */
 function VerdictContext({ result }: { result: GhostingAnalysisResult }) {
   const srcExpected = result.source_scenarios.range_data.expected
   const sprExpected = result.spread_scenarios.range_data.expected
@@ -224,89 +229,86 @@ function VerdictContext({ result }: { result: GhostingAnalysisResult }) {
   const c1 = result.case1_name
   const c2 = result.case2_name
 
-  type Explanation = { scenario: string; text: string }
-  const failures: Explanation[] = []
+  type Item = { scenario: string; text: string }
+  const passing: Item[] = []
+  const failing: Item[] = []
 
-  if (srcExpected.exposure.status === 'fail') {
-    failures.push({
-      scenario: 'Source',
-      text: `${c1} was likely not infected by ${c2} because the reported exposure window does not overlap with ${c2}'s ghosted source lesion (${srcLesion.onset} → ${srcLesion.end}). ${c2} would not have been infectious during the recorded contact.`,
-    })
+  // Source scenario
+  if (srcExpected.exposure.status === 'pass') {
+    passing.push({ scenario: 'Source', text: srcExpected.exposure.detail })
+  } else if (srcExpected.exposure.status === 'fail') {
+    failing.push({ scenario: 'Source', text: `${c1} was likely not infected by ${c2} because the reported exposure window does not overlap with ${c2}'s ghosted source lesion (${srcLesion.onset} → ${srcLesion.end}).` })
   }
-  if (srcExpected.exposure_modality.status === 'fail') {
-    failures.push({
-      scenario: 'Source',
-      text: `The type of sexual contact between ${c1} and ${c2} is not compatible with the site of ${c1}'s ${result.case1_symptom.type}. Transmission requires contact with the infected anatomical site.`,
-    })
+  if (srcExpected.exposure_modality.status === 'pass') {
+    passing.push({ scenario: 'Source', text: srcExpected.exposure_modality.detail })
+  } else if (srcExpected.exposure_modality.status === 'fail') {
+    failing.push({ scenario: 'Source', text: `The type of sexual contact between ${c1} and ${c2} is not compatible with the site of ${c1}'s ${result.case1_symptom.type}.` })
   }
-  if (srcExpected.latency.status === 'fail') {
-    failures.push({
-      scenario: 'Source',
-      text: `The timeline between ${c2}'s ghosted source lesion and their secondary symptoms does not fit the expected syphilis progression (requires ≥0 days latency). ${srcExpected.latency.detail}`,
-    })
+  if (srcExpected.latency.status === 'pass') {
+    passing.push({ scenario: 'Source', text: srcExpected.latency.detail })
+  } else if (srcExpected.latency.status === 'fail') {
+    failing.push({ scenario: 'Source', text: srcExpected.latency.detail })
   }
-  if (srcExpected.natural_order.status === 'fail') {
-    failures.push({
-      scenario: 'Source',
-      text: `The ghosted source lesion would have occurred after ${c2}'s existing secondary lesion — this violates the biological order of syphilis stages (primary must precede secondary). ${srcExpected.natural_order.detail}`,
-    })
+  if (srcExpected.natural_order.status === 'pass') {
+    passing.push({ scenario: 'Source', text: srcExpected.natural_order.detail })
+  } else if (srcExpected.natural_order.status === 'fail') {
+    failing.push({ scenario: 'Source', text: `The ghosted source lesion would have occurred after ${c2}'s existing secondary lesion — primary must precede secondary. ${srcExpected.natural_order.detail}` })
   }
 
-  if (sprExpected.exposure.status === 'fail') {
-    failures.push({
-      scenario: 'Spread',
-      text: `${c2} was likely not infected by ${c1} because the reported exposure window does not overlap with ${c1}'s infectious period (${sprLesion.onset} → ${sprLesion.end}). ${c1} would not have been contagious during the recorded contact.`,
-    })
+  // Spread scenario
+  if (sprExpected.exposure.status === 'pass') {
+    passing.push({ scenario: 'Spread', text: sprExpected.exposure.detail })
+  } else if (sprExpected.exposure.status === 'fail') {
+    failing.push({ scenario: 'Spread', text: `${c2} was likely not infected by ${c1} because the reported exposure window does not overlap with ${c1}'s infectious period (${sprLesion.onset} → ${sprLesion.end}).` })
   }
-  if (sprExpected.exposure_modality.status === 'fail') {
-    failures.push({
-      scenario: 'Spread',
-      text: `The type of sexual contact is not compatible with the site of ${c1}'s ${result.case1_symptom.type}. ${sprExpected.exposure_modality.detail}`,
-    })
+  if (sprExpected.exposure_modality.status === 'pass') {
+    passing.push({ scenario: 'Spread', text: sprExpected.exposure_modality.detail })
+  } else if (sprExpected.exposure_modality.status === 'fail') {
+    failing.push({ scenario: 'Spread', text: `The type of sexual contact is not compatible with the site of ${c1}'s ${result.case1_symptom.type}. ${sprExpected.exposure_modality.detail}` })
   }
-  if (sprExpected.latency.status === 'fail') {
-    failures.push({
-      scenario: 'Spread',
-      text: `The time between ${c1}'s infectious period and ${c2}'s secondary symptoms does not fit natural syphilis progression. ${sprExpected.latency.detail}`,
-    })
+  if (sprExpected.latency.status === 'pass') {
+    passing.push({ scenario: 'Spread', text: sprExpected.latency.detail })
+  } else if (sprExpected.latency.status === 'fail') {
+    failing.push({ scenario: 'Spread', text: sprExpected.latency.detail })
   }
-  if (sprExpected.natural_order.status === 'fail') {
-    failures.push({
-      scenario: 'Spread',
-      text: `The ghosted spread lesion would have occurred after ${c2}'s existing secondary lesion — this violates the biological order of syphilis stages. ${sprExpected.natural_order.detail}`,
-    })
-  }
-
-  if (failures.length === 0) {
-    return (
-      <div className="panel stack-xs" style={{ fontSize: '0.875rem' }}>
-        <p className="eyebrow">Why this verdict?</p>
-        <p style={{ color: '#1d9e75' }}>
-          All key criteria passed — the verdict above is well-supported by the clinical data on file.
-        </p>
-      </div>
-    )
+  if (sprExpected.natural_order.status === 'pass') {
+    passing.push({ scenario: 'Spread', text: sprExpected.natural_order.detail })
+  } else if (sprExpected.natural_order.status === 'fail') {
+    failing.push({ scenario: 'Spread', text: `The ghosted spread lesion would have occurred after ${c2}'s existing secondary lesion — primary must precede secondary. ${sprExpected.natural_order.detail}` })
   }
 
   return (
     <div className="panel stack-sm" style={{ fontSize: '0.875rem' }}>
-      <p className="eyebrow">Why this verdict? — criteria that failed</p>
-      <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
-        {failures.map((f, i) => (
-          <li key={i} style={{ marginBottom: '0.6rem' }}>
-            <span
-              style={{
-                fontWeight: 600,
-                color: '#e24b4a',
-                marginRight: '0.4rem',
-              }}
-            >
-              [{f.scenario}]
-            </span>
-            {f.text}
-          </li>
-        ))}
-      </ul>
+      <p className="eyebrow">Why?</p>
+      {passing.length > 0 && (
+        <>
+          <p style={{ fontWeight: 600, color: '#1d9e75', marginBottom: '0.25rem' }}>Supporting evidence — criteria that passed:</p>
+          <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
+            {passing.map((p, i) => (
+              <li key={i} style={{ marginBottom: '0.4rem' }}>
+                <span style={{ fontWeight: 600, color: '#1d9e75', marginRight: '0.4rem' }}>[{p.scenario}]</span>
+                {p.text}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {failing.length > 0 && (
+        <>
+          <p style={{ fontWeight: 600, color: '#e24b4a', marginBottom: '0.25rem', marginTop: passing.length > 0 ? '0.75rem' : 0 }}>Limiting factors — criteria that failed:</p>
+          <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
+            {failing.map((f, i) => (
+              <li key={i} style={{ marginBottom: '0.4rem' }}>
+                <span style={{ fontWeight: 600, color: '#e24b4a', marginRight: '0.4rem' }}>[{f.scenario}]</span>
+                {f.text}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {passing.length === 0 && failing.length === 0 && (
+        <p style={{ color: '#888' }}>No criteria detail available.</p>
+      )}
     </div>
   )
 }
@@ -428,6 +430,7 @@ export function GhostingPage() {
   const [showLog, setShowLog] = useState(false)
   const [showRef, setShowRef] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [savedOk, setSavedOk] = useState(false)
 
   useEffect(() => {
     const partners = partnersQuery.data
@@ -469,6 +472,7 @@ export function GhostingPage() {
     if (!selectedPartnerId) return
     setResult(null)
     setSaveError(null)
+    setSavedOk(false)
     try {
       const res = await runAnalysis.mutateAsync({
         caseId: parsedCaseId,
@@ -484,10 +488,12 @@ export function GhostingPage() {
   async function handleSave() {
     if (!result) return
     setSaveError(null)
+    setSavedOk(false)
     const toSave = result.suggested_records.filter(
       (r) =>
-        (r.ghosting_type === 'SOURCE' && saveSource) ||
-        (r.ghosting_type === 'SPREAD' && saveSpread),
+        (r.ghosting_type === 'Ghosting a Source' && saveSource) ||
+        (r.ghosting_type === 'Ghosting a Spread' && saveSpread) ||
+        (r.ghosting_type === 'Ghosting a Spread Ghost' && saveSpread),
     )
     try {
       for (const r of toSave) {
@@ -498,6 +504,7 @@ export function GhostingPage() {
           notes: r.notes,
         })
       }
+      setSavedOk(true)
       setResult(null)
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Failed to save records.')
@@ -511,22 +518,11 @@ export function GhostingPage() {
       ? result?.ghosted_source
       : result?.ghosted_spread
 
-  // Build hypothesis text for the active tab
   function buildHypothesis(tab: 'source' | 'spread', r: GhostingAnalysisResult): string {
-    const srcAssigned = r.ghosted_source.assigned_to
-    const sprAssigned = r.ghosted_spread.assigned_to
     if (tab === 'source') {
-      return `Hypothesis: ${srcAssigned} infected ${r.case1_name}. ` +
-        `This scenario back-calculates when ${srcAssigned} would have had an active primary chancre ` +
-        `(ghosted source lesion: ${r.ghosted_source.onset} → ${r.ghosted_source.end}) ` +
-        `that could have been transmitted to ${r.case1_name} during the exposure window. ` +
-        `For this to hold, the exposure must overlap with that infectious window, ` +
-        `and ${r.case1_name}'s back-calculated inoculation date must fall within it.`
+      return `This scenario tests whether ${r.case2_name} infected ${r.case1_name}.`
     }
-    return `Hypothesis: ${r.case1_name} infected ${sprAssigned}. ` +
-      `This scenario calculates when ${r.case1_name} would have been contagious ` +
-      `(ghosted spread lesion: ${r.ghosted_spread.onset} → ${r.ghosted_spread.end}) ` +
-      `and whether that infectious period overlaps with the reported contact with ${sprAssigned}.`
+    return `This scenario tests whether ${r.case1_name} infected ${r.case2_name}.`
   }
 
   return (
@@ -536,9 +532,6 @@ export function GhostingPage() {
           <p className="eyebrow">VCA Methodology</p>
           <h2>Ghosting Analysis</h2>
         </div>
-        <p className="muted" style={{ fontSize: '0.875rem' }}>
-          Case #{caseData.id} — {caseData.patient_name} · NCSDDC Visual Case Analysis (2022)
-        </p>
       </header>
 
       {/* Clinical reference */}
@@ -640,9 +633,9 @@ export function GhostingPage() {
 
           {/* Anchor symptom used */}
           <div className="panel stack-xs" style={{ fontSize: '0.875rem' }}>
-            <p className="eyebrow">Anchor symptom (P1)</p>
+            <p className="eyebrow">Anchor symptom — {result.case1_name}</p>
             <p>
-              <strong>{result.case1_name}</strong> was assigned as P1 ·{' '}
+              <strong>{result.case1_name}</strong> ·{' '}
               {result.case1_symptom.type} · Onset {result.case1_symptom.onset}
               {result.case1_symptom.duration_days > 0
                 ? ` · Duration ${result.case1_symptom.duration_days}d`
@@ -825,8 +818,15 @@ export function GhostingPage() {
         </>
       )}
 
+      {/* Save success confirmation */}
+      {savedOk && !result && (
+        <div style={{ padding: '0.75rem 1rem', borderRadius: '8px', background: '#eafaf3', border: '1.5px solid #1d9e75', color: '#1d9e75', fontWeight: 600, fontSize: '0.9rem' }}>
+          ✓ Ghosted lesions saved. They will appear in the VCA chart and network graph.
+        </div>
+      )}
+
       {/* No result yet + no partners prompt */}
-      {!result && !runAnalysis.isPending && selectedPartner && (
+      {!result && !runAnalysis.isPending && selectedPartner && !savedOk && (
         <div
           className="panel"
           style={{

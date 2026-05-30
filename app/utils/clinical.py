@@ -584,10 +584,11 @@ def _sex_type_compatible(
 def _latency_to_secondary(
     lesion: GhostedLesion,
     case2_symptoms: list[Symptom],
+    case2_name: str = "the comparison patient",
 ) -> tuple[str, str]:
     """
     Check that sufficient latency exists between the ghosted lesion end and
-    Case2's earliest secondary symptom.
+    the comparison patient's earliest secondary symptom.
 
     Accepts the full GhostedLesion (not just lesion_end) so it can distinguish
     two clinically distinct negative-gap situations:
@@ -604,7 +605,7 @@ def _latency_to_secondary(
     """
     secondary = [s for s in case2_symptoms if s.type == "Secondary Rash/Lesions"]
     if not secondary:
-        return "na", "Case2 has no secondary symptoms — latency check not applicable."
+        return "na", f"{case2_name} has no secondary symptoms — latency check not applicable."
 
     earliest_sec = min(s.onset for s in secondary)
     gap = (earliest_sec - lesion.end).days
@@ -612,7 +613,7 @@ def _latency_to_secondary(
     if gap >= MIN_LATENCY_TO_SECONDARY_DAYS:
         return "pass", (
             f"{gap} days between ghosted lesion end ({lesion.end}) and "
-            f"Case2 secondary onset ({earliest_sec}) — meets "
+            f"{case2_name}'s secondary symptom onset ({earliest_sec}) — meets "
             f"\u2265{MIN_LATENCY_TO_SECONDARY_DAYS}-day requirement."
         )
 
@@ -622,7 +623,7 @@ def _latency_to_secondary(
             # when secondary appeared (lesion.onset < sec ≤ lesion.end).
             return "fail", (
                 f"Primary-secondary overlap: ghosted lesion end ({lesion.end}) is "
-                f"{abs(gap)} day(s) after Case2 secondary onset ({earliest_sec}) — "
+                f"{abs(gap)} day(s) after {case2_name}'s secondary symptom onset ({earliest_sec}) — "
                 f"the chancre was still present when secondary symptoms appeared."
             )
         else:
@@ -631,14 +632,14 @@ def _latency_to_secondary(
             # for the same reason; this message adds the latency dimension.
             days_before = (lesion.onset - earliest_sec).days
             return "fail", (
-                f"Reversed timeline: Case2 secondary symptoms began ({earliest_sec}) "
+                f"Reversed timeline: {case2_name}'s secondary symptoms began ({earliest_sec}) "
                 f"{days_before} day(s) before ghosted lesion onset ({lesion.onset}) — "
                 f"secondary preceded primary, which is impossible under natural progression."
             )
 
     return "fail", (
         f"Only {gap} day(s) between ghosted lesion end ({lesion.end}) and "
-        f"Case2 secondary onset ({earliest_sec}) — below the required "
+        f"{case2_name}'s secondary symptom onset ({earliest_sec}) — below the required "
         f"{MIN_LATENCY_TO_SECONDARY_DAYS} days "
         f"({MIN_LATENCY_TO_SECONDARY_DAYS // 7} weeks)."
     )
@@ -648,6 +649,7 @@ def _natural_order(
     lesion: GhostedLesion,
     case2_symptoms: list[Symptom],
     case2_treatment_date: Optional[date],
+    case2_name: str = "the comparison patient",
 ) -> tuple[str, str]:
     fail_issues: list[str] = []
     warn_issues: list[str] = []
@@ -658,8 +660,8 @@ def _natural_order(
         if lesion.onset >= earliest_sec:
             # Hard fail: primary started on or after secondary — impossible biology
             fail_issues.append(
-                f"Ghosted lesion onset ({lesion.onset}) is on/after Case2 secondary "
-                f"onset ({earliest_sec}) — violates primary-before-secondary order."
+                f"Ghosted lesion onset ({lesion.onset}) is on/after {case2_name}'s secondary "
+                f"symptom onset ({earliest_sec}) — violates primary-before-secondary order."
             )
         elif lesion.end > earliest_sec:
             # Soft warn: primary started before secondary but was still active when
@@ -669,13 +671,13 @@ def _natural_order(
             warn_issues.append(
                 f"Primary-secondary overlap: ghosted lesion ({lesion.onset} → "
                 f"{lesion.end}) was still active {overlap_days} day(s) into "
-                f"Case2 secondary onset ({earliest_sec}). Latency minimum is 0 days "
+                f"{case2_name}'s secondary symptom onset ({earliest_sec}). Latency minimum is 0 days "
                 f"so this is technically possible, but warrants manual review."
             )
 
     if case2_treatment_date and lesion.onset >= case2_treatment_date:
         fail_issues.append(
-            f"Ghosted lesion onset ({lesion.onset}) is on/after Case2 treatment "
+            f"Ghosted lesion onset ({lesion.onset}) is on/after {case2_name}'s treatment date "
             f"({case2_treatment_date}) — symptoms should not appear after treatment."
         )
 
@@ -697,6 +699,7 @@ def evaluate_criteria(
     date1: Optional[date] = None,
     date2: Optional[date] = None,
     case1_body_parts: Optional[list[str]] = None,
+    case2_name: str = "the comparison patient",
 ) -> dict:
     """
     Run all four criteria checks for one scenario.
@@ -729,9 +732,9 @@ def evaluate_criteria(
     modality_status, modality_detail = _sex_type_compatible(
         case1_symptom, case1_body_parts or []
     )
-    lat_status, lat_detail = _latency_to_secondary(lesion, case2_symptoms)
+    lat_status, lat_detail = _latency_to_secondary(lesion, case2_symptoms, case2_name)
     ord_status, ord_detail = _natural_order(
-        lesion, case2_symptoms, case2_treatment_date
+        lesion, case2_symptoms, case2_treatment_date, case2_name
     )
 
     return {
@@ -854,10 +857,10 @@ def run_ghosting_analysis(
     case1_body_parts = (op_body_parts or []) if case1_role == "OP" else (partner_body_parts or [])
 
     log.append(
-        f"Step 1: Case1 = {case1_name} ({case1_role}) with '{case1_symptom.type}' "
-        f"(rank {symptom_rank(case1_symptom.type)}) on {case1_symptom.onset}."
+        f"Step 1: Anchor patient — {case1_name} ({case1_role}) has the highest-ranked "
+        f"symptom: {case1_symptom.type} (onset {case1_symptom.onset})."
     )
-    log.append(f"        Case2 = {case2_name} ({case2_role}).")
+    log.append(f"        Comparison patient — {case2_name} ({case2_role}).")
 
     # Containers for range results
     source_range_data = {}
@@ -867,7 +870,12 @@ def run_ghosting_analysis(
 
     # --- Steps 2-6: Range Loop ---
     for scenario_name, key in SCENARIOS.items():
-        log.append(f"\n--- Processing Range: {scenario_name.upper()} (key={key}) ---")
+        range_label = {
+            "aggressive": "Optimistic range — minimum constants (fastest possible progression)",
+            "expected": "Expected range — average constants",
+            "conservative": "Conservative range — maximum constants (slowest possible progression)",
+        }.get(scenario_name, scenario_name)
+        log.append(f"\n--- {range_label} ---")
 
         # Date calculations
         d1 = calc_date1(case1_symptom, constant_key=key)
@@ -899,6 +907,7 @@ def run_ghosting_analysis(
             date1=d1,
             date2=d2,
             case1_body_parts=case1_body_parts,
+            case2_name=case2_name,
         )
         spread_crit = evaluate_criteria(
             scenario="spread",
@@ -911,6 +920,7 @@ def run_ghosting_analysis(
             date1=d1,
             date2=d2,
             case1_body_parts=case1_body_parts,
+            case2_name=case2_name,
         )
 
         source_range_data[scenario_name] = source_crit
@@ -928,7 +938,13 @@ def run_ghosting_analysis(
                     "warn": "[WARN]",
                     "na": "[N/A ]",
                 }.get(v["status"], "[?]")
-                log.append(f"    {icon} {k.upper()}: {v['detail']}")
+                key_label = {
+                    "exposure": "Exposure overlap",
+                    "exposure_modality": "Anatomical compatibility",
+                    "latency": "Latency to secondary",
+                    "natural_order": "Natural progression order",
+                }.get(k, k)
+                log.append(f"    {icon} {key_label}: {v['detail']}")
 
     # --- Step 7: Confidence and Verdict ---
     def derive_confidence(data: dict[str, dict]) -> tuple[str, int]:
@@ -939,9 +955,9 @@ def run_ghosting_analysis(
     source_conf, source_pass_count = derive_confidence(source_range_data)
     spread_conf, spread_pass_count = derive_confidence(spread_range_data)
 
-    log.append("\nConfidence Summary:")
-    log.append(f"  Source Scenario: {source_conf} ({source_pass_count}/3 ranges pass)")
-    log.append(f"  Spread Scenario: {spread_conf} ({spread_pass_count}/3 ranges pass)")
+    log.append("\nConfidence summary:")
+    log.append(f"  Did {case2_name} infect {case1_name}? {source_conf} ({source_pass_count}/3 ranges agree)")
+    log.append(f"  Did {case1_name} infect {case2_name}? {spread_conf} ({spread_pass_count}/3 ranges agree)")
 
     source_scenarios = ScenarioResult(
         range_data=source_range_data,

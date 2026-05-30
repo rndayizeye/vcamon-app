@@ -476,9 +476,9 @@ class TestFullPipeline:
             partner_treatment_date=date(2020, 2, 17),
         )
         full_log = "\n".join(result.log)
-        assert "Case1" in full_log
-        assert "Case2" in full_log
-        assert "Processing Range" in full_log
+        assert "Anchor patient" in full_log
+        assert "Comparison patient" in full_log
+        assert "range" in full_log.lower()
 
     def test_source_criteria_checks_date1(
         self, johnny_chancre, samuel_chancre, samuel_exposure

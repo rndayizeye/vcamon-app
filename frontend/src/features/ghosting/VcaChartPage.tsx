@@ -858,16 +858,6 @@ export function VcaChartPage() {
           <p className="eyebrow">VCA Methodology</p>
           <h2>VCA Timeline</h2>
         </div>
-        <p className="muted" style={{ fontSize: '0.875rem' }}>
-          Case #{caseData.id} — {caseData.patient_name} ·{' '}
-          {loadedPartners.length} partner{loadedPartners.length !== 1 ? 's' : ''} ·{' '}
-          {ghostings.length} ghosting record{ghostings.length !== 1 ? 's' : ''} ·{' '}
-          <span style={{ color: COLORS.primaryOnset }}>{totalPrimary} primary</span>
-          {' + '}
-          <span style={{ color: COLORS.secondaryOnset }}>{totalSecondary} secondary</span>
-          {' symptom'}
-          {totalPrimary + totalSecondary !== 1 ? 's' : ''} · 12-month minimum window
-        </p>
       </header>
 
       {/* Layer toggles */}

@@ -212,6 +212,15 @@ textarea {
     background: #fff;
 }
 
+input[type="checkbox"],
+input[type="radio"] {
+    width: auto;
+    border: revert;
+    border-radius: revert;
+    padding: revert;
+    background: revert;
+}
+
 textarea {
     resize: vertical;
 }
@@ -352,6 +361,11 @@ textarea {
     font-size: 0.875rem;
     font-weight: 600;
 }
+
+.badge-pass { background: #eafaf3; color: #0a7a38; }
+.badge-fail { background: #fff1f1; color: #b42318; }
+.badge-warn { background: #fef8ec; color: #8a6d00; }
+.badge-na   { background: #f0f1f3; color: #5b6f82; }
 
 .list-reset {
     list-style: none;
