@@ -80,6 +80,12 @@ function addDays(d: Date, days: number): Date {
   return r
 }
 
+function addMonths(d: Date, months: number): Date {
+  const r = new Date(d)
+  r.setMonth(r.getMonth() + months)
+  return r
+}
+
 function formatMonthYear(d: Date): string {
   return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
 }
@@ -241,7 +247,7 @@ function VcaTimeline({
   toggles: {
     showDurations: boolean
     showInoc: boolean
-    showGhosted: boolean
+    showGhostedMap: Record<number, boolean>
     showCritical: boolean
     showInterview: boolean
     showLabLines: boolean
@@ -263,10 +269,7 @@ function VcaTimeline({
       const inoc = getInoculationPoints(keySym.chartType, keySym.onset, dur)
       if (inoc) allDates.push(inoc.max)
     }
-    for (const lab of p.labs) {
-      const d = parseDate(lab.collection_date)
-      if (d) allDates.push(d)
-    }
+    // Labs render at their x position but don't anchor the axis range
   }
   for (const g of ghostings) {
     const dates = parseGhostingDates(g.notes)
@@ -290,6 +293,13 @@ function VcaTimeline({
     const midMs = (rawMin.getTime() + rawMax.getTime()) / 2
     minDate = new Date(midMs - MIN_CHART_SPAN_MS / 2)
     maxDate = new Date(midMs + MIN_CHART_SPAN_MS / 2)
+  }
+
+  // When a treatment date exists, ensure the axis covers 9 months before → 3 months after it
+  const txDate = people.find((p) => p.isOp)?.treatmentDate ?? people.find((p) => p.treatmentDate)?.treatmentDate ?? null
+  if (txDate) {
+    minDate = new Date(Math.min(minDate.getTime(), addMonths(txDate, -9).getTime()))
+    maxDate = new Date(Math.max(maxDate.getTime(), addMonths(txDate, 3).getTime()))
   }
 
   const chartW = containerWidth - LEFT_MARGIN - RIGHT_MARGIN
@@ -583,23 +593,23 @@ function VcaTimeline({
         )
       })}
 
-      {/* Ghosted lesions (Y_GHOST sub-track) */}
-      {toggles.showGhosted &&
-        ghostings.map((g, gi) => {
+      {/* Ghosted lesions (on the Y_INOC symptom track, transparent) */}
+      {ghostings.map((g, gi) => {
+          if (!toggles.showGhostedMap[gi]) return null
           const dates = parseGhostingDates(g.notes)
           if (!dates) return null
           const [gOnset, gEnd] = dates
-          const yRef = partnerRefMap[g.to_ref ?? ''] ?? g.to_ref ?? ''
+          const yRef = partnerRefMap[g.from_ref ?? ''] ?? g.from_ref ?? ''
           const personIdx = people.findIndex((p) => p.label === yRef)
           if (personIdx < 0) return null
-          const yGhost = rowY(personIdx) + Y_GHOST
+          const yGhost = rowY(personIdx) + Y_INOC
           const isSource = (g.ghosting_type ?? '').toLowerCase().includes('source')
           const color = isSource ? COLORS.ghostedSource : COLORS.ghostedSpread
           const gLabel = isSource ? 'Ghosted source' : 'Ghosted spread'
           const fromLabel = partnerRefMap[g.from_ref ?? ''] ?? g.from_ref ?? '?'
 
           return (
-            <g key={`ghost-${gi}`}>
+            <g key={`ghost-${gi}`} opacity={0.45}>
               <line
                 x1={dateToX(gOnset)}
                 y1={yGhost}
@@ -691,11 +701,13 @@ export function VcaChartPage() {
   const parsedCaseId = Number(caseId)
 
   const containerRef = useRef<HTMLDivElement>(null)
-  const [containerWidth, setContainerWidth] = useState(900)
+  const [containerWidth, setContainerWidth] = useState(() =>
+    typeof window !== 'undefined' ? Math.max(window.innerWidth - 260, 600) : 900,
+  )
 
   const [showDurations, setShowDurations] = useState(true)
   const [showInoc, setShowInoc] = useState(true)
-  const [showGhosted, setShowGhosted] = useState(true)
+  const [ghostingToggles, setGhostingToggles] = useState<Record<number, boolean>>({})
   const [showCritical, setShowCritical] = useState(true)
   const [showInterview, setShowInterview] = useState(true)
   const [showLabLines, setShowLabLines] = useState(true)
@@ -726,6 +738,18 @@ export function VcaChartPage() {
   })
 
   const partners = baseQuery.data?.partners ?? []
+
+  const loadedGhostings = baseQuery.data?.ghostings
+  useEffect(() => {
+    if (!loadedGhostings) return
+    setGhostingToggles((prev) => {
+      const next = { ...prev }
+      loadedGhostings.forEach((_, i) => {
+        if (!(i in next)) next[i] = true
+      })
+      return next
+    })
+  }, [loadedGhostings])
 
   const partnerDataQueries = useQueries({
     queries: partners.map((p) => ({
@@ -875,7 +899,6 @@ export function VcaChartPage() {
         {[
           { label: 'Symptoms', value: showDurations, set: setShowDurations },
           { label: 'Inoculation points', value: showInoc, set: setShowInoc },
-          { label: 'Ghosted lesions', value: showGhosted, set: setShowGhosted },
           { label: 'Critical period', value: showCritical, set: setShowCritical },
           { label: 'Interview period', value: showInterview, set: setShowInterview },
           { label: 'Non-reactive labs', value: showLabLines, set: setShowLabLines },
@@ -888,6 +911,27 @@ export function VcaChartPage() {
             {label}
           </label>
         ))}
+        {ghostings.map((g, gi) => {
+          const isSource = (g.ghosting_type ?? '').toLowerCase().includes('source')
+          const gType = isSource ? 'source' : 'spread'
+          const fromLabel = partnerRefMap[g.from_ref ?? ''] ?? g.from_ref ?? '?'
+          const toLabel = partnerRefMap[g.to_ref ?? ''] ?? g.to_ref ?? '?'
+          return (
+            <label
+              key={`ghost-toggle-${gi}`}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer' }}
+            >
+              <input
+                type="checkbox"
+                checked={ghostingToggles[gi] ?? true}
+                onChange={(e) =>
+                  setGhostingToggles((prev) => ({ ...prev, [gi]: e.target.checked }))
+                }
+              />
+              Ghost {gType}: {fromLabel} → {toLabel}
+            </label>
+          )
+        })}
       </div>
 
       {/* SVG chart — breaks out of page-content padding to use the full body width */}
@@ -907,7 +951,7 @@ export function VcaChartPage() {
             toggles={{
               showDurations,
               showInoc,
-              showGhosted,
+              showGhostedMap: ghostingToggles,
               showCritical,
               showInterview,
               showLabLines,
