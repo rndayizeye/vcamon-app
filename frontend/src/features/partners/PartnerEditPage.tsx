@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { usePartner, useUpdatePartner } from "./hooks";
+import { usePartner, useLinkPartnerToCase, useUpdatePartner } from "./hooks";
 import { usePartnerSymptoms } from "../symptoms/hooks";
 import { syncPartnerSymptoms } from "../symptoms/api";
 import { syncPartnerLabs } from "./labs-api";
@@ -25,7 +25,10 @@ export function PartnerEditPage() {
   const symptomsQuery = usePartnerSymptoms(safePartnerId);
   const labsQuery = usePartnerLabs(safePartnerId);
   const updatePartner = useUpdatePartner();
+  const linkPartner = useLinkPartnerToCase();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [linkedCaseInput, setLinkedCaseInput] = useState("")
+  const [linkError, setLinkError] = useState<string | null>(null);
 
   const initialSymptoms = useMemo(() => symptomsQuery.data ?? [], [symptomsQuery.data]);
   const initialNontrepLabs = useMemo(
@@ -122,6 +125,72 @@ export function PartnerEditPage() {
       />
 
       <RelationshipEditor caseId={safeCaseId} partnerId={safePartnerId} />
+
+      <div className="card stack-md">
+        <h3>Linked Case</h3>
+        {partnerQuery.data?.linked_case_id ? (
+          <div className="cluster" style={{ alignItems: "center", gap: "var(--spacing-md)" }}>
+            <span>
+              Linked to{" "}
+              <a href={`/cases/${partnerQuery.data.linked_case_id}`} style={{ fontWeight: 600 }}>
+                Case #{partnerQuery.data.linked_case_id}
+              </a>
+            </span>
+            <button
+              className="button button-secondary"
+              style={{ fontSize: "0.8rem" }}
+              disabled={linkPartner.isPending}
+              onClick={() => {
+                setLinkError(null);
+                linkPartner.mutate(
+                  { partnerId: safePartnerId, linkedCaseId: null },
+                  { onError: (e) => setLinkError(e instanceof Error ? e.message : "Failed to unlink") },
+                );
+              }}
+            >
+              Unlink
+            </button>
+          </div>
+        ) : (
+          <div className="cluster" style={{ alignItems: "flex-end", gap: "var(--spacing-md)" }}>
+            <div className="stack-sm" style={{ flex: 1 }}>
+              <label htmlFor="linked-case-id" style={{ fontWeight: 500 }}>
+                Link to Case ID
+              </label>
+              <input
+                id="linked-case-id"
+                type="number"
+                className="input"
+                placeholder="Enter case ID…"
+                value={linkedCaseInput}
+                onChange={(e) => setLinkedCaseInput(e.target.value)}
+              />
+            </div>
+            <button
+              className="button button-primary"
+              disabled={!linkedCaseInput || linkPartner.isPending}
+              onClick={() => {
+                setLinkError(null);
+                const id = parseInt(linkedCaseInput, 10);
+                if (!id) return;
+                linkPartner.mutate(
+                  { partnerId: safePartnerId, linkedCaseId: id },
+                  {
+                    onSuccess: () => setLinkedCaseInput(""),
+                    onError: (e) => setLinkError(e instanceof Error ? e.message : "Failed to link"),
+                  },
+                );
+              }}
+            >
+              {linkPartner.isPending ? "Linking…" : "Link"}
+            </button>
+          </div>
+        )}
+        {linkError && <p style={{ color: "var(--color-error, red)", fontSize: "0.85rem" }}>{linkError}</p>}
+        <p className="text-secondary" style={{ fontSize: "0.8rem" }}>
+          When this partner has their own case record, link it here to enable chain traversal and cluster analysis.
+        </p>
+      </div>
     </div>
   );
 }

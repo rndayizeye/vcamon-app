@@ -38,6 +38,16 @@ export const updatePartner = async (
   });
 };
 
+export const linkPartnerToCase = async (
+  partnerId: number,
+  linkedCaseId: number | null,
+): Promise<PartnerRead> => {
+  return apiFetch(`/api/cases/partners/${partnerId}/link-case`, {
+    method: "PATCH",
+    body: JSON.stringify({ linked_case_id: linkedCaseId }),
+  });
+};
+
 export const getCasePartnerRelationship = async (
   caseId: number,
   partnerId: number,

@@ -198,6 +198,10 @@ class PartnerUpdate(BaseModel):
     lab_3_date: date | None = None
 
 
+class PartnerLinkCase(BaseModel):
+    linked_case_id: int | None = None
+
+
 class PartnerRead(ORMBaseModel):
     id: int
     case_id: int
@@ -222,3 +226,4 @@ class PartnerRead(ORMBaseModel):
     lab_2_date: date | None
     lab_3_date: date | None
     created_at: datetime | None
+    linked_case_id: int | None = None

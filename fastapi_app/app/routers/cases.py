@@ -35,6 +35,7 @@ from fastapi_app.app.schemas import (
     DashboardSummary,
     CaseUpdate,
     PartnerCreate,
+    PartnerLinkCase,
     PartnerRead,
     PartnerUpdate,
 )
@@ -204,3 +205,18 @@ def delete_partner_endpoint(
     _get_partner_or_404(db, partner_id)
     delete_partner(db, partner_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.patch("/partners/{partner_id}/link-case", response_model=PartnerRead)
+def link_partner_to_case(
+    partner_id: int,
+    payload: PartnerLinkCase,
+    db: Annotated[Session, Depends(get_db)],
+    _actor: OperatorAccess,
+):
+    """Set or clear the linked_case_id on a partner record."""
+    _get_partner_or_404(db, partner_id)
+    if payload.linked_case_id is not None:
+        _get_case_or_404(db, payload.linked_case_id)
+    updated = update_partner(db, partner_id, linked_case_id=payload.linked_case_id)
+    return updated

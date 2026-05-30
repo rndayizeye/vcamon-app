@@ -19,6 +19,7 @@ from .cases import (
     CaseUpdate,
     DashboardSummary,
     PartnerCreate,
+    PartnerLinkCase,
     PartnerRead,
     PartnerUpdate,
 )
@@ -77,6 +78,7 @@ __all__ = [
     "CaseUpdate",
     "DashboardSummary",
     "PartnerCreate",
+    "PartnerLinkCase",
     "PartnerRead",
     "PartnerUpdate",
     "GhostingCreate",

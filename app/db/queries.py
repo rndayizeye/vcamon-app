@@ -415,6 +415,11 @@ def get_partners_for_case(db: Session, case_id: int) -> list[Partner]:
     )
 
 
+def get_partners_linked_to_case(db: Session, case_id: int) -> list[Partner]:
+    """Return all Partner records whose linked_case_id points to this case."""
+    return db.query(Partner).filter(Partner.linked_case_id == case_id).all()
+
+
 def get_partner_by_id(db: Session, partner_id: int) -> Partner | None:
     return db.query(Partner).filter(Partner.id == partner_id).first()
 

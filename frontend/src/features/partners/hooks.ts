@@ -5,6 +5,7 @@ import {
   getCasePartnerRelationship,
   getPartner,
   getPartnersForCase,
+  linkPartnerToCase,
   updateCasePartnerRelationship,
   updatePartner,
 } from "./api";
@@ -59,6 +60,26 @@ export function useUpdatePartner() {
       void queryClient.invalidateQueries({
         queryKey: ["partners", data.id],
       });
+      void queryClient.invalidateQueries({
+        queryKey: ["cases", data.case_id, "partners"],
+      });
+    },
+  });
+}
+
+export function useLinkPartnerToCase() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      partnerId,
+      linkedCaseId,
+    }: {
+      partnerId: number;
+      linkedCaseId: number | null;
+    }) => linkPartnerToCase(partnerId, linkedCaseId),
+    onSuccess: (data) => {
+      void queryClient.invalidateQueries({ queryKey: ["partners", data.id] });
       void queryClient.invalidateQueries({
         queryKey: ["cases", data.case_id, "partners"],
       });

@@ -51,7 +51,7 @@ export type GhostingScenario = {
 }
 
 export type SuggestedGhostingRecord = {
-  ghosting_type: 'SOURCE' | 'SPREAD'
+  ghosting_type: 'Ghosting a Source' | 'Ghosting a Spread' | 'Ghosting a Spread Ghost'
   from_ref: string
   to_ref: string
   notes: string
@@ -82,7 +82,7 @@ export type GhostingRecord = {
 }
 
 export type GhostingCreate = {
-  ghosting_type: 'SOURCE' | 'SPREAD'
+  ghosting_type: 'Ghosting a Source' | 'Ghosting a Spread' | 'Ghosting a Spread Ghost'
   from_ref?: string | null
   to_ref?: string | null
   notes?: string | null

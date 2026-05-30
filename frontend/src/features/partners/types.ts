@@ -10,6 +10,7 @@ export type PartnerRead = {
   historical_primary_chancre: boolean | null;
   historical_primary_date: string | null;
   created_at: string | null;
+  linked_case_id: number | null;
 };
 
 export type PartnerCreateInput = {

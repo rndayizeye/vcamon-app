@@ -274,7 +274,10 @@ class Case(Base):
 
     # Relationships
     partners: Mapped[list["Partner"]] = relationship(
-        "Partner", back_populates="case", cascade="all, delete-orphan"
+        "Partner",
+        back_populates="case",
+        cascade="all, delete-orphan",
+        foreign_keys="[Partner.case_id]",
     )
     relationships: Mapped[list["CasePartnerRelationship"]] = relationship(
         "CasePartnerRelationship", back_populates="case", cascade="all, delete-orphan"
@@ -359,8 +362,14 @@ class Partner(Base):
     lab_3_date: Mapped[date | None] = mapped_column(Date)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
+    # When this partner has their own case record, link it here for chain traversal
+    linked_case_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("cases.id", ondelete="SET NULL"), nullable=True
+    )
+
     # Relationships
-    case: Mapped["Case"] = relationship("Case", back_populates="partners")
+    case: Mapped["Case"] = relationship("Case", back_populates="partners", foreign_keys="[Partner.case_id]")
+    linked_case: Mapped["Case | None"] = relationship("Case", foreign_keys="[Partner.linked_case_id]")
     relationships: Mapped[list["CasePartnerRelationship"]] = relationship(
         "CasePartnerRelationship",
         back_populates="partner",

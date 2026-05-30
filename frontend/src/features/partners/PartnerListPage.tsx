@@ -26,7 +26,7 @@ export function PartnerListPage() {
 
   return (
     <div className="stack-lg">
-      <div className="cluster" style={{ justifyContent: "space-between" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
         <h2>Partners ({partners.length})</h2>
         <Link to="new" className="button button-primary">
           Add Partner
@@ -48,6 +48,7 @@ export function PartnerListPage() {
                 <th>Partner #</th>
                 <th>Name</th>
                 <th>Treatment Date</th>
+                <th>Linked Case</th>
                 <th>Created At</th>
                 <th>Actions</th>
               </tr>
@@ -64,6 +65,26 @@ export function PartnerListPage() {
                   <td>
                     {partner.treatment_date || (
                       <span className="text-secondary">-</span>
+                    )}
+                  </td>
+                  <td>
+                    {partner.linked_case_id ? (
+                      <Link
+                        to={`/cases/${partner.linked_case_id}`}
+                        style={{
+                          fontSize: "0.75rem",
+                          padding: "2px 8px",
+                          borderRadius: "12px",
+                          background: "var(--color-primary, #2563eb)",
+                          color: "#fff",
+                          textDecoration: "none",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Case #{partner.linked_case_id}
+                      </Link>
+                    ) : (
+                      <span className="text-secondary">—</span>
                     )}
                   </td>
                   <td>
