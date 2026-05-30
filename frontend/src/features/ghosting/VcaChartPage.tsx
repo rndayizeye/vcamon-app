@@ -4,6 +4,7 @@ import { useQuery, useQueries } from '@tanstack/react-query'
 
 import { ErrorState } from '../../components/feedback/ErrorState'
 import { LoadingState } from '../../components/feedback/LoadingState'
+import { formatDate } from '../../lib/utils'
 import { getCase } from '../cases/api'
 import { getCasePartnerRelationship, getPartnersForCase } from '../partners/api'
 import { listCaseSymptoms, listPartnerSymptoms } from '../symptoms/api'
@@ -945,15 +946,56 @@ export function VcaChartPage() {
   return (
     <section className="stack-lg">
       <header className="panel stack-sm">
-        <div>
-          <p className="eyebrow">VCA Methodology</p>
-          <h2>VCA Timeline</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <p className="eyebrow">VCA Methodology</p>
+            <h2>VCA Timeline</h2>
+          </div>
+          <button
+            className="button no-print"
+            type="button"
+            onClick={() => window.print()}
+            style={{ flexShrink: 0 }}
+          >
+            Print / Export PDF
+          </button>
         </div>
+
+        {/* Print-only case summary — hidden on screen, rendered in PDF header */}
+        <dl
+          className="print-only"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, auto)',
+            gap: '0 2.5rem',
+            fontSize: '0.9rem',
+            borderTop: '1px solid #ccc',
+            paddingTop: '0.6rem',
+            marginTop: '0.25rem',
+          }}
+        >
+          <div>
+            <dt style={{ fontWeight: 600 }}>Patient</dt>
+            <dd>{caseData.patient_name}</dd>
+          </div>
+          <div>
+            <dt style={{ fontWeight: 600 }}>Diagnosis (LOT)</dt>
+            <dd>{caseData.lot || '—'}</dd>
+          </div>
+          <div>
+            <dt style={{ fontWeight: 600 }}>Treatment date</dt>
+            <dd>{formatDate(caseData.treatment_date)}</dd>
+          </div>
+          <div>
+            <dt style={{ fontWeight: 600 }}>Partners</dt>
+            <dd>{loadedPartners.length}</dd>
+          </div>
+        </dl>
       </header>
 
       {/* Layer toggles */}
       <div
-        className="panel"
+        className="panel no-print"
         style={{
           display: 'flex',
           flexWrap: 'wrap',
@@ -1003,7 +1045,7 @@ export function VcaChartPage() {
 
       {/* SVG chart — breaks out of page-content padding to use the full body width */}
       <div
-        className="panel"
+        className="panel vca-chart-panel"
         style={{ padding: '0.5rem 0', margin: '0 -1.5rem', borderRadius: 0, overflowX: 'auto' }}
         ref={containerRef}
       >
@@ -1028,7 +1070,7 @@ export function VcaChartPage() {
       </div>
 
       {/* Legend */}
-      <div className="panel stack-sm">
+      <div className="panel stack-sm no-print">
         <p className="eyebrow">Chart legend</p>
         <div
           style={{
@@ -1054,7 +1096,7 @@ export function VcaChartPage() {
       {/* Data gaps notice */}
       {dataGaps.length > 0 && (
         <div
-          className="panel"
+          className="panel no-print"
           style={{
             borderLeft: '3px solid #ef9f27',
             background: '#fef8ec',

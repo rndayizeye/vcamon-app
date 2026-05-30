@@ -464,3 +464,54 @@ textarea {
         align-items: flex-start;
     }
 }
+
+/* ─── Print visibility utilities ─────────────────────────────────────────────
+   .no-print   — hidden in print, visible on screen
+   .print-only — visible in print, hidden on screen                           */
+
+@media screen {
+    .print-only {
+        display: none !important;
+    }
+}
+
+@media print {
+    .no-print {
+        display: none !important;
+    }
+
+    /* Hide chrome */
+    .topbar,
+    .sidebar {
+        display: none !important;
+    }
+
+    /* Collapse app-body to single column (no sidebar) */
+    .app-body {
+        display: block !important;
+    }
+
+    /* Remove page-content padding so chart reaches the edges */
+    .page-content {
+        padding: 0 !important;
+    }
+
+    /* Flatten panels for print */
+    .panel {
+        box-shadow: none !important;
+        border: none !important;
+        break-inside: avoid;
+    }
+
+    /* Chart container: remove the negative-margin bleed trick used on screen */
+    .vca-chart-panel {
+        margin: 0 !important;
+        overflow: visible !important;
+        border-radius: 0 !important;
+    }
+
+    @page {
+        margin: 1.5cm;
+        size: landscape;
+    }
+}
