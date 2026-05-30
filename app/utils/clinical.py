@@ -21,13 +21,16 @@ Naming conventions:
   Date1  — likely inoculation date for Case1 (working back from Case1 symptom)
   Date2  — midpoint of Case1's infectious period (most likely transmission date)
 
-Exposure criterion (scenario-specific):
-  Source scenario  — Date1 must fall within the reported exposure window
+Exposure criterion (scenario-specific) — an infectious window must OVERLAP the
+reported sexual-exposure window (any intersection ⇒ transmission possible):
+  Source scenario  — Case2's ghosted source chancre window (centred on Date1)
                      (Case2 → Case1 transmission happened around Date1)
-  Spread scenario  — Date2 must fall within the reported exposure window
+  Spread scenario  — Case1's primary chancre window; when Case1's anchor is a
+                     secondary symptom that chancre is ghosted (centred on Date2),
+                     and the window is clipped at Case1's treatment date
                      (Case1 → Case2 transmission happened around Date2)
-  Warn threshold   — if the relevant date misses the window by ≤ half the
-                     average incubation period (10 days), warn instead of fail
+  Warn threshold   — if the windows miss each other by ≤ half the average
+                     incubation period (10 days), warn instead of fail
 """
 
 from __future__ import annotations
@@ -56,8 +59,9 @@ INTERVIEW_PERIOD_SECONDARY_DAYS = (
 # Warn threshold for exposure check — half average incubation (10 days)
 EXPOSURE_WARN_MARGIN_DAYS = INCUBATION["avg"] // 2  # 10
 
-# Minimum latency between ghosted lesion end and secondary symptom onset
-MIN_LATENCY_TO_SECONDARY_DAYS = 35  # 5 weeks
+# Plausible latency between a (ghosted) primary chancre healing and the onset of
+# secondary symptoms is the natural-history latency band itself: LATENCY min..max
+# (0–70 days per the VCA training). There is no fixed 5-week floor in the method.
 
 # ---------------------------------------------------------------------------
 # Interview period — calculate earliest relevant date for case investigation based on symptoms and previous negative tests
@@ -569,7 +573,7 @@ def _sex_type_compatible(
     else:
         if symptom.anatomical_site is None:
             return "warn", "Lesion location not recorded — cannot verify compatibility."
-        return "pass", f"Non-specific lesion site — anatomical compatibility not applicable."
+        return "pass", "Non-specific lesion site — anatomical compatibility not applicable."
 
     if compatible:
         return "pass", (
@@ -579,6 +583,61 @@ def _sex_type_compatible(
         f"{site_label} lesion is NOT consistent with reported body parts used ({parts_display}). "
         f"The lesion site was not used during sexual contact with this partner."
     )
+
+
+def _best_primary_symptom(symptoms: list[Symptom]) -> Optional[Symptom]:
+    """Pick the comparison patient's representative primary chancre for the
+    anatomical check, preferring one with a known anatomical site."""
+    primaries = [
+        s
+        for s in symptoms
+        if s.type in ("Primary Chancre", "Historical Primary", "Ghosted Primary")
+    ]
+    if not primaries:
+        return None
+    with_site = [s for s in primaries if s.anatomical_site]
+    pool = with_site or primaries
+    return min(pool, key=lambda s: symptom_rank(s.type))
+
+
+def _anatomical_compatibility(
+    source_symptom: Optional[Symptom],
+    source_body_parts: list[str],
+    recipient_symptom: Optional[Symptom],
+    recipient_body_parts: list[str],
+) -> tuple[str, str]:
+    """
+    Two-sided anatomical-compatibility check (VCA criterion 2).
+
+    A chancre appears at the site of inoculation, so each party's known primary
+    chancre site must be consistent with a body part they reported using with the
+    partner: the source must have had an infectious lesion at a site used during
+    contact, and the recipient's chancre marks where they were inoculated. We
+    check whichever sides have data; ghosted lesions carry no site, so an unknown
+    side degrades to a warn rather than a hard pass/fail.
+    """
+    sides: list[tuple[str, str, str]] = []
+    if source_symptom is not None:
+        s_status, s_detail = _sex_type_compatible(source_symptom, source_body_parts)
+        sides.append(("Source", s_status, s_detail))
+    if recipient_symptom is not None:
+        r_status, r_detail = _sex_type_compatible(
+            recipient_symptom, recipient_body_parts
+        )
+        sides.append(("Recipient", r_status, r_detail))
+
+    if not sides:
+        return "warn", "No lesion sites recorded — cannot check anatomical compatibility."
+
+    detail = " | ".join(f"{label}: {d}" for label, _, d in sides)
+    statuses = {st for _, st, _ in sides}
+    if "fail" in statuses:
+        return "fail", detail
+    if "warn" in statuses:
+        return "warn", detail
+    if "pass" in statuses:
+        return "pass", detail
+    return "na", detail
 
 
 def _latency_to_secondary(
@@ -610,40 +669,41 @@ def _latency_to_secondary(
     earliest_sec = min(s.onset for s in secondary)
     gap = (earliest_sec - lesion.end).days
 
-    if gap >= MIN_LATENCY_TO_SECONDARY_DAYS:
-        return "pass", (
-            f"{gap} days between ghosted lesion end ({lesion.end}) and "
-            f"{case2_name}'s secondary symptom onset ({earliest_sec}) — meets "
-            f"\u2265{MIN_LATENCY_TO_SECONDARY_DAYS}-day requirement."
-        )
-
     if gap < 0:
         if lesion.onset < earliest_sec:
             # True overlap: primary started before secondary but was still active
-            # when secondary appeared (lesion.onset < sec ≤ lesion.end).
+            # when secondary appeared (lesion.onset < sec <= lesion.end).
             return "fail", (
                 f"Primary-secondary overlap: ghosted lesion end ({lesion.end}) is "
-                f"{abs(gap)} day(s) after {case2_name}'s secondary symptom onset ({earliest_sec}) — "
+                f"{abs(gap)} day(s) after {case2_name}'s secondary symptom onset ({earliest_sec}) - "
                 f"the chancre was still present when secondary symptoms appeared."
             )
         else:
             # Reversed timeline: secondary appeared before the ghosted primary even
-            # started (lesion.onset ≥ sec.onset). _natural_order reports a hard FAIL
+            # started (lesion.onset >= sec.onset). _natural_order reports a hard FAIL
             # for the same reason; this message adds the latency dimension.
             days_before = (lesion.onset - earliest_sec).days
             return "fail", (
                 f"Reversed timeline: {case2_name}'s secondary symptoms began ({earliest_sec}) "
-                f"{days_before} day(s) before ghosted lesion onset ({lesion.onset}) — "
+                f"{days_before} day(s) before ghosted lesion onset ({lesion.onset}) - "
                 f"secondary preceded primary, which is impossible under natural progression."
             )
 
-    return "fail", (
-        f"Only {gap} day(s) between ghosted lesion end ({lesion.end}) and "
-        f"{case2_name}'s secondary symptom onset ({earliest_sec}) — below the required "
-        f"{MIN_LATENCY_TO_SECONDARY_DAYS} days "
-        f"({MIN_LATENCY_TO_SECONDARY_DAYS // 7} weeks)."
-    )
+    # Gap >= 0: the gap is the implied latency between primary healing and secondary
+    # onset. Plausible values fall within the natural-history latency band (0..max).
+    if gap > LATENCY["max"]:
+        return "warn", (
+            f"{gap} days between ghosted lesion end ({lesion.end}) and {case2_name}'s "
+            f"secondary symptom onset ({earliest_sec}) exceeds the maximum latency "
+            f"({LATENCY['max']} days) - the secondary may belong to a separate episode; "
+            f"manual review recommended."
+        )
 
+    return "pass", (
+        f"{gap} days between ghosted lesion end ({lesion.end}) and {case2_name}'s "
+        f"secondary symptom onset ({earliest_sec}) falls within the "
+        f"{LATENCY['min']}-{LATENCY['max']}-day latency range."
+    )
 
 def _natural_order(
     lesion: GhostedLesion,
@@ -696,42 +756,79 @@ def evaluate_criteria(
     case2_exposure: Optional[Exposure],
     op_exposure: Optional[Exposure],
     case2_treatment_date: Optional[date],
-    date1: Optional[date] = None,
     date2: Optional[date] = None,
     case1_body_parts: Optional[list[str]] = None,
     case2_name: str = "the comparison patient",
+    case1_treatment_date: Optional[date] = None,
+    constant_key: str = "avg",
+    case2_body_parts: Optional[list[str]] = None,
 ) -> dict:
     """
     Run all four criteria checks for one scenario.
 
-    Exposure check is scenario-specific:
-      source scenario → Date1 must be within exposure window
-      spread scenario → Date2 must be within exposure window
+    Exposure check is scenario-specific and uses period intersection (the
+    infectious window must OVERLAP the reported sexual-exposure window):
+      source scenario → Case2's ghosted source chancre window
+      spread scenario → Case1's (possibly ghosted) primary chancre window
+
+    Infectiousness ends once the source is adequately treated, so the spread
+    infectious window is clipped at Case1's treatment date.
     """
     exposure = case2_exposure or op_exposure
 
     # Exposure overlap check - use period intersection
     if scenario == "source":
-        # Case2 must be infectious during Case1's exposure
+        # Case2 must be infectious during Case1's exposure: use the ghosted
+        # source chancre window assigned to Case2.
         infectious_start = lesion.onset
         infectious_end = lesion.end
     else:  # spread
-        # Case1 must be infectious during Case2's exposure
-        dur = (
-            case1_symptom.duration_days
-            if case1_symptom.duration_days > 0
-            else PRIMARY["avg"]
-        )
-        infectious_start = case1_symptom.onset
-        infectious_end = case1_symptom.onset + timedelta(days=dur)
+        # Case1 must be infectious during Case2's exposure. Transmission happens
+        # from Case1's PRIMARY chancre. When Case1's anchor is a secondary
+        # symptom that chancre is ghosted (centred on Date2); otherwise it is the
+        # reported primary chancre window.
+        if case1_symptom.type == "Secondary Rash/Lesions" and date2 is not None:
+            half_primary = PRIMARY[constant_key] // 2
+            infectious_start = date2 - timedelta(days=half_primary)
+            infectious_end = date2 + timedelta(days=half_primary)
+        else:
+            dur = (
+                case1_symptom.duration_days
+                if case1_symptom.duration_days > 0
+                else PRIMARY[constant_key]
+            )
+            infectious_start = case1_symptom.onset
+            infectious_end = case1_symptom.onset + timedelta(days=dur)
+
+        # Infectiousness ends at adequate treatment (VCA: infectious while the
+        # chancre is present, until penicillin).
+        if case1_treatment_date and case1_treatment_date < infectious_end:
+            infectious_end = max(infectious_start, case1_treatment_date)
 
     exp_status, exp_detail = _check_exposure(
         infectious_start, infectious_end, exposure, scenario
     )
 
-    modality_status, modality_detail = _sex_type_compatible(
-        case1_symptom, case1_body_parts or []
-    )
+    # Anatomical compatibility (VCA criterion 2) is direction-aware: validate the
+    # source's lesion site and the recipient's lesion site against the body parts
+    # each used. Case1 is the anchor; Case2's representative primary comes from
+    # its symptom list (its ghosted chancre carries no site).
+    case2_primary = _best_primary_symptom(case2_symptoms)
+    if scenario == "source":
+        # Case2 is the hypothesised source, Case1 the recipient.
+        modality_status, modality_detail = _anatomical_compatibility(
+            source_symptom=case2_primary,
+            source_body_parts=case2_body_parts or [],
+            recipient_symptom=case1_symptom,
+            recipient_body_parts=case1_body_parts or [],
+        )
+    else:  # spread — Case1 is the source, Case2 the recipient.
+        modality_status, modality_detail = _anatomical_compatibility(
+            source_symptom=case1_symptom,
+            source_body_parts=case1_body_parts or [],
+            recipient_symptom=case2_primary,
+            recipient_body_parts=case2_body_parts or [],
+        )
     lat_status, lat_detail = _latency_to_secondary(lesion, case2_symptoms, case2_name)
     ord_status, ord_detail = _natural_order(
         lesion, case2_symptoms, case2_treatment_date, case2_name
@@ -853,8 +950,12 @@ def run_ghosting_analysis(
     case2_treatment = (
         partner_treatment_date if case1_role == "OP" else op_treatment_date
     )
+    case1_treatment = (
+        op_treatment_date if case1_role == "OP" else partner_treatment_date
+    )
     case2_exposure = partner_exposure if case1_role == "OP" else op_exposure
     case1_body_parts = (op_body_parts or []) if case1_role == "OP" else (partner_body_parts or [])
+    case2_body_parts = (partner_body_parts or []) if case1_role == "OP" else (op_body_parts or [])
 
     log.append(
         f"Step 1: Anchor patient — {case1_name} ({case1_role}) has the highest-ranked "
@@ -904,10 +1005,12 @@ def run_ghosting_analysis(
             case2_exposure=case2_exposure,
             op_exposure=op_exposure,
             case2_treatment_date=case2_treatment,
-            date1=d1,
             date2=d2,
             case1_body_parts=case1_body_parts,
             case2_name=case2_name,
+            case1_treatment_date=case1_treatment,
+            constant_key=key,
+            case2_body_parts=case2_body_parts,
         )
         spread_crit = evaluate_criteria(
             scenario="spread",
@@ -917,10 +1020,12 @@ def run_ghosting_analysis(
             case2_exposure=case2_exposure,
             op_exposure=op_exposure,
             case2_treatment_date=case2_treatment,
-            date1=d1,
             date2=d2,
             case1_body_parts=case1_body_parts,
             case2_name=case2_name,
+            case1_treatment_date=case1_treatment,
+            constant_key=key,
+            case2_body_parts=case2_body_parts,
         )
 
         source_range_data[scenario_name] = source_crit

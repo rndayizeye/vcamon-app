@@ -33,6 +33,9 @@ from app.utils.clinical import (
     Exposure,
     GhostedLesion,
     Symptom,
+    _anatomical_compatibility,
+    _best_primary_symptom,
+    _latency_to_secondary,
     _scenario_passes,
     avg_inoculation_date,  # both aliases
     calc_d2,  # both aliases
@@ -299,7 +302,6 @@ class TestExposureCriterion:
             case2_exposure=exposure,
             op_exposure=None,
             case2_treatment_date=None,
-            date1=None,
             date2=None,
         )
         return result["exposure"]
@@ -328,7 +330,6 @@ class TestExposureCriterion:
             case2_exposure=exposure,
             op_exposure=None,
             case2_treatment_date=None,
-            date1=None,
             date2=None,
         )
         return result["exposure"]
@@ -555,6 +556,197 @@ class TestFullPipeline:
 # ---------------------------------------------------------------------------
 # _scenario_passes
 # ---------------------------------------------------------------------------
+
+
+class TestSpreadInfectiousWindowTreatmentClip:
+    """Spread infectious window must end at Case1's treatment date (VCA: infectious
+    only while the chancre is present, until adequately treated)."""
+
+    def _spread_exposure(self, case1_symptom, exposure, treatment, key="avg", date2=None):
+        lesion = GhostedLesion(
+            lesion_type="ghosted_spread",
+            onset=date(2020, 1, 1),
+            end=date(2020, 1, 10),
+            derived_from_symptom=case1_symptom.type,
+            assigned_to="partner",
+        )
+        return evaluate_criteria(
+            scenario="spread",
+            lesion=lesion,
+            case1_symptom=case1_symptom,
+            case2_symptoms=[],
+            case2_exposure=exposure,
+            op_exposure=None,
+            case2_treatment_date=None,
+            date2=date2,
+            case1_treatment_date=treatment,
+            constant_key=key,
+        )["exposure"]
+
+    def test_treatment_truncates_infectious_window_to_fail(self):
+        # Primary chancre 2/1–2/22 (21d). Exposure 2/20–2/28 overlaps the
+        # untreated window, but treatment on 2/5 cuts infectiousness to 2/1–2/5.
+        sym = Symptom("Primary Chancre", date(2020, 2, 1), 21)
+        window = Exposure(first=date(2020, 2, 20), last=date(2020, 2, 28))
+
+        untreated = self._spread_exposure(sym, window, treatment=None)
+        treated = self._spread_exposure(sym, window, treatment=date(2020, 2, 5))
+
+        assert untreated["status"] == "pass"
+        assert treated["status"] == "fail"
+
+
+class TestSecondaryAnchorSpreadWindow:
+    """When Case1's anchor is a secondary symptom, the spread infectious window is
+    Case1's GHOSTED primary chancre (centred on Date2), not the secondary onset."""
+
+    def _spread_exposure(self, sym, exposure, date2):
+        lesion = GhostedLesion(
+            lesion_type="ghosted_spread",
+            onset=date(2019, 1, 1),
+            end=date(2019, 1, 10),
+            derived_from_symptom=sym.type,
+            assigned_to="partner",
+        )
+        return evaluate_criteria(
+            scenario="spread",
+            lesion=lesion,
+            case1_symptom=sym,
+            case2_symptoms=[],
+            case2_exposure=exposure,
+            op_exposure=None,
+            case2_treatment_date=None,
+            date2=date2,
+            constant_key="avg",
+        )["exposure"]
+
+    def test_window_centres_on_date2_not_secondary_onset(self):
+        sym = Symptom("Secondary Rash/Lesions", date(2020, 6, 1), 0)
+        date2 = calc_date2(sym)  # midpoint of Case1's ghosted primary chancre
+
+        near_primary = Exposure(
+            first=date2 - timedelta(days=3), last=date2 + timedelta(days=3)
+        )
+        near_secondary = Exposure(
+            first=sym.onset - timedelta(days=3), last=sym.onset + timedelta(days=3)
+        )
+
+        assert self._spread_exposure(sym, near_primary, date2)["status"] == "pass"
+        # Exposure sitting at the secondary rash must NOT register as the
+        # infectious window (that was the old bug).
+        assert self._spread_exposure(sym, near_secondary, date2)["status"] == "fail"
+
+
+class TestLatencyBand:
+    """Latency-to-secondary uses the natural-history band (0..LATENCY['max']);
+    there is no fixed 5-week floor."""
+
+    def _lesion(self, end):
+        return GhostedLesion(
+            lesion_type="ghosted_source",
+            onset=end - timedelta(days=PRIMARY["avg"]),
+            end=end,
+            derived_from_symptom="Primary Chancre",
+            assigned_to="partner",
+        )
+
+    def _sec(self, onset):
+        return [Symptom("Secondary Rash/Lesions", onset, 0)]
+
+    def test_no_secondary_is_na(self):
+        status, _ = _latency_to_secondary(self._lesion(date(2020, 3, 1)), [])
+        assert status == "na"
+
+    def test_gap_within_band_passes(self):
+        lesion = self._lesion(date(2020, 3, 1))
+        status, _ = _latency_to_secondary(lesion, self._sec(date(2020, 3, 29)))  # 28d
+        assert status == "pass"
+
+    def test_short_gap_no_longer_fails(self):
+        # 20-day gap < old 35-day floor — must now PASS (it is within latency band).
+        lesion = self._lesion(date(2020, 3, 1))
+        status, _ = _latency_to_secondary(lesion, self._sec(date(2020, 3, 21)))  # 20d
+        assert status == "pass"
+
+    def test_gap_exceeding_max_latency_warns(self):
+        lesion = self._lesion(date(2020, 3, 1))
+        far = date(2020, 3, 1) + timedelta(days=LATENCY["max"] + 5)
+        status, _ = _latency_to_secondary(lesion, self._sec(far))
+        assert status == "warn"
+
+    def test_overlap_still_fails(self):
+        lesion = self._lesion(date(2020, 3, 20))  # onset ~2/28, end 3/20
+        # secondary onset inside the lesion window → overlap → fail
+        status, detail = _latency_to_secondary(lesion, self._sec(date(2020, 3, 10)))
+        assert status == "fail"
+        assert "overlap" in detail.lower()
+
+
+class TestAnatomicalCompatibility:
+    """VCA criterion 2 is two-sided and direction-aware: both the source's and the
+    recipient's known chancre sites must match the body parts each used."""
+
+    def _criteria(self, scenario, case1_symptom, case2_symptoms, c1_parts, c2_parts):
+        lesion = GhostedLesion(
+            lesion_type=f"ghosted_{scenario}",
+            onset=date(2020, 2, 1),
+            end=date(2020, 2, 20),
+            derived_from_symptom=case1_symptom.type,
+            assigned_to="partner",
+        )
+        return evaluate_criteria(
+            scenario=scenario,
+            lesion=lesion,
+            case1_symptom=case1_symptom,
+            case2_symptoms=case2_symptoms,
+            case2_exposure=None,
+            op_exposure=None,
+            case2_treatment_date=None,
+            case1_body_parts=c1_parts,
+            case2_body_parts=c2_parts,
+        )["exposure_modality"]
+
+    def test_spread_source_site_mismatch_fails(self):
+        # Case1 is the source in spread; penile chancre but only oral sex reported.
+        case1 = Symptom("Primary Chancre", date(2020, 3, 5), 0, anatomical_site="Penile LX")
+        result = self._criteria("spread", case1, [], ["mouth"], [])
+        assert result["status"] == "fail"
+
+    def test_source_scenario_validates_case2_as_source(self):
+        # Direction-awareness: in the source scenario Case2 is the source, so a
+        # Case2 site/parts mismatch must FAIL even when Case1 is fully compatible.
+        # (The old one-sided check looked only at Case1 and would have passed.)
+        case1 = Symptom("Primary Chancre", date(2020, 3, 5), 0, anatomical_site="Penile LX")
+        case2 = [Symptom("Primary Chancre", date(2020, 2, 8), 7, anatomical_site="Penile LX")]
+        result = self._criteria(
+            "source", case1, case2, c1_parts=["penis"], c2_parts=["mouth"]
+        )
+        assert result["status"] == "fail"
+
+    def test_both_sides_compatible_passes(self):
+        case1 = Symptom("Primary Chancre", date(2020, 3, 5), 0, anatomical_site="Penile LX")
+        case2 = [Symptom("Primary Chancre", date(2020, 4, 1), 0, anatomical_site="Vaginal LX")]
+        result = self._criteria(
+            "spread", case1, case2, c1_parts=["penis"], c2_parts=["vagina"]
+        )
+        assert result["status"] == "pass"
+
+    def test_aggregator_fail_dominates(self):
+        src = Symptom("Primary Chancre", date(2020, 1, 1), 0, anatomical_site="Penile LX")
+        rcp = Symptom("Primary Chancre", date(2020, 2, 1), 0, anatomical_site="Penile LX")
+        status, _ = _anatomical_compatibility(src, ["penis"], rcp, ["mouth"])
+        assert status == "fail"
+
+    def test_aggregator_warns_when_no_data(self):
+        status, _ = _anatomical_compatibility(None, [], None, [])
+        assert status == "warn"
+
+    def test_best_primary_prefers_sited_and_skips_secondary(self):
+        sited = Symptom("Primary Chancre", date(2020, 2, 1), 0, anatomical_site="Penile LX")
+        unsited = Symptom("Primary Chancre", date(2020, 1, 1), 0)
+        assert _best_primary_symptom([unsited, sited]) is sited
+        secondary = Symptom("Secondary Rash/Lesions", date(2020, 3, 1), 0)
+        assert _best_primary_symptom([secondary]) is None
 
 
 class TestScenarioPasses:
