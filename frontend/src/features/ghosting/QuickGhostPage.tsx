@@ -69,7 +69,13 @@ type PersonFields = {
 
 type QuickGhostForm = {
   person_a: PersonFields
-  person_b: PersonFields
+  partners: PersonFields[]
+}
+
+type PairResult = {
+  label: string
+  result: GhostingAnalysisResult | null
+  error: string | null
 }
 
 const EMPTY_SYMPTOM: SymptomRow = {
@@ -117,8 +123,31 @@ function computeInoculationAvg(symptom: GhostingSymptomInput): string {
   return isoAddDays(symptom.onset, -21)
 }
 
+function buildPayload(op: PersonFields, partner: PersonFields) {
+  const opSymptoms = toSymptomInputs(op.symptoms)
+  const partnerSymptoms = toSymptomInputs(partner.symptoms)
+  const opHasExposure = op.exp_first && op.exp_last
+  const partnerHasExposure = partner.exp_first && partner.exp_last
+  return {
+    op_name: op.name.trim() || 'Person A',
+    op_symptoms: opSymptoms,
+    op_exposure: opHasExposure
+      ? { first: op.exp_first, last: op.exp_last, exposure_modalities: [] }
+      : null,
+    op_treatment_date: op.treatment_date || null,
+    op_body_parts: op.body_parts,
+    partner_name: partner.name.trim() || 'Partner',
+    partner_symptoms: partnerSymptoms,
+    partner_exposure: partnerHasExposure
+      ? { first: partner.exp_first, last: partner.exp_last, exposure_modalities: [] }
+      : null,
+    partner_treatment_date: partner.treatment_date || null,
+    partner_body_parts: partner.body_parts,
+  }
+}
+
 // ---------------------------------------------------------------------------
-// Symptom editor sub-component  (flex-wrap fixes the overlap bug)
+// Symptom editor sub-component
 // ---------------------------------------------------------------------------
 
 function SymptomEditor({
@@ -126,7 +155,7 @@ function SymptomEditor({
   control,
   register,
 }: {
-  prefix: 'person_a' | 'person_b'
+  prefix: string
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   control: any
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -205,14 +234,14 @@ function SymptomEditor({
 }
 
 // ---------------------------------------------------------------------------
-// Body parts checkboxes (penis / vagina / anus / mouth — matches RelationshipEditor)
+// Body parts checkboxes
 // ---------------------------------------------------------------------------
 
 function BodyPartsCheckboxes({
   prefix,
   register,
 }: {
-  prefix: 'person_a' | 'person_b'
+  prefix: string
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   register: any
 }) {
@@ -232,6 +261,73 @@ function BodyPartsCheckboxes({
           </label>
         ))}
       </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Person panel (reusable for OP and each partner)
+// ---------------------------------------------------------------------------
+
+function PersonPanel({
+  prefix,
+  label,
+  control,
+  register,
+  onRemove,
+}: {
+  prefix: string
+  label: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  control: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  register: any
+  onRemove?: () => void
+}) {
+  return (
+    <div className="panel stack-md">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ flex: 1 }}>
+          <p className="eyebrow">{label}</p>
+          <label className="field" style={{ marginTop: '0.5rem' }}>
+            <span>Name / identifier</span>
+            <input type="text" {...register(`${prefix}.name`)} placeholder={label} />
+          </label>
+        </div>
+        {onRemove && (
+          <button
+            type="button"
+            className="button"
+            onClick={onRemove}
+            style={{ marginLeft: '0.75rem', padding: '4px 10px', fontSize: '0.8rem' }}
+            title="Remove this partner"
+          >
+            Remove
+          </button>
+        )}
+      </div>
+
+      <SymptomEditor prefix={prefix} control={control} register={register} />
+
+      <div className="stack-sm">
+        <p className="eyebrow">Exposure window</p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <label className="field">
+            <span>First exposure</span>
+            <input type="date" {...register(`${prefix}.exp_first`)} />
+          </label>
+          <label className="field">
+            <span>Last exposure</span>
+            <input type="date" {...register(`${prefix}.exp_last`)} />
+          </label>
+        </div>
+        <BodyPartsCheckboxes prefix={prefix} register={register} />
+      </div>
+
+      <label className="field">
+        <span>Treatment date</span>
+        <input type="date" {...register(`${prefix}.treatment_date`)} />
+      </label>
     </div>
   )
 }
@@ -290,7 +386,6 @@ function EnhancedCriteriaTable({
         </tr>
       </thead>
       <tbody>
-        {/* Exposure */}
         <tr>
           <td rowSpan={2} style={{ fontWeight: 500, verticalAlign: 'middle' }}>Exposure</td>
           <td style={{ ...tdMuted, fontSize: '0.8rem' }}>Expected</td>
@@ -312,7 +407,6 @@ function EnhancedCriteriaTable({
           </td>
         </tr>
 
-        {/* Exposure modality */}
         <tr>
           <td style={{ fontWeight: 500 }}>Exposure modality</td>
           <td style={{ ...tdMuted, fontSize: '0.8rem' }}>Expected</td>
@@ -320,7 +414,6 @@ function EnhancedCriteriaTable({
           <td style={tdMuted}>{expected.exposure_modality.detail}</td>
         </tr>
 
-        {/* Latency — 3 rows */}
         <tr>
           <td rowSpan={3} style={{ fontWeight: 500, verticalAlign: 'middle' }}>Latency</td>
           <td style={{ fontSize: '0.8rem', color: '#888' }}>Optimistic (min)</td>
@@ -338,7 +431,6 @@ function EnhancedCriteriaTable({
           <td style={tdMuted}>{conservative.latency.detail}</td>
         </tr>
 
-        {/* Natural order */}
         <tr>
           <td style={{ fontWeight: 500 }}>Natural order</td>
           <td style={{ ...tdMuted, fontSize: '0.8rem' }}>Expected</td>
@@ -383,7 +475,6 @@ function VerdictContext({ result }: { result: GhostingAnalysisResult }) {
   const passing: Item[] = []
   const failing: Item[] = []
 
-  // Source scenario
   if (srcExpected.exposure.status === 'pass') passing.push({ scenario: 'Source', text: srcExpected.exposure.detail })
   else if (srcExpected.exposure.status === 'fail') failing.push({ scenario: 'Source', text: `${c1} was likely not infected by ${c2} — the exposure window does not overlap with ${c2}'s ghosted source lesion (${srcLesion.onset} → ${srcLesion.end}).` })
   if (srcExpected.exposure_modality.status === 'pass') passing.push({ scenario: 'Source', text: srcExpected.exposure_modality.detail })
@@ -393,7 +484,6 @@ function VerdictContext({ result }: { result: GhostingAnalysisResult }) {
   if (srcExpected.natural_order.status === 'pass') passing.push({ scenario: 'Source', text: srcExpected.natural_order.detail })
   else if (srcExpected.natural_order.status === 'fail') failing.push({ scenario: 'Source', text: `The ghosted source lesion would have occurred after ${c2}'s existing secondary lesion — primary must precede secondary.` })
 
-  // Spread scenario
   if (sprExpected.exposure.status === 'pass') passing.push({ scenario: 'Spread', text: sprExpected.exposure.detail })
   else if (sprExpected.exposure.status === 'fail') failing.push({ scenario: 'Spread', text: `${c2} was likely not infected by ${c1} — the exposure window does not overlap with ${c1}'s infectious period (${sprLesion.onset} → ${sprLesion.end}).` })
   if (sprExpected.exposure_modality.status === 'pass') passing.push({ scenario: 'Spread', text: sprExpected.exposure_modality.detail })
@@ -431,7 +521,7 @@ function VerdictContext({ result }: { result: GhostingAnalysisResult }) {
 }
 
 // ---------------------------------------------------------------------------
-// Results section
+// Single-pair results section
 // ---------------------------------------------------------------------------
 
 function Results({ result }: { result: GhostingAnalysisResult }) {
@@ -453,15 +543,10 @@ function Results({ result }: { result: GhostingAnalysisResult }) {
   }
 
   return (
-    <section className="stack-lg" style={{ marginTop: '1.5rem' }}>
-      <div style={{ borderTop: '2px solid #E8E5DF', paddingTop: '1.5rem' }}>
-        <p className="eyebrow">Analysis results</p>
-      </div>
-
+    <div className="stack-lg">
       <VerdictBanner verdict={result.verdict} />
       <VerdictContext result={result} />
 
-      {/* Ghosted date metrics */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
         <div className="panel stack-xs">
           <p className="eyebrow">Ghosted source onset</p>
@@ -481,7 +566,6 @@ function Results({ result }: { result: GhostingAnalysisResult }) {
         </div>
       </div>
 
-      {/* Case1 anchor info */}
       <div className="panel stack-xs">
         <p className="eyebrow">Anchor symptom</p>
         <p style={{ fontSize: '0.9rem' }}>
@@ -497,7 +581,6 @@ function Results({ result }: { result: GhostingAnalysisResult }) {
         </p>
       </div>
 
-      {/* Scenario criteria */}
       <div className="panel stack-md">
         <nav className="tab-nav" aria-label="Scenario">
           <button
@@ -516,7 +599,6 @@ function Results({ result }: { result: GhostingAnalysisResult }) {
           </button>
         </nav>
 
-        {/* Hypothesis */}
         <div
           style={{
             background: '#f8f9fa',
@@ -545,7 +627,6 @@ function Results({ result }: { result: GhostingAnalysisResult }) {
         />
       </div>
 
-      {/* Step-by-step log */}
       <div className="panel stack-sm">
         <button
           type="button"
@@ -569,6 +650,57 @@ function Results({ result }: { result: GhostingAnalysisResult }) {
           </pre>
         )}
       </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Multi-pair results display
+// ---------------------------------------------------------------------------
+
+function MultiResults({ pairs }: { pairs: PairResult[] }) {
+  const [openIdx, setOpenIdx] = useState<number>(0)
+
+  return (
+    <section className="stack-lg" style={{ marginTop: '1.5rem' }}>
+      <div style={{ borderTop: '2px solid #E8E5DF', paddingTop: '1.5rem' }}>
+        <p className="eyebrow">Analysis results</p>
+      </div>
+      {pairs.map((pair, i) => (
+        <div key={i} className="panel stack-md">
+          <button
+            type="button"
+            onClick={() => setOpenIdx(openIdx === i ? -1 : i)}
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+              width: '100%',
+              textAlign: 'left',
+            }}
+          >
+            <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{pair.label}</span>
+            {pair.result && (
+              <VerdictBanner verdict={pair.result.verdict} />
+            )}
+            <span style={{ fontSize: '0.8rem', color: '#888', marginLeft: '0.75rem' }}>
+              {openIdx === i ? '▲' : '▼'}
+            </span>
+          </button>
+          {openIdx === i && (
+            <>
+              {pair.error && (
+                <p className="error-text">{pair.error}</p>
+              )}
+              {pair.result && <Results result={pair.result} />}
+            </>
+          )}
+        </div>
+      ))}
     </section>
   )
 }
@@ -578,52 +710,73 @@ function Results({ result }: { result: GhostingAnalysisResult }) {
 // ---------------------------------------------------------------------------
 
 export function QuickGhostPage() {
-  const [result, setResult] = useState<GhostingAnalysisResult | null>(null)
+  const [pairResults, setPairResults] = useState<PairResult[]>([])
   const [apiError, setApiError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const { register, control, handleSubmit, reset } = useForm<QuickGhostForm>({
+  const { register, control, handleSubmit, reset, getValues } = useForm<QuickGhostForm>({
     defaultValues: {
       person_a: { ...DEFAULT_PERSON, name: 'OP' },
-      person_b: { ...DEFAULT_PERSON, name: 'Partner' },
+      partners: [{ ...DEFAULT_PERSON, name: 'Partner 1' }],
     },
   })
 
+  const { fields: partnerFields, append: appendPartner, remove: removePartner } = useFieldArray({
+    control,
+    name: 'partners',
+  })
+
+  // Run OP vs each partner independently
+  async function runAllPairs(values: QuickGhostForm) {
+    const results: PairResult[] = []
+    for (let i = 0; i < values.partners.length; i++) {
+      const partnerName = values.partners[i].name.trim() || `Partner ${i + 1}`
+      const opName = values.person_a.name.trim() || 'OP'
+      const label = `${opName} ↔ ${partnerName}`
+      try {
+        const res = await runQuickGhostingAnalysis(buildPayload(values.person_a, values.partners[i]))
+        results.push({ label, result: res, error: null })
+      } catch (err: unknown) {
+        results.push({ label, result: null, error: err instanceof Error ? err.message : 'Analysis failed.' })
+      }
+    }
+    return results
+  }
+
+  // Run chain: (OP, P1), (P1, P2), (P2, P3), …
+  async function runChain(values: QuickGhostForm) {
+    const all = [values.person_a, ...values.partners]
+    const results: PairResult[] = []
+    for (let i = 0; i < all.length - 1; i++) {
+      const aName = all[i].name.trim() || (i === 0 ? 'OP' : `Partner ${i}`)
+      const bName = all[i + 1].name.trim() || `Partner ${i + 1}`
+      const label = `${aName} → ${bName}`
+      try {
+        const res = await runQuickGhostingAnalysis(buildPayload(all[i], all[i + 1]))
+        results.push({ label, result: res, error: null })
+      } catch (err: unknown) {
+        results.push({ label, result: null, error: err instanceof Error ? err.message : 'Analysis failed.' })
+      }
+    }
+    return results
+  }
+
   async function onSubmit(values: QuickGhostForm) {
     setApiError(null)
-    setResult(null)
+    setPairResults([])
     setLoading(true)
 
     const aSymptoms = toSymptomInputs(values.person_a.symptoms)
-    const bSymptoms = toSymptomInputs(values.person_b.symptoms)
-
-    if (aSymptoms.length === 0 && bSymptoms.length === 0) {
+    const allPartnerSymptoms = values.partners.flatMap(p => toSymptomInputs(p.symptoms))
+    if (aSymptoms.length === 0 && allPartnerSymptoms.length === 0) {
       setApiError('At least one person must have a symptom entered.')
       setLoading(false)
       return
     }
 
-    const aHasExposure = values.person_a.exp_first && values.person_a.exp_last
-    const bHasExposure = values.person_b.exp_first && values.person_b.exp_last
-
     try {
-      const res = await runQuickGhostingAnalysis({
-        op_name: values.person_a.name.trim() || 'Person A',
-        op_symptoms: aSymptoms,
-        op_exposure: aHasExposure
-          ? { first: values.person_a.exp_first, last: values.person_a.exp_last, exposure_modalities: [] }
-          : null,
-        op_treatment_date: values.person_a.treatment_date || null,
-        op_body_parts: values.person_a.body_parts,
-        partner_name: values.person_b.name.trim() || 'Person B',
-        partner_symptoms: bSymptoms,
-        partner_exposure: bHasExposure
-          ? { first: values.person_b.exp_first, last: values.person_b.exp_last, exposure_modalities: [] }
-          : null,
-        partner_treatment_date: values.person_b.treatment_date || null,
-        partner_body_parts: values.person_b.body_parts,
-      })
-      setResult(res)
+      const results = await runAllPairs(values)
+      setPairResults(results)
     } catch (err: unknown) {
       setApiError(err instanceof Error ? err.message : 'Analysis failed.')
     } finally {
@@ -631,12 +784,35 @@ export function QuickGhostPage() {
     }
   }
 
+  async function handleChain() {
+    setApiError(null)
+    setPairResults([])
+    setLoading(true)
+    const values = getValues()
+
+    const all = [values.person_a, ...values.partners]
+    if (all.length < 2) {
+      setApiError('Chain analysis requires at least 2 people (OP + 1 partner).')
+      setLoading(false)
+      return
+    }
+
+    try {
+      const results = await runChain(values)
+      setPairResults(results)
+    } catch (err: unknown) {
+      setApiError(err instanceof Error ? err.message : 'Chain analysis failed.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   function handleClear() {
-    setResult(null)
+    setPairResults([])
     setApiError(null)
     reset({
       person_a: { ...DEFAULT_PERSON, name: 'OP' },
-      person_b: { ...DEFAULT_PERSON, name: 'Partner' },
+      partners: [{ ...DEFAULT_PERSON, name: 'Partner 1' }],
     })
   }
 
@@ -649,12 +825,12 @@ export function QuickGhostPage() {
             <p className="eyebrow">Tools</p>
             <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Quick Ghosting Analysis</h1>
           </div>
-          <p style={{ color: '#555', fontSize: '0.9rem', maxWidth: 620 }}>
-            Run the VCA ghosting engine on any two people — no case required.
-            Enter dates and symptoms, then click Run.
+          <p style={{ color: '#555', fontSize: '0.9rem', maxWidth: 700 }}>
+            Run the VCA ghosting engine on any group of people — no case required.
+            Add partners, then use <strong>Run all pairs</strong> to compare OP against each partner,
+            or <strong>Run chain</strong> to trace OP → P1 → P2 → … in sequence.
           </p>
 
-          {/* Clinical reference */}
           <details style={{ marginTop: '0.25rem' }}>
             <summary style={{ cursor: 'pointer', fontSize: '0.85rem', color: '#444', fontWeight: 500 }}>
               Clinical reference constants
@@ -672,71 +848,47 @@ export function QuickGhostPage() {
 
         {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-            {/* Person A */}
-            <div className="panel stack-md">
-              <div>
-                <p className="eyebrow">Person A</p>
-                <label className="field" style={{ marginTop: '0.5rem' }}>
-                  <span>Name / identifier</span>
-                  <input type="text" {...register('person_a.name')} placeholder="OP" />
-                </label>
-              </div>
+          {/* Person A (OP) */}
+          <PersonPanel
+            prefix="person_a"
+            label="Person A (OP)"
+            control={control}
+            register={register}
+          />
 
-              <SymptomEditor prefix="person_a" control={control} register={register} />
-
-              <div className="stack-sm">
-                <p className="eyebrow">Exposure window</p>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                  <label className="field">
-                    <span>First exposure</span>
-                    <input type="date" {...register('person_a.exp_first')} />
-                  </label>
-                  <label className="field">
-                    <span>Last exposure</span>
-                    <input type="date" {...register('person_a.exp_last')} />
-                  </label>
-                </div>
-                <BodyPartsCheckboxes prefix="person_a" register={register} />
-              </div>
-
-              <label className="field">
-                <span>Treatment date</span>
-                <input type="date" {...register('person_a.treatment_date')} />
-              </label>
+          {/* Partners */}
+          <div className="stack-md" style={{ marginTop: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <p className="eyebrow" style={{ margin: 0 }}>Partners</p>
+              <button
+                type="button"
+                className="button button-primary"
+                onClick={() =>
+                  appendPartner({ ...DEFAULT_PERSON, name: `Partner ${partnerFields.length + 1}` })
+                }
+                style={{ fontSize: '0.85rem', padding: '4px 12px' }}
+              >
+                + Add partner
+              </button>
             </div>
 
-            {/* Person B */}
-            <div className="panel stack-md">
-              <div>
-                <p className="eyebrow">Person B</p>
-                <label className="field" style={{ marginTop: '0.5rem' }}>
-                  <span>Name / identifier</span>
-                  <input type="text" {...register('person_b.name')} placeholder="Partner" />
-                </label>
-              </div>
+            {partnerFields.length === 0 && (
+              <p style={{ color: '#888', fontSize: '0.875rem' }}>
+                No partners yet — click Add partner to add one.
+              </p>
+            )}
 
-              <SymptomEditor prefix="person_b" control={control} register={register} />
-
-              <div className="stack-sm">
-                <p className="eyebrow">Exposure window</p>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                  <label className="field">
-                    <span>First exposure</span>
-                    <input type="date" {...register('person_b.exp_first')} />
-                  </label>
-                  <label className="field">
-                    <span>Last exposure</span>
-                    <input type="date" {...register('person_b.exp_last')} />
-                  </label>
-                </div>
-                <BodyPartsCheckboxes prefix="person_b" register={register} />
-              </div>
-
-              <label className="field">
-                <span>Treatment date</span>
-                <input type="date" {...register('person_b.treatment_date')} />
-              </label>
+            <div style={{ display: 'grid', gridTemplateColumns: partnerFields.length > 1 ? '1fr 1fr' : '1fr', gap: '1.5rem' }}>
+              {partnerFields.map((field, i) => (
+                <PersonPanel
+                  key={field.id}
+                  prefix={`partners.${i}`}
+                  label={`Partner ${i + 1}`}
+                  control={control}
+                  register={register}
+                  onRemove={partnerFields.length > 1 ? () => removePartner(i) : undefined}
+                />
+              ))}
             </div>
           </div>
 
@@ -746,9 +898,19 @@ export function QuickGhostPage() {
               className="button button-primary"
               type="submit"
               disabled={loading}
-              style={{ minWidth: 140 }}
+              style={{ minWidth: 160 }}
             >
-              {loading ? 'Running…' : '▶ Run analysis'}
+              {loading ? 'Running…' : '▶ Run all pairs'}
+            </button>
+            <button
+              type="button"
+              className="button"
+              onClick={handleChain}
+              disabled={loading}
+              style={{ minWidth: 140 }}
+              title="Run chain: OP → P1 → P2 → … treating each person as the source for the next"
+            >
+              ⛓ Run chain
             </button>
             <button type="button" className="button" onClick={handleClear} disabled={loading}>
               Clear
@@ -760,7 +922,7 @@ export function QuickGhostPage() {
         </form>
 
         {/* Results */}
-        {result && <Results result={result} />}
+        {pairResults.length > 0 && <MultiResults pairs={pairResults} />}
       </div>
     </div>
   )
