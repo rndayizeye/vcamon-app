@@ -7,7 +7,15 @@ from functools import lru_cache
 from typing import Any
 from urllib import error, request
 
+import jwt
 from fastapi import HTTPException, Request, status
+from jwt import PyJWKClient
+
+# Supabase signs user access tokens either symmetrically with the project's
+# shared secret (HS256) or asymmetrically with a rotating key set (ES256/RS256)
+# exposed via JWKS. We support both for local verification.
+_SYMMETRIC_ALGORITHMS = ("HS256",)
+_ASYMMETRIC_ALGORITHMS = ("ES256", "RS256")
 
 
 @dataclass(frozen=True)
@@ -18,12 +26,31 @@ class AuthSettings:
     supabase_url: str | None
     supabase_key: str | None
     timeout_seconds: float
+    jwt_secret: str | None
+    jwt_audience: str
 
     @property
     def ready(self) -> bool:
         if not self.enabled:
             return True
         return bool(self.supabase_url and self.supabase_key)
+
+    @property
+    def local_verification_enabled(self) -> bool:
+        """Verify Supabase JWTs locally instead of calling the userinfo
+        endpoint on every request. Active once a signing source is
+        configured: either the shared ``SUPABASE_JWT_SECRET`` (HS256) or a
+        ``SUPABASE_URL`` whose JWKS endpoint serves asymmetric keys.
+
+        When neither is configured we fall back to the remote userinfo call so
+        existing deployments keep working unchanged."""
+        return bool(self.jwt_secret or self.supabase_url)
+
+    @property
+    def jwks_url(self) -> str | None:
+        if not self.supabase_url:
+            return None
+        return f"{self.supabase_url}/auth/v1/.well-known/jwks.json"
 
     @property
     def missing_configuration(self) -> list[str]:
@@ -95,6 +122,8 @@ def get_auth_settings() -> AuthSettings:
             or None
         ),
         timeout_seconds=float(os.getenv("SUPABASE_AUTH_TIMEOUT_SECONDS", "5")),
+        jwt_secret=(os.getenv("SUPABASE_JWT_SECRET") or "").strip() or None,
+        jwt_audience=(os.getenv("SUPABASE_JWT_AUDIENCE") or "authenticated").strip(),
     )
 
 
@@ -180,31 +209,103 @@ def fetch_supabase_user(
     return user_payload
 
 
+@lru_cache
+def _get_jwks_client(jwks_url: str) -> PyJWKClient:
+    # PyJWKClient fetches the key set lazily and caches signing keys in-process,
+    # so repeated requests don't re-download the JWKS on every call.
+    return PyJWKClient(jwks_url)
+
+
+def verify_jwt(settings: AuthSettings, access_token: str) -> dict[str, Any] | None:
+    """Verify a Supabase access token's signature locally and return its claims.
+
+    Returns ``None`` for a token that is malformed, expired, or otherwise
+    fails verification (treated as unauthenticated). Raises
+    ``AuthConfigurationError`` when the token's algorithm needs a signing
+    source that is not configured, and ``AuthServiceError`` when the JWKS
+    cannot be reached for an asymmetric token.
+    """
+    try:
+        header = jwt.get_unverified_header(access_token)
+    except jwt.InvalidTokenError:
+        return None
+
+    algorithm = header.get("alg")
+    decode_options = {"require": ["exp"]}
+
+    if algorithm in _SYMMETRIC_ALGORITHMS:
+        if not settings.jwt_secret:
+            raise AuthConfigurationError(
+                "Token is signed with HS256 but SUPABASE_JWT_SECRET is not set."
+            )
+        key: Any = settings.jwt_secret
+        algorithms = list(_SYMMETRIC_ALGORITHMS)
+    elif algorithm in _ASYMMETRIC_ALGORITHMS:
+        if not settings.jwks_url:
+            raise AuthConfigurationError(
+                "Token is signed with an asymmetric key but SUPABASE_URL "
+                "(for JWKS discovery) is not set."
+            )
+        try:
+            key = _get_jwks_client(settings.jwks_url).get_signing_key_from_jwt(
+                access_token
+            ).key
+        except jwt.PyJWKClientError as exc:
+            raise AuthServiceError(
+                f"Unable to resolve Supabase signing key: {exc}"
+            ) from exc
+        algorithms = [algorithm]
+    else:
+        return None
+
+    try:
+        claims = jwt.decode(
+            access_token,
+            key,
+            algorithms=algorithms,
+            audience=settings.jwt_audience,
+            options=decode_options,
+        )
+    except jwt.InvalidTokenError:
+        return None
+
+    return claims if isinstance(claims, dict) else None
+
+
+def _build_authenticated_user(payload: dict[str, Any]) -> AuthenticatedUser:
+    # Userinfo responses carry the user id as "id"; JWT claims carry it as the
+    # standard "sub" claim. Accept either so both verification paths converge.
+    user_id = payload.get("id") or payload.get("sub")
+    if not isinstance(user_id, str) or not user_id:
+        raise AuthServiceError("Supabase auth payload is missing a valid user id")
+
+    app_metadata = payload.get("app_metadata")
+    user_metadata = payload.get("user_metadata")
+
+    return AuthenticatedUser(
+        id=user_id,
+        email=payload.get("email") if isinstance(payload.get("email"), str) else None,
+        role=_extract_role(payload),
+        app_metadata=app_metadata if isinstance(app_metadata, dict) else {},
+        user_metadata=user_metadata if isinstance(user_metadata, dict) else {},
+        raw_user=payload,
+    )
+
+
 def authenticate_access_token(
     access_token: str, settings: AuthSettings | None = None
 ) -> AuthenticatedUser | None:
     resolved_settings = settings or get_auth_settings()
-    user_payload = fetch_supabase_user(resolved_settings, access_token)
-    if not user_payload:
+
+    if resolved_settings.local_verification_enabled:
+        payload = verify_jwt(resolved_settings, access_token)
+    else:
+        payload = fetch_supabase_user(resolved_settings, access_token)
+
+    if not payload:
         return None
 
-    user_id = user_payload.get("id")
-    if not isinstance(user_id, str) or not user_id:
-        raise AuthServiceError("Supabase auth payload is missing a valid user id")
-
-    app_metadata = user_payload.get("app_metadata")
-    user_metadata = user_payload.get("user_metadata")
-
-    return AuthenticatedUser(
-        id=user_id,
-        email=user_payload.get("email")
-        if isinstance(user_payload.get("email"), str)
-        else None,
-        role=_extract_role(user_payload),
-        app_metadata=app_metadata if isinstance(app_metadata, dict) else {},
-        user_metadata=user_metadata if isinstance(user_metadata, dict) else {},
-        raw_user=user_payload,
-    )
+    return _build_authenticated_user(payload)
 
 
 def get_request_user(request: Request) -> AuthenticatedUser | None:

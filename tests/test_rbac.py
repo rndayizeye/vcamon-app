@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import os
+import time
 
+import jwt
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -12,31 +14,42 @@ os.environ.setdefault("DATABASE_URL", "sqlite://")
 os.environ["AUTH_ENABLED"] = "false"
 
 from app.db.database import Base
-from fastapi_app.app import auth as auth_module
 from fastapi_app.app.auth import clear_auth_settings_cache
 from fastapi_app.app.db import get_db
 from fastapi_app.main import app
 
-WORKER = {"Authorization": "Bearer worker-token"}
-SUPERVISOR = {"Authorization": "Bearer supervisor-token"}
+# HS256 secret the auth layer verifies test tokens against (SUPABASE_JWT_SECRET).
+TEST_JWT_SECRET = "test-jwt-secret-at-least-32-bytes-long!!"
 
 
-def _fake_user(settings, token: str) -> dict:
-    if "supervisor" in token:
-        return {
-            "id": "user-supervisor",
-            "email": "supervisor@example.com",
-            "role": "authenticated",
-            "app_metadata": {"role": "supervisor"},
-            "user_metadata": {},
-        }
-    return {
-        "id": "user-worker",
-        "email": "worker@example.com",
-        "role": "authenticated",
-        "app_metadata": {"role": "case_worker"},
+def make_jwt(
+    *, sub: str, email: str, role: str | None, top_role: str = "authenticated"
+) -> str:
+    """Mint a Supabase-style HS256 access token signed with TEST_JWT_SECRET."""
+    now = int(time.time())
+    claims: dict = {
+        "sub": sub,
+        "email": email,
+        "aud": "authenticated",
+        "role": top_role,
+        "app_metadata": {"role": role} if role else {},
         "user_metadata": {},
+        "iat": now,
+        "exp": now + 3600,
     }
+    return jwt.encode(claims, TEST_JWT_SECRET, algorithm="HS256")
+
+
+def _bearer(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+WORKER = _bearer(
+    make_jwt(sub="user-worker", email="worker@example.com", role="case_worker")
+)
+SUPERVISOR = _bearer(
+    make_jwt(sub="user-supervisor", email="supervisor@example.com", role="supervisor")
+)
 
 
 @pytest.fixture(autouse=True)
@@ -48,11 +61,11 @@ def _reset_cache():
 
 @pytest.fixture
 def auth_client(monkeypatch: pytest.MonkeyPatch):
-    """TestClient with AUTH_ENABLED=true and fake Supabase user lookup."""
+    """TestClient with AUTH_ENABLED=true and local HS256 JWT verification."""
     monkeypatch.setenv("AUTH_ENABLED", "true")
     monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
     monkeypatch.setenv("SUPABASE_ANON_KEY", "sb_key_example")
-    monkeypatch.setattr(auth_module, "fetch_supabase_user", _fake_user)
+    monkeypatch.setenv("SUPABASE_JWT_SECRET", TEST_JWT_SECRET)
     clear_auth_settings_cache()
 
     engine = create_engine(
@@ -102,24 +115,13 @@ def test_supervisor_permission_flags(auth_client: TestClient):
     assert all(resp.json().values())
 
 
-def test_authenticated_jwt_role_has_operator_permissions(
-    auth_client: TestClient, monkeypatch: pytest.MonkeyPatch
-):
+def test_authenticated_jwt_role_has_operator_permissions(auth_client: TestClient):
     """The 'authenticated' JWT role with no app_metadata.role override is treated as operator."""
-    monkeypatch.setattr(
-        auth_module,
-        "fetch_supabase_user",
-        lambda s, t: {
-            "id": "user-plain",
-            "email": "plain@example.com",
-            "role": "authenticated",
-            "app_metadata": {},
-            "user_metadata": {},
-        },
+    plain = _bearer(
+        make_jwt(sub="user-plain", email="plain@example.com", role=None)
     )
-    clear_auth_settings_cache()
 
-    resp = auth_client.get("/api/auth/permissions", headers={"Authorization": "Bearer any-token"})
+    resp = auth_client.get("/api/auth/permissions", headers=plain)
     assert resp.status_code == 200
     data = resp.json()
     assert data["can_read"] is True
