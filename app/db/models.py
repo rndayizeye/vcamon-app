@@ -27,7 +27,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from app.db.database import Base
 
@@ -210,21 +210,13 @@ SUBJECT_FIELDS: frozenset[str] = frozenset({
     "reason_for_exam",
     "treatment_date",
     "medical_info",
-    "lab_1",
-    "lab_2",
-    "lab_3",
     "treatment",
-    "lesion_type",
-    "symptom",
     "symptom_classification",
     "symptom_onset_date",
     "symptom_duration_days",
     "symptom_ongoing",
     "historical_primary_chancre",
     "historical_primary_date",
-    "lab_1_date",
-    "lab_2_date",
-    "lab_3_date",
 })
 
 
@@ -263,21 +255,9 @@ class Subject(Base):
     treatment_date: Mapped[date | None] = mapped_column(Date)
     medical_info: Mapped[str | None] = mapped_column(Text)
 
-    # Legacy lab slots (deprecated — new writes set to None; kept for migration)
-    lab_1: Mapped[str | None] = mapped_column(Enum(LabResult, name="lab_result_1_enum"))
-    lab_2: Mapped[str | None] = mapped_column(
-        Enum(TreponemalResult, name="trep_result_enum")
-    )
-    lab_3: Mapped[str | None] = mapped_column(String(100))
-
     treatment: Mapped[str | None] = mapped_column(
         Enum(Treatment, name="treatment_enum")
     )
-    # Legacy symptom/lesion fields (deprecated — new writes set to None)
-    lesion_type: Mapped[str | None] = mapped_column(
-        Enum(LesionType, name="lesion_enum")
-    )
-    symptom: Mapped[str | None] = mapped_column(Enum(Symptom, name="symptom_enum"))
 
     symptom_classification: Mapped[str | None] = mapped_column(
         Enum(SymptomClassification, name="symptom_class_enum")
@@ -288,11 +268,6 @@ class Subject(Base):
 
     historical_primary_chancre: Mapped[bool | None] = mapped_column(Boolean)
     historical_primary_date: Mapped[date | None] = mapped_column(Date)
-
-    # Legacy lab date slots (deprecated)
-    lab_1_date: Mapped[date | None] = mapped_column(Date)
-    lab_2_date: Mapped[date | None] = mapped_column(Date)
-    lab_3_date: Mapped[date | None] = mapped_column(Date)
 
     lab_results: Mapped[list["LabResultEntry"]] = relationship(
         "LabResultEntry",
@@ -374,21 +349,13 @@ class Case(Base):
     reason_for_exam = _sprop("reason_for_exam")
     treatment_date = _sprop("treatment_date")
     medical_info = _sprop("medical_info")
-    lab_1 = _sprop("lab_1")
-    lab_2 = _sprop("lab_2")
-    lab_3 = _sprop("lab_3")
     treatment = _sprop("treatment")
-    lesion_type = _sprop("lesion_type")
-    symptom = _sprop("symptom")
     symptom_classification = _sprop("symptom_classification")
     symptom_onset_date = _sprop("symptom_onset_date")
     symptom_duration_days = _sprop("symptom_duration_days")
     symptom_ongoing = _sprop("symptom_ongoing")
     historical_primary_chancre = _sprop("historical_primary_chancre")
     historical_primary_date = _sprop("historical_primary_date")
-    lab_1_date = _sprop("lab_1_date")
-    lab_2_date = _sprop("lab_2_date")
-    lab_3_date = _sprop("lab_3_date")
 
     def __repr__(self) -> str:
         return f"<Case id={self.id} patient={self.patient_name!r}>"
@@ -452,21 +419,13 @@ class Partner(Base):
     reason_for_exam = _sprop("reason_for_exam")
     treatment_date = _sprop("treatment_date")
     medical_info = _sprop("medical_info")
-    lab_1 = _sprop("lab_1")
-    lab_2 = _sprop("lab_2")
-    lab_3 = _sprop("lab_3")
     treatment = _sprop("treatment")
-    lesion_type = _sprop("lesion_type")
-    symptom = _sprop("symptom")
     symptom_classification = _sprop("symptom_classification")
     symptom_onset_date = _sprop("symptom_onset_date")
     symptom_duration_days = _sprop("symptom_duration_days")
     symptom_ongoing = _sprop("symptom_ongoing")
     historical_primary_chancre = _sprop("historical_primary_chancre")
     historical_primary_date = _sprop("historical_primary_date")
-    lab_1_date = _sprop("lab_1_date")
-    lab_2_date = _sprop("lab_2_date")
-    lab_3_date = _sprop("lab_3_date")
 
     def __repr__(self) -> str:
         return f"<Partner id={self.id} #{self.partner_number} case={self.case_id}>"
@@ -605,6 +564,12 @@ class ArrowLink(Base):
 
     case: Mapped["Case"] = relationship("Case", back_populates="arrow_links")
 
+    @validates("from_ref", "to_ref")
+    def _validate_ref(self, key: str, value: str) -> str:
+        if value != "OP" and not value.isdigit():
+            raise ValueError(f"{key} must be 'OP' or a numeric string, got {value!r}")
+        return value
+
     def __repr__(self) -> str:
         return f"<ArrowLink {self.from_ref} -> {self.to_ref} case={self.case_id}>"
 
@@ -633,6 +598,12 @@ class Ghosting(Base):
     notes: Mapped[str | None] = mapped_column(Text)
 
     case: Mapped["Case"] = relationship("Case", back_populates="ghostings")
+
+    @validates("from_ref", "to_ref")
+    def _validate_ref(self, key: str, value: str | None) -> str | None:
+        if value is not None and value != "OP" and not value.isdigit():
+            raise ValueError(f"{key} must be 'OP' or a numeric string, got {value!r}")
+        return value
 
     def __repr__(self) -> str:
         return f"<Ghosting type={self.ghosting_type} case={self.case_id}>"

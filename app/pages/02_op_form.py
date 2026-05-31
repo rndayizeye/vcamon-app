@@ -428,13 +428,6 @@ if submitted or go_partners or go_map:
             historical_primary_chancre=derived_historical_primary_chancre,
             historical_primary_date=derived_historical_primary_date,
             medical_info=val_or_none(medical_info),
-            # Keep legacy fields as None
-            lab_1=None,
-            lab_2=None,
-            lab_3=None,
-            lab_1_date=None,
-            lab_2_date=None,
-            lab_3_date=None,
         )
 
         with SessionLocal() as db:
@@ -586,7 +579,7 @@ if case:
     c3.metric(
         "Treatment date", str(case.treatment_date) if case.treatment_date else "—"
     )
-    c4.metric("Lab 1", case.lab_1 or "—")
+    c4.metric("Lab 1", "—")
 
     with st.expander("Full record (debug)", expanded=False):
         st.json(
@@ -598,11 +591,6 @@ if case:
                 "reason_for_exam": case.reason_for_exam,
                 "treatment_date": str(case.treatment_date),
                 "treatment": case.treatment,
-                "lesion_type": case.lesion_type,
-                "symptom": case.symptom,
                 "medical_info": case.medical_info,
-                "lab_1": case.lab_1,
-                "lab_2": case.lab_2,
-                "lab_3": case.lab_3,
             }
         )

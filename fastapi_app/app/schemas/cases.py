@@ -5,13 +5,9 @@ from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict, computed_field, model_validator
 
 from app.db.models import (
-    LabResult,
-    LesionType,
     ReasonForExam,
-    Symptom,
     SymptomClassification,
     Treatment,
-    TreponemalResult,
 )
 
 
@@ -44,21 +40,13 @@ class CaseBase(DiagnosisCodeInputAliasModel):
     reason_for_exam: ReasonForExam | None = None
     treatment_date: date | None = None
     medical_info: str | None = None
-    lab_1: LabResult | None = None
-    lab_2: TreponemalResult | None = None
-    lab_3: str | None = None
     treatment: Treatment | None = None
-    lesion_type: LesionType | None = None
-    symptom: Symptom | None = None
     symptom_classification: SymptomClassification | None = None
     symptom_onset_date: date | None = None
     symptom_duration_days: int | None = None
     symptom_ongoing: bool = False
     historical_primary_chancre: bool | None = None
     historical_primary_date: date | None = None
-    lab_1_date: date | None = None
-    lab_2_date: date | None = None
-    lab_3_date: date | None = None
 
 
 class CaseCreate(CaseBase):
@@ -73,21 +61,13 @@ class CaseUpdate(DiagnosisCodeInputAliasModel):
     reason_for_exam: ReasonForExam | None = None
     treatment_date: date | None = None
     medical_info: str | None = None
-    lab_1: LabResult | None = None
-    lab_2: TreponemalResult | None = None
-    lab_3: str | None = None
     treatment: Treatment | None = None
-    lesion_type: LesionType | None = None
-    symptom: Symptom | None = None
     symptom_classification: SymptomClassification | None = None
     symptom_onset_date: date | None = None
     symptom_duration_days: int | None = None
     symptom_ongoing: bool | None = None
     historical_primary_chancre: bool | None = None
     historical_primary_date: date | None = None
-    lab_1_date: date | None = None
-    lab_2_date: date | None = None
-    lab_3_date: date | None = None
 
 
 class CaseSummary(ORMBaseModel):
@@ -124,21 +104,13 @@ class CaseRead(ORMBaseModel):
     reason_for_exam: ReasonForExam | None
     treatment_date: date | None
     medical_info: str | None
-    lab_1: LabResult | None
-    lab_2: TreponemalResult | None
-    lab_3: str | None
     treatment: Treatment | None
-    lesion_type: LesionType | None
-    symptom: Symptom | None
     symptom_classification: SymptomClassification | None
     symptom_onset_date: date | None
     symptom_duration_days: int | None
     symptom_ongoing: bool
     historical_primary_chancre: bool | None
     historical_primary_date: date | None
-    lab_1_date: date | None
-    lab_2_date: date | None
-    lab_3_date: date | None
     created_at: datetime | None
     updated_at: datetime | None
 
@@ -154,21 +126,13 @@ class PartnerBase(BaseModel):
     reason_for_exam: ReasonForExam | None = None
     treatment_date: date | None = None
     medical_info: str | None = None
-    lab_1: LabResult | None = None
-    lab_2: TreponemalResult | None = None
-    lab_3: str | None = None
     treatment: Treatment | None = None
-    lesion_type: LesionType | None = None
-    symptom: Symptom | None = None
     symptom_classification: SymptomClassification | None = None
     symptom_onset_date: date | None = None
     symptom_duration_days: int | None = None
     symptom_ongoing: bool = False
     historical_primary_chancre: bool | None = None
     historical_primary_date: date | None = None
-    lab_1_date: date | None = None
-    lab_2_date: date | None = None
-    lab_3_date: date | None = None
 
 
 class PartnerCreate(PartnerBase):
@@ -181,21 +145,13 @@ class PartnerUpdate(BaseModel):
     reason_for_exam: ReasonForExam | None = None
     treatment_date: date | None = None
     medical_info: str | None = None
-    lab_1: LabResult | None = None
-    lab_2: TreponemalResult | None = None
-    lab_3: str | None = None
     treatment: Treatment | None = None
-    lesion_type: LesionType | None = None
-    symptom: Symptom | None = None
     symptom_classification: SymptomClassification | None = None
     symptom_onset_date: date | None = None
     symptom_duration_days: int | None = None
     symptom_ongoing: bool | None = None
     historical_primary_chancre: bool | None = None
     historical_primary_date: date | None = None
-    lab_1_date: date | None = None
-    lab_2_date: date | None = None
-    lab_3_date: date | None = None
 
 
 class PartnerLinkCase(BaseModel):
@@ -210,20 +166,12 @@ class PartnerRead(ORMBaseModel):
     reason_for_exam: ReasonForExam | None
     treatment_date: date | None
     medical_info: str | None
-    lab_1: LabResult | None
-    lab_2: TreponemalResult | None
-    lab_3: str | None
     treatment: Treatment | None
-    lesion_type: LesionType | None
-    symptom: Symptom | None
     symptom_classification: SymptomClassification | None
     symptom_onset_date: date | None
     symptom_duration_days: int | None
     symptom_ongoing: bool
     historical_primary_chancre: bool | None
     historical_primary_date: date | None
-    lab_1_date: date | None
-    lab_2_date: date | None
-    lab_3_date: date | None
     created_at: datetime | None
     linked_case_id: int | None = None

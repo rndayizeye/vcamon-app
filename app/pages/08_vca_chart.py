@@ -200,11 +200,11 @@ people = []
 op_entry = {
     "id": "OP",
     "label": f"{case.patient_name} (OP)",
-    "lesion_type": primary_sym_case.lesion_type if primary_sym_case else case.lesion_type,
-    "symptom": primary_sym_case.symptom if primary_sym_case else case.symptom,
+    "lesion_type": primary_sym_case.symptom_type if primary_sym_case else None,
+    "symptom": primary_sym_case.classification if primary_sym_case else None,
     "treatment_date": case.treatment_date,
-    "lab_1": case.lab_1,
-    "lab_2": case.lab_2,
+    "lab_1": None,
+    "lab_2": None,
     "lot": case.lot,
     "first_exposure": None,
     "last_exposure": None,
@@ -232,11 +232,11 @@ for p in partners:
         {
             "id": str(p.partner_number),
             "label": f"P{p.partner_number} — {p.name or 'Unnamed'}",
-            "lesion_type": primary_sym_partner.lesion_type if primary_sym_partner else p.lesion_type,
-            "symptom": primary_sym_partner.symptom if primary_sym_partner else p.symptom,
+            "lesion_type": primary_sym_partner.symptom_type if primary_sym_partner else None,
+            "symptom": primary_sym_partner.classification if primary_sym_partner else None,
             "treatment_date": p.treatment_date,
-            "lab_1": p.lab_1,
-            "lab_2": p.lab_2,
+            "lab_1": None,
+            "lab_2": None,
             "lot": case.lot,
             "first_exposure": relationship.exposure_first_date
             if relationship

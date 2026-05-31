@@ -536,13 +536,6 @@ if submitted or add_another or go_map:
             if historical_primary_date
             else None,
             medical_info=val_or_none(medical_info),
-            # Keep legacy fields as None
-            lab_1=None,
-            lab_2=None,
-            lab_3=None,
-            lab_1_date=None,
-            lab_2_date=None,
-            lab_3_date=None,
         )
 
         with SessionLocal() as db:
