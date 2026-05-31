@@ -14,7 +14,7 @@ After running the analysis the page shows:
 import pandas as pd
 import streamlit as st
 
-from app.db.database import SessionLocal
+from app.db.database import SessionLocal, write_db
 from app.db.models import GhostingType
 from app.db.queries import (
     create_ghosting,
@@ -618,7 +618,7 @@ save_spread = st.checkbox(
 
 if st.button("💾  Save selected lesions", type="primary"):
     saved = []
-    with SessionLocal() as db:
+    with write_db() as db:
         p1_ref = (
             "OP"
             if result.p1_name == case.patient_name
@@ -727,7 +727,7 @@ if ghostings:
         )
     with dc2:
         if st.button("✕  Remove", use_container_width=True):
-            with SessionLocal() as db:
+            with write_db() as db:
                 delete_ghosting(db, del_id)
             st.success("Record removed.")
             st.rerun()

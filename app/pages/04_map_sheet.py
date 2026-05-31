@@ -13,7 +13,7 @@ in models.py — no item labels are stored in the database.
 import pandas as pd
 import streamlit as st
 
-from app.db.database import SessionLocal
+from app.db.database import SessionLocal, write_db
 from app.db.models import MAP_ITEMS
 from app.db.queries import (
     get_case_by_id,
@@ -309,7 +309,7 @@ with col_clear:
 
 if save_clicked:
     saved_count = 0
-    with SessionLocal() as db:
+    with write_db() as db:
         for item_num, meta in MAP_ITEMS.items():
             if not meta["label"]:
                 continue
@@ -342,7 +342,7 @@ if save_clicked:
     st.rerun()
 
 if clear_clicked:
-    with SessionLocal() as db:
+    with write_db() as db:
         for item_num in MAP_ITEMS:
             upsert_map_entry(
                 db=db,

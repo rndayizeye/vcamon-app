@@ -58,3 +58,20 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+from contextlib import contextmanager  # noqa: E402
+
+
+@contextmanager
+def write_db():
+    """Context manager for write operations: commits on success, rolls back on error."""
+    db = SessionLocal()
+    try:
+        yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()

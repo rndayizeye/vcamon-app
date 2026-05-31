@@ -20,7 +20,7 @@ import pandas as pd
 import streamlit as st
 from streamlit_agraph import Config, Edge, Node, agraph
 
-from app.db.database import SessionLocal
+from app.db.database import SessionLocal, write_db
 from app.db.models import ArrowLink
 from app.db.queries import (
     get_case_by_id,
@@ -56,7 +56,7 @@ def get_arrow_links(db, case_id: int) -> list[ArrowLink]:
 def create_arrow_link(db, case_id: int, from_ref: str, to_ref: str) -> ArrowLink:
     link = ArrowLink(case_id=case_id, from_ref=from_ref, to_ref=to_ref)
     db.add(link)
-    db.commit()
+    db.flush()
     db.refresh(link)
     return link
 
@@ -66,7 +66,7 @@ def delete_arrow_link(db, link_id: int) -> bool:
     if not link:
         return False
     db.delete(link)
-    db.commit()
+    db.flush()
     return True
 
 
@@ -353,7 +353,7 @@ with tab_graph:
                 for e in errors:
                     st.error(e)
             else:
-                with SessionLocal() as db:
+                with write_db() as db:
                     if link_exists(db, case_id, from_ref, to_ref):
                         st.warning("That link already exists.")
                     else:
@@ -386,7 +386,7 @@ with tab_graph:
             remove_btn = st.form_submit_button("✕  Remove", use_container_width=True)
 
         if remove_btn:
-            with SessionLocal() as db:
+            with write_db() as db:
                 if delete_arrow_link(db, remove_id):
                     st.success("Link removed.")
                     st.rerun()
@@ -484,7 +484,7 @@ def create_ghosting(db, case_id, ghosting_type, from_ref, to_ref, notes):
         notes=notes,
     )
     db.add(g)
-    db.commit()
+    db.flush()
     db.refresh(g)
     return g
 
@@ -494,7 +494,7 @@ def delete_ghosting(db, ghosting_id):
     if not g:
         return False
     db.delete(g)
-    db.commit()
+    db.flush()
     return True
 
 
@@ -534,7 +534,7 @@ with gcol2:
         ghost_btn = st.form_submit_button("➕  Add ghosting", use_container_width=True)
 
     if ghost_btn:
-        with SessionLocal() as db:
+        with write_db() as db:
             create_ghosting(
                 db,
                 case_id=case_id,
@@ -564,7 +564,7 @@ with gcol2:
             )
 
         if remove_ghost_btn:
-            with SessionLocal() as db:
+            with write_db() as db:
                 delete_ghosting(db, remove_ghost_id)
             st.success("Ghosting record removed.")
             st.rerun()

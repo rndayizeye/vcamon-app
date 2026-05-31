@@ -16,7 +16,7 @@ import pandas as pd
 import streamlit as st
 
 from app.components.dropdowns import enum_options, val_or_none
-from app.db.database import SessionLocal
+from app.db.database import SessionLocal, write_db
 from app.db.models import (
     LesionType,
     NonTreponemalTestType,
@@ -538,7 +538,7 @@ if submitted or add_another or go_map:
             medical_info=val_or_none(medical_info),
         )
 
-        with SessionLocal() as db:
+        with write_db() as db:
             if partner:
                 saved = update_partner(db, partner.id, **payload)
                 partner_id = saved.id

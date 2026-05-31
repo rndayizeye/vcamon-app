@@ -100,7 +100,7 @@ def create_case_partner_relationship(
         partner_body_parts=_serialize_body_parts(partner_body_parts),
     )
     db.add(rel)
-    db.commit()
+    db.flush()
     db.refresh(rel)
     return rel
 
@@ -116,7 +116,7 @@ def update_case_partner_relationship(
         if field in ("op_body_parts", "partner_body_parts"):
             value = _serialize_body_parts(value)
         setattr(rel, field, value)
-    db.commit()
+    db.flush()
     db.refresh(rel)
     return rel
 
@@ -127,7 +127,7 @@ def delete_case_partner_relationship(db: Session, relationship_id: int) -> bool:
     if not rel:
         return False
     db.delete(rel)
-    db.commit()
+    db.flush()
     return True
 
 
@@ -172,7 +172,7 @@ def create_relationship_report(
         exposure_modalities=exposure_modalities,
     )
     db.add(report)
-    db.commit()
+    db.flush()
     db.refresh(report)
     return report
 
@@ -183,7 +183,7 @@ def delete_relationship_report(db: Session, report_id: int) -> bool:
     if not report:
         return False
     db.delete(report)
-    db.commit()
+    db.flush()
     return True
 
 
@@ -196,7 +196,7 @@ def update_relationship_report(
         return None
     for field, value in kwargs.items():
         setattr(report, field, value)
-    db.commit()
+    db.flush()
     db.refresh(report)
     return report
 
@@ -269,7 +269,7 @@ def create_lab_result_entry(
         result=result,
     )
     db.add(lab_entry)
-    db.commit()
+    db.flush()
     db.refresh(lab_entry)
     return lab_entry
 
@@ -283,7 +283,7 @@ def update_lab_result_entry(
         return None
     for field, value in kwargs.items():
         setattr(lab_entry, field, value)
-    db.commit()
+    db.flush()
     db.refresh(lab_entry)
     return lab_entry
 
@@ -294,7 +294,7 @@ def delete_lab_result_entry(db: Session, entry_id: int) -> bool:
     if not lab_entry:
         return False
     db.delete(lab_entry)
-    db.commit()
+    db.flush()
     return True
 
 
@@ -370,7 +370,7 @@ def create_symptom_entry(
         ongoing=ongoing,
     )
     db.add(entry)
-    db.commit()
+    db.flush()
     db.refresh(entry)
     return entry
 
@@ -384,7 +384,7 @@ def update_symptom_entry(
         return None
     for field, value in kwargs.items():
         setattr(entry, field, value)
-    db.commit()
+    db.flush()
     db.refresh(entry)
     return entry
 
@@ -395,7 +395,7 @@ def delete_symptom_entry(db: Session, entry_id: int) -> bool:
     if not entry:
         return False
     db.delete(entry)
-    db.commit()
+    db.flush()
     return True
 
 
@@ -425,7 +425,7 @@ def create_case(
         **case_kwargs,
     )
     db.add(case)
-    db.commit()
+    db.flush()
     db.refresh(case)
     return case
 
@@ -440,7 +440,7 @@ def update_case(db: Session, case_id: int, **kwargs) -> Case | None:
     if subject_kwargs and case.subject:
         for field, value in subject_kwargs.items():
             setattr(case.subject, field, value)
-    db.commit()
+    db.flush()
     db.refresh(case)
     return case
 
@@ -450,7 +450,7 @@ def delete_case(db: Session, case_id: int) -> bool:
     if not case:
         return False
     db.delete(case)
-    db.commit()
+    db.flush()
     return True
 
 
@@ -519,7 +519,7 @@ def create_partner(
             **partner_kwargs,
         )
     db.add(partner)
-    db.commit()
+    db.flush()
     db.refresh(partner)
     return partner
 
@@ -534,7 +534,7 @@ def update_partner(db: Session, partner_id: int, **kwargs) -> Partner | None:
     if subject_kwargs and partner.subject:
         for field, value in subject_kwargs.items():
             setattr(partner.subject, field, value)
-    db.commit()
+    db.flush()
     db.refresh(partner)
     return partner
 
@@ -544,7 +544,7 @@ def delete_partner(db: Session, partner_id: int) -> bool:
     if not partner:
         return False
     db.delete(partner)
-    db.commit()
+    db.flush()
     return True
 
 
@@ -601,7 +601,7 @@ def upsert_map_entry(
             partner_id=partner_id,
         )
         db.add(entry)
-    db.commit()
+    db.flush()
     db.refresh(entry)
     return entry
 
@@ -613,7 +613,7 @@ def delete_map_entries(db: Session, case_id: int, partner_id: int | None = None)
     else:
         q = q.filter(MAPEntry.partner_id == partner_id)
     deleted = q.delete(synchronize_session=False)
-    db.commit()
+    db.flush()
     return deleted
 
 
@@ -640,7 +640,7 @@ def create_arrow_link(
 ) -> ArrowLink:
     link = ArrowLink(case_id=case_id, from_ref=from_ref, to_ref=to_ref)
     db.add(link)
-    db.commit()
+    db.flush()
     db.refresh(link)
     return link
 
@@ -650,7 +650,7 @@ def delete_arrow_link(db: Session, link_id: int) -> bool:
     if not link:
         return False
     db.delete(link)
-    db.commit()
+    db.flush()
     return True
 
 
@@ -700,7 +700,7 @@ def create_ghosting(
         notes=notes,
     )
     db.add(g)
-    db.commit()
+    db.flush()
     db.refresh(g)
     return g
 
@@ -711,7 +711,7 @@ def update_ghosting(db: Session, ghosting_id: int, **kwargs) -> Ghosting | None:
         return None
     for field, value in kwargs.items():
         setattr(g, field, value)
-    db.commit()
+    db.flush()
     db.refresh(g)
     return g
 
@@ -721,7 +721,7 @@ def delete_ghosting(db: Session, ghosting_id: int) -> bool:
     if not g:
         return False
     db.delete(g)
-    db.commit()
+    db.flush()
     return True
 
 
@@ -759,7 +759,7 @@ def create_timeline_event(
         partner_id=partner_id,
     )
     db.add(evt)
-    db.commit()
+    db.flush()
     db.refresh(evt)
     return evt
 
@@ -770,7 +770,7 @@ def update_timeline_event(db: Session, event_id: int, **kwargs) -> TimelineEvent
         return None
     for field, value in kwargs.items():
         setattr(evt, field, value)
-    db.commit()
+    db.flush()
     db.refresh(evt)
     return evt
 
@@ -780,7 +780,7 @@ def delete_timeline_event(db: Session, event_id: int) -> bool:
     if not evt:
         return False
     db.delete(evt)
-    db.commit()
+    db.flush()
     return True
 
 

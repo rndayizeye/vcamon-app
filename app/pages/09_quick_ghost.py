@@ -508,7 +508,7 @@ if active_case_id:
     )
 
     if st.button("💾  Save to case", type="primary"):
-        from app.db.database import SessionLocal
+        from app.db.database import write_db
         from app.db.models import GhostingType
         from app.db.queries import create_ghosting
 
@@ -525,7 +525,7 @@ if active_case_id:
         )
 
         saved = []
-        with SessionLocal() as db:
+        with write_db() as db:
             if save_source:
                 create_ghosting(
                     db,

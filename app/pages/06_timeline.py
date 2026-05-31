@@ -17,7 +17,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from app.db.database import SessionLocal
+from app.db.database import SessionLocal, write_db
 from app.db.queries import (
     get_case_by_id,
     get_partners_for_case,
@@ -116,7 +116,7 @@ partner_map.update(
 def seed_treatment_dates():
     """Populate timeline events from existing treatment dates on first visit."""
     seeded = []
-    with SessionLocal() as db:
+    with write_db() as db:
         existing = get_timeline_events(db, case_id)
         existing_keys = {(e.event_date, e.partner_id) for e in existing}
 
@@ -337,7 +337,7 @@ with col_main:
                 )
             with del_col2:
                 if st.button("✕  Remove", use_container_width=True):
-                    with SessionLocal() as db:
+                    with write_db() as db:
                         delete_timeline_event(db, del_id)
                     st.success("Event removed.")
                     st.rerun()
@@ -379,7 +379,7 @@ with col_form:
 
     if add_btn:
         partner_id_val = subject_id if subject_id != 0 else None
-        with SessionLocal() as db:
+        with write_db() as db:
             create_timeline_event(
                 db,
                 case_id=case_id,
