@@ -33,8 +33,7 @@ class SymptomEntryUpdate(BaseModel):
 
 class SymptomEntryRead(ORMBaseModel):
     id: int
-    case_id: int | None
-    partner_id: int | None
+    subject_id: int
     symptom_type: str
     classification: SymptomClassification | None
     onset_date: date | None

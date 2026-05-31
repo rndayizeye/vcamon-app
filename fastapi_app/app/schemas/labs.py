@@ -33,8 +33,7 @@ class LabResultEntryUpdate(BaseModel):
 
 class LabResultEntryRead(ORMBaseModel):
     id: int
-    case_id: int | None
-    partner_id: int | None
+    subject_id: int
     test_category: TestCategory
     test_type: str
     titer: str | None

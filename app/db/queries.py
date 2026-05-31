@@ -22,11 +22,30 @@ from app.db.models import (
     MAPEntry,
     Partner,
     RelationshipReport,
+    SUBJECT_FIELDS,
+    Subject,
     SymptomDateKind,
     SymptomDurationSource,
     SymptomEntry,
     TimelineEvent,
 )
+
+
+# ---------------------------------------------------------------------------
+# Subject helpers
+# ---------------------------------------------------------------------------
+
+
+def _split_subject_kwargs(kwargs: dict) -> tuple[dict, dict]:
+    """Split kwargs into (subject_fields, non_subject_fields)."""
+    subject_kw = {k: v for k, v in kwargs.items() if k in SUBJECT_FIELDS}
+    other_kw = {k: v for k, v in kwargs.items() if k not in SUBJECT_FIELDS}
+    return subject_kw, other_kw
+
+
+# ---------------------------------------------------------------------------
+# CasePartnerRelationship queries
+# ---------------------------------------------------------------------------
 
 
 def get_case_partner_relationship(
@@ -187,24 +206,30 @@ def update_relationship_report(
 # ---------------------------------------------------------------------------
 
 
-def get_lab_results_for_case(db: Session, case_id: int) -> list[LabResultEntry]:
-    """Retrieve all lab results for a given case."""
+def get_lab_results(db: Session, subject_id: int) -> list[LabResultEntry]:
+    """Retrieve all lab results for a given subject."""
     return (
         db.query(LabResultEntry)
-        .filter(LabResultEntry.case_id == case_id)
+        .filter(LabResultEntry.subject_id == subject_id)
         .order_by(LabResultEntry.collection_date, LabResultEntry.id)
         .all()
     )
+
+
+def get_lab_results_for_case(db: Session, case_id: int) -> list[LabResultEntry]:
+    """Retrieve all lab results for a case (via its subject)."""
+    case = get_case_by_id(db, case_id)
+    if not case:
+        return []
+    return get_lab_results(db, case.subject_id)
 
 
 def get_lab_results_for_partner(db: Session, partner_id: int) -> list[LabResultEntry]:
-    """Retrieve all lab results for a given partner."""
-    return (
-        db.query(LabResultEntry)
-        .filter(LabResultEntry.partner_id == partner_id)
-        .order_by(LabResultEntry.collection_date, LabResultEntry.id)
-        .all()
-    )
+    """Retrieve all lab results for a partner (via its subject)."""
+    partner = get_partner_by_id(db, partner_id)
+    if not partner:
+        return []
+    return get_lab_results(db, partner.subject_id)
 
 
 def get_lab_result_entry_by_id(db: Session, entry_id: int) -> LabResultEntry | None:
@@ -219,13 +244,24 @@ def create_lab_result_entry(
     collection_date: date,
     case_id: int | None = None,
     partner_id: int | None = None,
+    subject_id: int | None = None,
     titer: str | None = None,
     result: str | None = None,
 ) -> LabResultEntry:
-    """Create a new lab result entry."""
+    """Create a new lab result entry.
+
+    Pass case_id or partner_id for backward compatibility; subject_id takes
+    precedence if provided directly.
+    """
+    if subject_id is None:
+        if case_id is not None:
+            case = get_case_by_id(db, case_id)
+            subject_id = case.subject_id if case else None
+        elif partner_id is not None:
+            partner = get_partner_by_id(db, partner_id)
+            subject_id = partner.subject_id if partner else None
     lab_entry = LabResultEntry(
-        case_id=case_id,
-        partner_id=partner_id,
+        subject_id=subject_id,
         test_category=test_category,
         test_type=test_type,
         collection_date=collection_date,
@@ -267,24 +303,30 @@ def delete_lab_result_entry(db: Session, entry_id: int) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def get_symptoms_for_case(db: Session, case_id: int) -> list[SymptomEntry]:
-    """Retrieve all symptoms for a given case."""
+def get_symptoms(db: Session, subject_id: int) -> list[SymptomEntry]:
+    """Retrieve all symptoms for a given subject."""
     return (
         db.query(SymptomEntry)
-        .filter(SymptomEntry.case_id == case_id)
+        .filter(SymptomEntry.subject_id == subject_id)
         .order_by(SymptomEntry.onset_date, SymptomEntry.id)
         .all()
     )
+
+
+def get_symptoms_for_case(db: Session, case_id: int) -> list[SymptomEntry]:
+    """Retrieve all symptoms for a case (via its subject)."""
+    case = get_case_by_id(db, case_id)
+    if not case:
+        return []
+    return get_symptoms(db, case.subject_id)
 
 
 def get_symptoms_for_partner(db: Session, partner_id: int) -> list[SymptomEntry]:
-    """Retrieve all symptoms for a given partner."""
-    return (
-        db.query(SymptomEntry)
-        .filter(SymptomEntry.partner_id == partner_id)
-        .order_by(SymptomEntry.onset_date, SymptomEntry.id)
-        .all()
-    )
+    """Retrieve all symptoms for a partner (via its subject)."""
+    partner = get_partner_by_id(db, partner_id)
+    if not partner:
+        return []
+    return get_symptoms(db, partner.subject_id)
 
 
 def get_symptom_entry_by_id(db: Session, entry_id: int) -> SymptomEntry | None:
@@ -303,11 +345,22 @@ def create_symptom_entry(
     ongoing: bool = False,
     case_id: int | None = None,
     partner_id: int | None = None,
+    subject_id: int | None = None,
 ) -> SymptomEntry:
-    """Create a new symptom entry."""
+    """Create a new symptom entry.
+
+    Pass case_id or partner_id for backward compatibility; subject_id takes
+    precedence if provided directly.
+    """
+    if subject_id is None:
+        if case_id is not None:
+            case = get_case_by_id(db, case_id)
+            subject_id = case.subject_id if case else None
+        elif partner_id is not None:
+            partner = get_partner_by_id(db, partner_id)
+            subject_id = partner.subject_id if partner else None
     entry = SymptomEntry(
-        case_id=case_id,
-        partner_id=partner_id,
+        subject_id=subject_id,
         symptom_type=symptom_type,
         classification=classification,
         onset_date=onset_date,
@@ -363,8 +416,13 @@ def get_case_by_id(db: Session, case_id: int) -> Case | None:
 def create_case(
     db: Session, patient_name: str, initial_contact_date: date | None = None, **kwargs
 ) -> Case:
+    subject_kwargs, case_kwargs = _split_subject_kwargs(kwargs)
+    subject = Subject(**subject_kwargs)
     case = Case(
-        patient_name=patient_name, initial_contact_date=initial_contact_date, **kwargs
+        patient_name=patient_name,
+        initial_contact_date=initial_contact_date,
+        subject=subject,
+        **case_kwargs,
     )
     db.add(case)
     db.commit()
@@ -376,8 +434,12 @@ def update_case(db: Session, case_id: int, **kwargs) -> Case | None:
     case = get_case_by_id(db, case_id)
     if not case:
         return None
-    for field, value in kwargs.items():
+    subject_kwargs, case_kwargs = _split_subject_kwargs(kwargs)
+    for field, value in case_kwargs.items():
         setattr(case, field, value)
+    if subject_kwargs and case.subject:
+        for field, value in subject_kwargs.items():
+            setattr(case.subject, field, value)
     db.commit()
     db.refresh(case)
     return case
@@ -428,21 +490,34 @@ def create_partner(
     db: Session,
     case_id: int,
     partner_number: int,
-    symptom_classification: str | None = None,
-    symptom_ongoing: bool = False,
-    historical_primary_chancre: bool | None = None,
-    historical_primary_date: date | None = None,
     **kwargs,
 ) -> Partner:
-    partner = Partner(
-        case_id=case_id,
-        partner_number=partner_number,
-        symptom_classification=symptom_classification,
-        symptom_ongoing=symptom_ongoing,
-        historical_primary_chancre=historical_primary_chancre,
-        historical_primary_date=historical_primary_date,
-        **kwargs,
-    )
+    linked_case_id = kwargs.pop("linked_case_id", None)
+    subject_kwargs, partner_kwargs = _split_subject_kwargs(kwargs)
+
+    if linked_case_id is not None:
+        linked_case = get_case_by_id(db, linked_case_id)
+        shared_subject_id = linked_case.subject_id if linked_case else None
+    else:
+        shared_subject_id = None
+
+    if shared_subject_id is not None:
+        partner = Partner(
+            case_id=case_id,
+            partner_number=partner_number,
+            linked_case_id=linked_case_id,
+            subject_id=shared_subject_id,
+            **partner_kwargs,
+        )
+    else:
+        subject = Subject(**subject_kwargs)
+        partner = Partner(
+            case_id=case_id,
+            partner_number=partner_number,
+            linked_case_id=linked_case_id,
+            subject=subject,
+            **partner_kwargs,
+        )
     db.add(partner)
     db.commit()
     db.refresh(partner)
@@ -453,8 +528,12 @@ def update_partner(db: Session, partner_id: int, **kwargs) -> Partner | None:
     partner = get_partner_by_id(db, partner_id)
     if not partner:
         return None
-    for field, value in kwargs.items():
+    subject_kwargs, partner_kwargs = _split_subject_kwargs(kwargs)
+    for field, value in partner_kwargs.items():
         setattr(partner, field, value)
+    if subject_kwargs and partner.subject:
+        for field, value in subject_kwargs.items():
+            setattr(partner.subject, field, value)
     db.commit()
     db.refresh(partner)
     return partner
@@ -714,8 +793,18 @@ def get_cases_summary(db: Session) -> dict:
     """Return global aggregate metrics for the dashboard."""
     total_cases = db.query(func.count(Case.id)).scalar()
     total_partners = db.query(func.count(Partner.id)).scalar()
-    treated_count = db.query(func.count(Case.id)).filter(Case.treatment_date.is_not(None)).scalar()
-    untreated_count = db.query(func.count(Case.id)).filter(Case.treatment_date.is_(None)).scalar()
+    treated_count = (
+        db.query(func.count(Case.id))
+        .join(Subject, Case.subject_id == Subject.id)
+        .filter(Subject.treatment_date.is_not(None))
+        .scalar()
+    )
+    untreated_count = (
+        db.query(func.count(Case.id))
+        .join(Subject, Case.subject_id == Subject.id)
+        .filter(Subject.treatment_date.is_(None))
+        .scalar()
+    )
 
     return {
         "total_cases": total_cases or 0,
@@ -749,9 +838,12 @@ def get_case_summaries_with_counts(db: Session, search: str | None = None) -> li
 
 def get_latest_lab_for_case(db: Session, case_id: int) -> LabResultEntry | None:
     """Retrieve the most recent lab result for a specific case."""
+    case = get_case_by_id(db, case_id)
+    if not case:
+        return None
     return (
         db.query(LabResultEntry)
-        .filter(LabResultEntry.case_id == case_id)
+        .filter(LabResultEntry.subject_id == case.subject_id)
         .order_by(LabResultEntry.collection_date.desc(), LabResultEntry.id.desc())
         .first()
     )

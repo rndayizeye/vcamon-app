@@ -38,8 +38,7 @@ export type SymptomDurationSource =
 
 export type SymptomEntryRead = {
   id: number;
-  case_id: number | null;
-  partner_id: number | null;
+  subject_id: number;
   symptom_type: string;
   classification: string | null;
   onset_date: string | null;

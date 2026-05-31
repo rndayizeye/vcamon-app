@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import os
+import time
 
+import jwt
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -15,6 +17,32 @@ from app.db.database import Base
 from fastapi_app.app.auth import clear_auth_settings_cache
 from fastapi_app.app.db import get_db
 from fastapi_app.main import app
+
+# HS256 secret the auth layer verifies test tokens against (SUPABASE_JWT_SECRET).
+TEST_JWT_SECRET = "test-jwt-secret-at-least-32-bytes-long!!"
+
+
+def make_jwt(
+    *,
+    sub: str,
+    email: str,
+    app_metadata: dict | None = None,
+    user_metadata: dict | None = None,
+    top_role: str = "authenticated",
+) -> str:
+    """Mint a Supabase-style HS256 access token signed with TEST_JWT_SECRET."""
+    now = int(time.time())
+    claims = {
+        "sub": sub,
+        "email": email,
+        "aud": "authenticated",
+        "role": top_role,
+        "app_metadata": app_metadata or {},
+        "user_metadata": user_metadata or {},
+        "iat": now,
+        "exp": now + 3600,
+    }
+    return jwt.encode(claims, TEST_JWT_SECRET, algorithm="HS256")
 
 
 @pytest.fixture(autouse=True)
@@ -151,23 +179,16 @@ def test_auth_enabled_allows_authenticated_request_and_me_endpoint(
     monkeypatch.setenv("AUTH_ENABLED", "true")
     monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
     monkeypatch.setenv("SUPABASE_ANON_KEY", "sb_publishable_example")
+    monkeypatch.setenv("SUPABASE_JWT_SECRET", TEST_JWT_SECRET)
     clear_auth_settings_cache()
 
-    from fastapi_app.app import auth as auth_module
-
-    monkeypatch.setattr(
-        auth_module,
-        "fetch_supabase_user",
-        lambda settings, access_token: {
-            "id": "user-123",
-            "email": "worker@example.com",
-            "role": "authenticated",
-            "app_metadata": {"role": "case_worker"},
-            "user_metadata": {"display_name": "Case Worker"},
-        },
+    token = make_jwt(
+        sub="user-123",
+        email="worker@example.com",
+        app_metadata={"role": "case_worker"},
+        user_metadata={"display_name": "Case Worker"},
     )
-
-    headers = {"Authorization": "Bearer token-123"}
+    headers = {"Authorization": f"Bearer {token}"}
 
     me_response = client.get("/api/auth/me", headers=headers)
     assert me_response.status_code == 200
@@ -216,31 +237,24 @@ def test_supervisor_required_for_case_delete_under_auth(
     monkeypatch.setenv("AUTH_ENABLED", "true")
     monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
     monkeypatch.setenv("SUPABASE_ANON_KEY", "sb_publishable_example")
+    monkeypatch.setenv("SUPABASE_JWT_SECRET", TEST_JWT_SECRET)
     clear_auth_settings_cache()
 
-    from fastapi_app.app import auth as auth_module
+    worker_token = make_jwt(
+        sub="user-worker",
+        email="worker@example.com",
+        app_metadata={"role": "case_worker"},
+        user_metadata={"display_name": "Case Worker"},
+    )
+    supervisor_token = make_jwt(
+        sub="user-supervisor",
+        email="supervisor@example.com",
+        app_metadata={"role": "supervisor"},
+        user_metadata={"display_name": "Supervisor"},
+    )
 
-    def fake_fetch_supabase_user(settings, access_token):
-        if access_token == "supervisor-token":
-            return {
-                "id": "user-supervisor",
-                "email": "supervisor@example.com",
-                "role": "authenticated",
-                "app_metadata": {"role": "supervisor"},
-                "user_metadata": {"display_name": "Supervisor"},
-            }
-        return {
-            "id": "user-worker",
-            "email": "worker@example.com",
-            "role": "authenticated",
-            "app_metadata": {"role": "case_worker"},
-            "user_metadata": {"display_name": "Case Worker"},
-        }
-
-    monkeypatch.setattr(auth_module, "fetch_supabase_user", fake_fetch_supabase_user)
-
-    worker_headers = {"Authorization": "Bearer worker-token"}
-    supervisor_headers = {"Authorization": "Bearer supervisor-token"}
+    worker_headers = {"Authorization": f"Bearer {worker_token}"}
+    supervisor_headers = {"Authorization": f"Bearer {supervisor_token}"}
 
     created = client.post(
         "/api/cases/",
@@ -365,8 +379,7 @@ def test_case_and_partner_labs_crud(client: TestClient):
     )
     assert case_lab.status_code == 201
     case_lab_payload = case_lab.json()
-    assert case_lab_payload["case_id"] == case["id"]
-    assert case_lab_payload["partner_id"] is None
+    assert "subject_id" in case_lab_payload
     assert case_lab_payload["test_category"] == "Non-treponemal"
 
     partner_lab = client.post(
@@ -380,8 +393,7 @@ def test_case_and_partner_labs_crud(client: TestClient):
     )
     assert partner_lab.status_code == 201
     partner_lab_payload = partner_lab.json()
-    assert partner_lab_payload["partner_id"] == partner["id"]
-    assert partner_lab_payload["case_id"] is None
+    assert "subject_id" in partner_lab_payload
 
     list_case_labs = client.get(f"/api/cases/{case['id']}/labs")
     assert list_case_labs.status_code == 200
@@ -428,8 +440,7 @@ def test_case_and_partner_symptoms_crud(client: TestClient):
     assert case_symptom.status_code == 201
     case_symptom_payload = case_symptom.json()
     assert case_symptom_payload["classification"] == "Primary"
-    assert case_symptom_payload["case_id"] == case["id"]
-    assert case_symptom_payload["partner_id"] is None
+    assert "subject_id" in case_symptom_payload
     assert case_symptom_payload["date_kind"] == "Onset reported"
     assert case_symptom_payload["duration_source"] == "Reported"
     assert case_symptom_payload["ongoing"] is False
@@ -445,7 +456,7 @@ def test_case_and_partner_symptoms_crud(client: TestClient):
     assert partner_symptom.status_code == 201
     partner_symptom_payload = partner_symptom.json()
     assert partner_symptom_payload["classification"] == "Secondary"
-    assert partner_symptom_payload["partner_id"] == partner["id"]
+    assert "subject_id" in partner_symptom_payload
     assert (
         partner_symptom_payload["date_kind"] == "Observed during exam (onset unknown)"
     )
