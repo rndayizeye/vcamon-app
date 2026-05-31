@@ -322,13 +322,31 @@ For included/high-value papers, ask:
 
 **Session 1 summary:** 17 sources identified; 14 High priority, 3 Medium priority. All 4 domains have anchor coverage. All sources confirmed via multi-query verification. Tracker populated in `PAPER1_ARTICLE_TRACKER.csv`.
 
-**Pass 2 gaps to address next:**
-- Formal peer-reviewed companion to NCSDDC VCA methodology (Fussell citation needs a published peer-reviewed equivalent or corroboration from CDC STI treatment guidelines)
-- Temporal reasoning methods in epidemiology — more specific citations needed (current B2/B3 are adjacent but not specifically temporal windowing in STI context)
-- Computable phenotyping / rule-based algorithm papers relevant to case identification (CARPEDIEM-style papers for Domain B)
-- FHIR `RiskAssessment` resource documentation — verify as applicable to source-spread plausibility output representation
-- More recent syphilis surveillance papers (2020–2026) — current C-domain papers are 2012/2017/2024
-- CDC STI Treatment Guidelines 2021 as a natural history reference for engine constants
+### Session 2 — 2026-05-31 (second AI-assisted web sweep; integrated from parallel chat)
+
+| Search Date | Database | Query Name | Exact Query | Filters | Hits | Notes |
+|---|---|---|---|---|---:|---|
+| 2026-05-31 | NCSDDC / Grey lit | A4b-VCA-Origin-1992 | NACCHO VCA visual case analysis syphilis source spread ghosting CDC 1992 DIS training | None | 1 partial | CDC 1992 training cited via Oregon PH Division VCA form — full document not yet located |
+| 2026-05-31 | PubMed | A1b-Unnamed-Partners | unnamed partners syphilis partner services 7 jurisdictions Cope 2022 | English | 1 | Cope et al. 2022, STD, PMC9310554 |
+| 2026-05-31 | PubMed | A1c-DIS-History | disease intervention specialist history partner services STD HIV review | English | 1 | Pavia et al. 2019, STD (approx), PMC6304721 |
+| 2026-05-31 | PubMed | A1d-CT-History | history contact tracing syphilis COVID public health United States 2022 | English | 1 | Keshavjee et al. 2022, Am J Public Health, PMC9342804 |
+| 2026-05-31 | Google Scholar | A2b-Lot-System-History | source spread syphilis transmission methodology contact tracing history Havlak lot system | None | 1 | Rothenberg et al. 2003, Springer chapter, PMC7121135 |
+| 2026-05-31 | Google Scholar | C2b-Syphilis-Resurgence | syphilis epidemiological trends United States resurgence 2018-2022 | English | 1 | Rankin et al. 2025, BMC Infectious Diseases, PMC12427103 |
+| 2026-05-31 | PubMed | A2c-DIS-Embedded | DIS embedding HIV clinics syphilis partner services effectiveness Golden 2010 | English | 1 | Golden et al. 2010, STD, PMC6785747 |
+
+**Session 2 summary:** 7 new sources added; tracker now has 24 entries. Key additions: CDC 1992 VCA provenance lead; Rankin 2025 resolves Domain C recency gap; Pavia 2019 and Keshavjee 2022 build out the DIS/contact tracing history backbone; Rothenberg 2003 establishes 1960s Havlak lot-system as the intellectual precursor to VCA cluster reasoning; Cope 2022 unnamed-partners paper closes the analytical gap argument.
+
+**⚠ Methodology note (from integrated session):** Both AI-assisted sweeps used web search at snippet level, not formal PubMed database queries with filter logging. Queries B1, B2, C1, C2, D1, D2 from the worksheet (§ 5) were not run in PubMed directly. The tracker entries are valid finds confirmed via cross-query verification, but they do not constitute a defensible reproducible search log. Before submission, all PubMed queries in § 5 must be run directly, hit counts recorded, and results screened formally.
+
+**Pass 2 gaps remaining (updated):**
+- ✅ Domain C recency gap — resolved by Rankin 2025
+- ✅ DIS history backbone — resolved by Pavia 2019 + Keshavjee 2022
+- ✅ VCA intellectual precursor — resolved by Rothenberg 2003 Havlak lot system
+- 🔴 **CDC 1992 VCA training document** — cited but not yet accessed; must locate via CDC archives or NCSDDC/NACCHO contact
+- 🔴 **CDC STI Treatment Guidelines 2021** — needed as peer-reviewed natural history constants anchor
+- 🔴 **Temporal reasoning methods** — no mid-period (2005–2020) clinical guidelines temporal constraint paper yet (Arden Syntax / GLARE / Asbru literature)
+- 🔴 **Rule-based computable case identification** — CARPEDIEM-style paper for Domain B methods depth
+- 🔴 **Formal PubMed query execution** — B1/B2/C1/C2/D1/D2 queries in § 5 must be run with filter logs before submission
 
 ---
 
