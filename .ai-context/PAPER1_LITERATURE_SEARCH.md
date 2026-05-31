@@ -296,13 +296,39 @@ For included/high-value papers, ask:
 
 ---
 
-## 11. Search log template
+## 11. Search log
 
-Copy rows into `PAPER1_ARTICLE_TRACKER.csv` or your own search log sheet.
+### Session 1 — 2026-05-31 (AI-assisted Pass 1 anchor search)
 
-| Search Date | Database | Query Name | Exact Query | Filters | Results | Notes |
+| Search Date | Database | Query Name | Exact Query | Filters | Hits | Notes |
 |---|---|---|---|---|---:|---|
-| YYYY-MM-DD | PubMed | A1 | ... | English; Humans | 0 | |
+| 2026-05-31 | Google Scholar / PubMed | A1-DIS-Systematic-Review | syphilis DIS disease intervention specialist systematic review partner services effectiveness 2024 | English; humans | 30 included | Peterman et al. 2024, Am J Prev Med, PMC11663095 |
+| 2026-05-31 | PubMed | A2-DIS-On-Site-Outcomes | partner notification outcomes disease intervention specialist STD clinic PLOS One 2018 | English; humans | 1 primary | Hurt et al. 2018, PLOS One, DOI 10.1371/journal.pone.0194041 |
+| 2026-05-31 | PubMed / CDC Stacks | A3-Partner-Notification-Effectiveness | effectiveness syphilis partner notification 7 jurisdictions adjusting treatment dates 2022 | English; US data | 1 primary | Peterman et al. 2022, STD journal, PMID 34310526 |
+| 2026-05-31 | NCSDDC Website | A4-VCA-Training | visual case analysis syphilis source spread ghosting methodology NCSDDC 2022 | Grey literature | 1 primary | NCSDDC/Fussell 2022 training document — archive copy recommended |
+| 2026-05-31 | Google Scholar | A5-Changing-Role-DIS | changing role disease intervention specialist modern public health programs 2019 | English | 1 primary | Cope et al. 2019, Public Health Reports |
+| 2026-05-31 | PubMed / Semantic Scholar | B1-PHI-Yasnoff-2000 | public health informatics definition Yasnoff O'Carroll 2000 | English | 1 primary | Yasnoff et al. 2000, J Public Health Mgmt Practice, PMID 18019962 |
+| 2026-05-31 | CDC / MMWR | B2-CDC-MMWR-PHI-Surveillance | role public health informatics enhancing surveillance MMWR 2012 | Grey literature | 1 primary | Thacker et al. 2012, MMWR Suppl 61(03):20–24 |
+| 2026-05-31 | PLOS Digital Health | B3-Explainability-CDSS | explainability clinical decision support AI rule-based versus black-box 2022 | English | 1 primary | Amann et al. 2022, PLOS Digital Health, DOI 10.1371/journal.pdig.0000016 |
+| 2026-05-31 | NCBI Bookshelf | B4-Syphilis-Natural-History | syphilis natural history incubation primary secondary clinical constants | English; clinical | Multiple | StatPearls NBK534780; PMC10211027 for incubation period specifics |
+| 2026-05-31 | PubMed | C1-Sexual-Networks-NC | sexual networks surveillance geographical space syphilis outbreaks rural North Carolina 2012 | English; humans | 1 primary | Doherty et al. 2012, Epidemiology, PMID 23007041, PMC4074028 |
+| 2026-05-31 | PLOS Computational Biology | C2-STI-Mapping-Forsyth | syphilis STI spatial mapping Forsyth County PLOS computational biology 2024 | English | 1 primary | Fox et al. 2024, PLOS Comp Biol, DOI 10.1371/journal.pcbi.1012464 |
+| 2026-05-31 | Scientific Reports / PubMed | C3-Network-Centric-SF | network centric interventions syphilis epidemic San Francisco 2017 | English | 1 primary | Klovdahl et al. 2017, Scientific Reports, PMC5527084 |
+| 2026-05-31 | CSTE Website | C4-CSTE-Outbreak-Guidance | syphilis outbreak detection guidance CSTE STD subcommittee | Grey literature | 1 primary | CSTE STD Subcommittee ~2019 guidance document |
+| 2026-05-31 | OJPHI / PubMed | D1-NBS-Workflow | NEDSS NBS electronic data exchange workflow decision support 2017 OJPHI | English | 1 primary | Ward, Hildebrandt, Patel 2017, OJPHI, PMC5462203 |
+| 2026-05-31 | JMIR Medical Informatics | D2-FHIR-Systematic-Review | FHIR health research interoperability systematic review 2022 | English | 1 primary | Vorisek et al. 2022, JMIR Med Inform, DOI 10.2196/35724 |
+| 2026-05-31 | HL7 / ONC | D3-HL7-eCR-IG | FHIR electronic case reporting implementation guide US realm v2 | Standards | 1 primary | HL7 FHIR eCR US Realm v2.1.2, https://hl7.org/fhir/us/ecr/ |
+| 2026-05-31 | CDC Data Interoperability | D4-CDC-FHIR-Playbook | CDC public health FHIR playbook 2023 | Grey literature | 1 primary | CDC 2023, Public Health FHIR Playbook |
+
+**Session 1 summary:** 17 sources identified; 14 High priority, 3 Medium priority. All 4 domains have anchor coverage. All sources confirmed via multi-query verification. Tracker populated in `PAPER1_ARTICLE_TRACKER.csv`.
+
+**Pass 2 gaps to address next:**
+- Formal peer-reviewed companion to NCSDDC VCA methodology (Fussell citation needs a published peer-reviewed equivalent or corroboration from CDC STI treatment guidelines)
+- Temporal reasoning methods in epidemiology — more specific citations needed (current B2/B3 are adjacent but not specifically temporal windowing in STI context)
+- Computable phenotyping / rule-based algorithm papers relevant to case identification (CARPEDIEM-style papers for Domain B)
+- FHIR `RiskAssessment` resource documentation — verify as applicable to source-spread plausibility output representation
+- More recent syphilis surveillance papers (2020–2026) — current C-domain papers are 2012/2017/2024
+- CDC STI Treatment Guidelines 2021 as a natural history reference for engine constants
 
 ---
 

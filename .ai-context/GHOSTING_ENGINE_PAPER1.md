@@ -304,11 +304,14 @@ performed manually.
 ## 13. Near-term next actions
 
 - [ ] Draft a 150-250 word abstract for Paper 1
-- [ ] Build the initial search strings in PubMed and Google Scholar
-- [ ] Set up Zotero collections and tags
-- [ ] Create a screening / abstraction spreadsheet
-- [ ] Identify 10-15 anchor papers for the first pass
+- [x] Build the initial search strings in PubMed and Google Scholar — done 2026-05-31
+- [ ] Set up Zotero collections and tags — import from `PAPER1_ARTICLE_TRACKER.csv`
+- [x] Create a screening / abstraction spreadsheet — `PAPER1_ARTICLE_TRACKER.csv` populated 2026-05-31
+- [x] Identify 10-15 anchor papers for the first pass — 17 confirmed sources entered 2026-05-31
 - [ ] Draft a background section skeleton from the literature buckets
+- [ ] Pass 2 gap fill: CDC STI Treatment Guidelines 2021 (natural history constants); peer-reviewed VCA companion; computable phenotyping methods (Domain B); recent syphilis surveillance 2020–2026
+- [ ] Full-text abstraction: complete 9 remaining "To abstract" High-priority papers in tracker
+- [ ] Verify FHIR RiskAssessment resource as output representation candidate
 
 ---
 
@@ -319,3 +322,15 @@ performed manually.
 - Confirmed the methods / informatics / design framing as the primary article direction.
 - Defined initial literature search buckets: syphilis/VCA, public health informatics, surveillance analytics, and FHIR interoperability.
 - Defined a minimum data abstraction schema and recommended a Zotero + spreadsheet hybrid workflow.
+
+### 2026-05-31
+- Completed Pass 1 anchor literature search across all 4 domains (A–D) using AI-assisted web search harness.
+- 17 sources identified, confirmed, and entered into `PAPER1_ARTICLE_TRACKER.csv`.
+- Search log recorded in `PAPER1_LITERATURE_SEARCH.md` § 11.
+- Key anchors secured per domain:
+  - **A (Syphilis/DIS/VCA):** Peterman 2024 systematic review; Hurt 2018 on-site DIS outcomes; Peterman 2022 PN effectiveness; NCSDDC 2022 VCA training; Cope 2019 DIS changing roles
+  - **B (PHI/Decision Support):** Yasnoff 2000 PHI definition; CDC MMWR 2012 PHI surveillance; Amann 2022 explainability in CDSS; StatPearls syphilis natural history (engine constants grounding)
+  - **C (Surveillance/Transmission):** Doherty 2012 sexual networks NC; Fox 2024 STI mapping Forsyth County; Klovdahl 2017 network SF; CSTE outbreak detection guidance
+  - **D (FHIR/Interoperability):** Ward 2017 NBS workflow; Vorisek 2022 FHIR systematic review; HL7 eCR IG v2.1.2; CDC 2023 FHIR Playbook
+- Pass 2 gaps identified: peer-reviewed VCA methodology companion; CDC STI guidelines 2021 for natural history constants; FHIR RiskAssessment resource verification; additional syphilis surveillance recency (2020–2026); computable phenotyping methods papers for Domain B.
+- Next action: import tracker rows into Zotero; obtain full texts for 9 High-priority papers marked "To abstract"; run Pass 2 targeted gap-fill searches.
