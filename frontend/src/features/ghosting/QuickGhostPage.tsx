@@ -67,22 +67,24 @@ type SymptomRow = {
 }
 
 // Each patient in the investigation — _pid is a stable local ID used by edges.
+// Only intrinsic clinical facts live here; encounter-specific data lives on NetworkEdge.
 type NetworkPerson = {
   _pid: string
   name: string
   symptoms: SymptomRow[]
-  exp_first: string
-  exp_last: string
-  body_parts: BodyPartValue[]
   treatment_date: string
 }
 
-// A connection between two patients — referenced by their _pid.
-// "OP" and "Partner" are analytical roles derived by the engine, not by position here.
+// A connection between two patients — holds all encounter-specific data so the
+// same person can have different exposure windows and body parts per relationship.
 type NetworkEdge = {
   id: string
   aId: string
   bId: string
+  exp_first: string
+  exp_last: string
+  a_body_parts: BodyPartValue[]   // body parts person A used in this encounter
+  b_body_parts: BodyPartValue[]   // body parts person B used in this encounter
 }
 
 // The form only owns the patient list. Edges live in plain state so they can
@@ -109,15 +111,20 @@ function makePersonDefaults(n: number): NetworkPerson {
     _pid: crypto.randomUUID(),
     name: `Patient ${n}`,
     symptoms: [],
-    exp_first: '',
-    exp_last: '',
-    body_parts: [],
     treatment_date: '',
   }
 }
 
 function makeEdge(aId: string, bId: string): NetworkEdge {
-  return { id: crypto.randomUUID(), aId, bId }
+  return {
+    id: crypto.randomUUID(),
+    aId,
+    bId,
+    exp_first: '',
+    exp_last: '',
+    a_body_parts: [],
+    b_body_parts: [],
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -135,24 +142,21 @@ function toSymptomInputs(rows: SymptomRow[]): GhostingSymptomInput[] {
     }))
 }
 
-function buildPayload(a: NetworkPerson, b: NetworkPerson) {
-  const aHasExposure = a.exp_first && a.exp_last
-  const bHasExposure = b.exp_first && b.exp_last
+function buildPayload(a: NetworkPerson, b: NetworkPerson, edge: NetworkEdge) {
+  const exposure = edge.exp_first && edge.exp_last
+    ? { first: edge.exp_first, last: edge.exp_last, exposure_modalities: [] }
+    : null
   return {
     op_name: a.name.trim() || 'Patient A',
     op_symptoms: toSymptomInputs(a.symptoms),
-    op_exposure: aHasExposure
-      ? { first: a.exp_first, last: a.exp_last, exposure_modalities: [] }
-      : null,
+    op_exposure: exposure,
     op_treatment_date: a.treatment_date || null,
-    op_body_parts: a.body_parts,
+    op_body_parts: edge.a_body_parts,
     partner_name: b.name.trim() || 'Patient B',
     partner_symptoms: toSymptomInputs(b.symptoms),
-    partner_exposure: bHasExposure
-      ? { first: b.exp_first, last: b.exp_last, exposure_modalities: [] }
-      : null,
+    partner_exposure: exposure,
     partner_treatment_date: b.treatment_date || null,
-    partner_body_parts: b.body_parts,
+    partner_body_parts: edge.b_body_parts,
   }
 }
 
@@ -243,25 +247,30 @@ function SymptomEditor({
 }
 
 // ---------------------------------------------------------------------------
-// Body parts checkboxes
+// Body parts checkboxes — plain state, not form-registered (used inside edges)
 // ---------------------------------------------------------------------------
 
 function BodyPartsCheckboxes({
-  prefix,
-  register,
+  heading,
+  checked,
+  onToggle,
 }: {
-  prefix: string
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  register: any
+  heading: string
+  checked: BodyPartValue[]
+  onToggle: (part: BodyPartValue) => void
 }) {
   return (
     <div className="stack-xs">
-      <p className="eyebrow" style={{ marginBottom: '0.25rem' }}>Body parts used during contact</p>
+      <p className="eyebrow" style={{ marginBottom: '0.25rem' }}>{heading}</p>
       <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
         {BODY_PARTS.map(({ value, label }) => (
           <label key={value}
             style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem', cursor: 'pointer' }}>
-            <input type="checkbox" value={value} {...register(`${prefix}.body_parts`)} />
+            <input
+              type="checkbox"
+              checked={checked.includes(value)}
+              onChange={() => onToggle(value)}
+            />
             {label}
           </label>
         ))}
@@ -288,20 +297,6 @@ function PatientClinicalFields({
   return (
     <>
       <SymptomEditor prefix={prefix} control={control} register={register} />
-      <div className="stack-sm">
-        <p className="eyebrow">Exposure window</p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-          <label className="field">
-            <span>First exposure</span>
-            <input type="date" {...register(`${prefix}.exp_first`)} />
-          </label>
-          <label className="field">
-            <span>Last exposure</span>
-            <input type="date" {...register(`${prefix}.exp_last`)} />
-          </label>
-        </div>
-        <BodyPartsCheckboxes prefix={prefix} register={register} />
-      </div>
       <label className="field">
         <span>Treatment date</span>
         <input type="date" {...register(`${prefix}.treatment_date`)} />
@@ -379,6 +374,134 @@ function PatientCard({
 // Connections panel
 // ---------------------------------------------------------------------------
 
+// A single edge row — collapsible to reveal exposure window + per-person body parts.
+function EdgeRow({
+  edge,
+  people,
+  onChangeA,
+  onChangeB,
+  onRemove,
+  onChangeExposure,
+  onToggleBodyPart,
+}: {
+  edge: NetworkEdge
+  people: { _pid: string; name: string }[]
+  onChangeA: (pid: string) => void
+  onChangeB: (pid: string) => void
+  onRemove: () => void
+  onChangeExposure: (field: 'exp_first' | 'exp_last', value: string) => void
+  onToggleBodyPart: (person: 'a' | 'b', part: BodyPartValue) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const selfLoop = edge.aId === edge.bId
+
+  function nameOf(pid: string): string {
+    const idx = people.findIndex(p => p._pid === pid)
+    const p = people[idx]
+    return p ? (p.name.trim() || `Patient ${idx + 1}`) : '(removed)'
+  }
+
+  const selectStyle: React.CSSProperties = {
+    flex: '1 1 130px',
+    padding: '5px 6px',
+    borderRadius: '4px',
+    border: '1px solid #ccc',
+    fontSize: '0.875rem',
+  }
+
+  return (
+    <div style={{ border: '1px solid #d8d3cb', borderRadius: '6px', overflow: 'hidden' }}>
+      {/* Header row */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap',
+        padding: '0.5rem 0.75rem', background: '#f9f8f5',
+        borderBottom: open ? '1px solid #d8d3cb' : 'none',
+      }}>
+        <button
+          type="button"
+          onClick={() => setOpen(o => !o)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '0.8rem', color: '#666', flexShrink: 0 }}
+          title={open ? 'Collapse' : 'Expand exposure & body parts'}
+        >
+          {open ? '▼' : '▶'}
+        </button>
+        <select value={edge.aId} onChange={e => onChangeA(e.target.value)} style={selectStyle}>
+          {people.map((p, i) => (
+            <option key={p._pid} value={p._pid}>{p.name.trim() || `Patient ${i + 1}`}</option>
+          ))}
+        </select>
+        <span style={{ color: '#888', fontSize: '1rem', flexShrink: 0 }}>↔</span>
+        <select value={edge.bId} onChange={e => onChangeB(e.target.value)} style={selectStyle}>
+          {people.map((p, i) => (
+            <option key={p._pid} value={p._pid}>{p.name.trim() || `Patient ${i + 1}`}</option>
+          ))}
+        </select>
+        {selfLoop && (
+          <span style={{ fontSize: '0.78rem', color: '#e24b4a', flexShrink: 0 }}>⚠ Same person</span>
+        )}
+        {/* Quick summary when collapsed */}
+        {!open && (edge.exp_first || edge.a_body_parts.length > 0 || edge.b_body_parts.length > 0) && (
+          <span style={{ fontSize: '0.75rem', color: '#888', flexShrink: 0 }}>
+            {edge.exp_first ? `${edge.exp_first} → ${edge.exp_last || '?'}` : ''}
+            {edge.a_body_parts.length > 0 || edge.b_body_parts.length > 0 ? ' · body parts set' : ''}
+          </span>
+        )}
+        <button
+          type="button"
+          className="button"
+          onClick={onRemove}
+          style={{ padding: '4px 10px', fontSize: '0.8rem', flexShrink: 0, marginLeft: 'auto' }}
+          title={`Remove: ${nameOf(edge.aId)} ↔ ${nameOf(edge.bId)}`}
+        >
+          ×
+        </button>
+      </div>
+
+      {/* Expanded: exposure + body parts */}
+      {open && (
+        <div className="stack-md" style={{ padding: '0.75rem 1rem' }}>
+          {/* Exposure window — shared for the pair */}
+          <div className="stack-sm">
+            <p className="eyebrow">Exposure window (when this pair had contact)</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <label className="field">
+                <span>First contact</span>
+                <input
+                  type="date"
+                  value={edge.exp_first}
+                  onChange={e => onChangeExposure('exp_first', e.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span>Last contact</span>
+                <input
+                  type="date"
+                  value={edge.exp_last}
+                  onChange={e => onChangeExposure('exp_last', e.target.value)}
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* Body parts — separate per person in this relationship */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <BodyPartsCheckboxes
+              heading={`${nameOf(edge.aId)}'s body parts`}
+              checked={edge.a_body_parts}
+              onToggle={part => onToggleBodyPart('a', part)}
+            />
+            <BodyPartsCheckboxes
+              heading={`${nameOf(edge.bId)}'s body parts`}
+              checked={edge.b_body_parts}
+              onToggle={part => onToggleBodyPart('b', part)}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ConnectionsPanel({
   edges,
   people,
@@ -386,6 +509,8 @@ function ConnectionsPanel({
   onRemove,
   onChangeA,
   onChangeB,
+  onChangeExposure,
+  onToggleBodyPart,
 }: {
   edges: NetworkEdge[]
   people: { _pid: string; name: string }[]
@@ -393,21 +518,16 @@ function ConnectionsPanel({
   onRemove: (id: string) => void
   onChangeA: (id: string, pid: string) => void
   onChangeB: (id: string, pid: string) => void
+  onChangeExposure: (id: string, field: 'exp_first' | 'exp_last', value: string) => void
+  onToggleBodyPart: (id: string, person: 'a' | 'b', part: BodyPartValue) => void
 }) {
-  function displayName(pid: string): string {
-    const idx = people.findIndex(p => p._pid === pid)
-    const p = people[idx]
-    if (!p) return '(removed)'
-    return p.name.trim() || `Patient ${idx + 1}`
-  }
-
   return (
     <div className="panel stack-md">
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
         <div>
           <p className="eyebrow" style={{ margin: 0 }}>Connections</p>
           <p style={{ fontSize: '0.8rem', color: '#888', margin: '2px 0 0' }}>
-            Each connection is one VCA analysis. "OP" and "Partner" roles are determined by the engine, not by order here.
+            Expand each connection to set the exposure window and body parts for that specific relationship.
           </p>
         </div>
         <button
@@ -428,50 +548,18 @@ function ConnectionsPanel({
         </p>
       ) : (
         <div className="stack-sm">
-          {edges.map(edge => {
-            const selfLoop = edge.aId === edge.bId
-            return (
-              <div key={edge.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                <select
-                  value={edge.aId}
-                  onChange={e => onChangeA(edge.id, e.target.value)}
-                  style={{ flex: '1 1 130px', padding: '5px 6px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '0.875rem' }}
-                >
-                  {people.map((p, i) => (
-                    <option key={p._pid} value={p._pid}>
-                      {p.name.trim() || `Patient ${i + 1}`}
-                    </option>
-                  ))}
-                </select>
-                <span style={{ color: '#888', fontSize: '1rem', flexShrink: 0 }}>↔</span>
-                <select
-                  value={edge.bId}
-                  onChange={e => onChangeB(edge.id, e.target.value)}
-                  style={{ flex: '1 1 130px', padding: '5px 6px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '0.875rem' }}
-                >
-                  {people.map((p, i) => (
-                    <option key={p._pid} value={p._pid}>
-                      {p.name.trim() || `Patient ${i + 1}`}
-                    </option>
-                  ))}
-                </select>
-                {selfLoop && (
-                  <span style={{ fontSize: '0.78rem', color: '#e24b4a', flexShrink: 0 }}>
-                    ⚠ Same person
-                  </span>
-                )}
-                <button
-                  type="button"
-                  className="button"
-                  onClick={() => onRemove(edge.id)}
-                  style={{ padding: '4px 10px', fontSize: '0.8rem', flexShrink: 0 }}
-                  title={`Remove connection: ${displayName(edge.aId)} ↔ ${displayName(edge.bId)}`}
-                >
-                  ×
-                </button>
-              </div>
-            )
-          })}
+          {edges.map(edge => (
+            <EdgeRow
+              key={edge.id}
+              edge={edge}
+              people={people}
+              onChangeA={pid => onChangeA(edge.id, pid)}
+              onChangeB={pid => onChangeB(edge.id, pid)}
+              onRemove={() => onRemove(edge.id)}
+              onChangeExposure={(field, value) => onChangeExposure(edge.id, field, value)}
+              onToggleBodyPart={(person, part) => onToggleBodyPart(edge.id, person, part)}
+            />
+          ))}
         </div>
       )}
     </div>
@@ -970,6 +1058,22 @@ export function QuickGhostPage() {
     setEdges(prev => prev.map(e => e.id === id ? { ...e, bId: pid } : e))
   }
 
+  function handleChangeExposure(edgeId: string, field: 'exp_first' | 'exp_last', value: string) {
+    setEdges(prev => prev.map(e => e.id === edgeId ? { ...e, [field]: value } : e))
+  }
+
+  function handleToggleBodyPart(edgeId: string, person: 'a' | 'b', part: BodyPartValue) {
+    setEdges(prev => prev.map(e => {
+      if (e.id !== edgeId) return e
+      const key = person === 'a' ? 'a_body_parts' : 'b_body_parts'
+      const current = e[key]
+      const updated = current.includes(part)
+        ? current.filter(p => p !== part)
+        : [...current, part]
+      return { ...e, [key]: updated }
+    }))
+  }
+
   async function onRunAnalysis() {
     setApiError(null)
     setResultMap(new Map())
@@ -997,7 +1101,7 @@ export function QuickGhostPage() {
       const label = `${nameA} ↔ ${nameB}`
 
       try {
-        const result = await runQuickGhostingAnalysis(buildPayload(personA, personB))
+        const result = await runQuickGhostingAnalysis(buildPayload(personA, personB, edge))
         newMap.set(edge.id, { label, result, error: null })
       } catch (err: unknown) {
         newMap.set(edge.id, { label, result: null, error: err instanceof Error ? err.message : 'Analysis failed.' })
@@ -1098,6 +1202,8 @@ export function QuickGhostPage() {
           onRemove={handleRemoveEdge}
           onChangeA={handleChangeEdgeA}
           onChangeB={handleChangeEdgeB}
+          onChangeExposure={handleChangeExposure}
+          onToggleBodyPart={handleToggleBodyPart}
         />
 
         {/* Actions */}
