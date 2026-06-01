@@ -304,11 +304,18 @@ performed manually.
 ## 13. Near-term next actions
 
 - [ ] Draft a 150-250 word abstract for Paper 1
-- [ ] Build the initial search strings in PubMed and Google Scholar
-- [ ] Set up Zotero collections and tags
-- [ ] Create a screening / abstraction spreadsheet
-- [ ] Identify 10-15 anchor papers for the first pass
+- [x] Build the initial search strings in PubMed and Google Scholar — done 2026-05-31
+- [ ] Set up Zotero collections and tags — import from `PAPER1_ARTICLE_TRACKER.csv`
+- [x] Create a screening / abstraction spreadsheet — `PAPER1_ARTICLE_TRACKER.csv` populated 2026-05-31
+- [x] Identify 10-15 anchor papers for the first pass — 17 confirmed sources entered 2026-05-31
 - [ ] Draft a background section skeleton from the literature buckets
+- [ ] Pass 2 gap fill: CDC STI Treatment Guidelines 2021 (natural history constants); temporal reasoning methods paper (Arden Syntax / GLARE / clinical guidelines); rule-based computable case identification (CARPEDIEM-style)
+- [ ] **CRITICAL ACTION: locate CDC 1992 VCA DIS training document** — contact CDC archives or NCSDDC/NACCHO directly
+- [ ] Full-text abstraction: complete "To abstract" High-priority papers in tracker (pavia_2019, keshavjee_2022, cope_2022, cdc_1992, rankin_2025)
+- [ ] Verify FHIR RiskAssessment resource as output representation candidate
+- [ ] Run formal PubMed queries B1/B2/C1/C2/D1/D2 (exact strings in § 5 of PAPER1_LITERATURE_SEARCH.md) with filter logs before submission
+- [x] ~~Recent syphilis surveillance 2020–2026~~ — resolved by Rankin 2025
+- [x] ~~DIS history backbone~~ — resolved by Pavia 2019 + Keshavjee 2022
 
 ---
 
@@ -319,3 +326,29 @@ performed manually.
 - Confirmed the methods / informatics / design framing as the primary article direction.
 - Defined initial literature search buckets: syphilis/VCA, public health informatics, surveillance analytics, and FHIR interoperability.
 - Defined a minimum data abstraction schema and recommended a Zotero + spreadsheet hybrid workflow.
+
+### 2026-05-31
+- Completed Pass 1 anchor literature search across all 4 domains (A–D) using AI-assisted web search harness.
+- 17 sources identified, confirmed, and entered into `PAPER1_ARTICLE_TRACKER.csv`.
+- Search log recorded in `PAPER1_LITERATURE_SEARCH.md` § 11.
+- Key anchors secured per domain:
+  - **A (Syphilis/DIS/VCA):** Peterman 2024 systematic review; Hurt 2018 on-site DIS outcomes; Peterman 2022 PN effectiveness; NCSDDC 2022 VCA training; Cope 2019 DIS changing roles
+  - **B (PHI/Decision Support):** Yasnoff 2000 PHI definition; CDC MMWR 2012 PHI surveillance; Amann 2022 explainability in CDSS; StatPearls syphilis natural history (engine constants grounding)
+  - **C (Surveillance/Transmission):** Doherty 2012 sexual networks NC; Fox 2024 STI mapping Forsyth County; Klovdahl 2017 network SF; CSTE outbreak detection guidance
+  - **D (FHIR/Interoperability):** Ward 2017 NBS workflow; Vorisek 2022 FHIR systematic review; HL7 eCR IG v2.1.2; CDC 2023 FHIR Playbook
+- Pass 2 gaps identified: peer-reviewed VCA methodology companion; CDC STI guidelines 2021 for natural history constants; FHIR RiskAssessment resource verification; additional syphilis surveillance recency (2020–2026); computable phenotyping methods papers for Domain B.
+- Next action: import tracker rows into Zotero; obtain full texts for 9 High-priority papers marked "To abstract"; run Pass 2 targeted gap-fill searches.
+
+### 2026-05-31 (Session 2 — integrated from parallel chat)
+- Integrated 7 new sources from a parallel research session into `PAPER1_ARTICLE_TRACKER.csv`; tracker now has 24 entries.
+- Enriched `ncsddc_2022_vca_training` entry: confirmed author Emily Fussell; added NACCHO VCA chart citation note; added 1930s contact tracing history detail from slide deck.
+- Key new finds:
+  - `cdc_1992_vca_dis_training` — VCA provenance traces to CDC 1992 DIS training document (cited via Oregon PH Division); full document not yet located — flagged as critical action item.
+  - `rankin_2025_syphilis_trends` — Rankin et al. 2025, BMC Inf Dis — resolves Domain C recency gap; 80% syphilis resurgence 2018–2022.
+  - `pavia_2019_dis_history` — DIS workforce history from 1930s; 1940s CDC federalization.
+  - `keshavjee_2022_ct_history` — Contact tracing history syphilis to COVID-19; ethical evolution framing.
+  - `rothenberg_2003_social_network` — Havlak 1960s "lot system" as intellectual precursor to VCA cluster reasoning.
+  - `cope_2022_unnamed_partners` — Unnamed partners study; directly motivates index-case-level VCA analysis.
+  - `golden_2010_dis_embedded` — DIS embedding effectiveness; lower priority supporting citation.
+- Identified methodology limitation: both AI-assisted sessions used web-snippet-level search, not formal PubMed queries. PubMed B/C/D bucket queries must be run formally before submission.
+- Updated Pass 2 gap list: 4 gaps remain (CDC 1992 document, CDC STI guidelines 2021, temporal reasoning methods, rule-based case identification).
