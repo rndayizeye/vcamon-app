@@ -21,6 +21,7 @@ from app.db.models import (
     LabResultEntry,
     MAPEntry,
     Partner,
+    Person,
     RelationshipReport,
     SUBJECT_FIELDS,
     Subject,
@@ -417,10 +418,12 @@ def create_case(
     db: Session, patient_name: str, initial_contact_date: date | None = None, **kwargs
 ) -> Case:
     subject_kwargs, case_kwargs = _split_subject_kwargs(kwargs)
+    person = Person()
     subject = Subject(**subject_kwargs)
     case = Case(
         patient_name=patient_name,
         initial_contact_date=initial_contact_date,
+        person=person,
         subject=subject,
         **case_kwargs,
     )
@@ -498,8 +501,10 @@ def create_partner(
     if linked_case_id is not None:
         linked_case = get_case_by_id(db, linked_case_id)
         shared_subject_id = linked_case.subject_id if linked_case else None
+        shared_person_id = linked_case.person_id if linked_case else None
     else:
         shared_subject_id = None
+        shared_person_id = None
 
     if shared_subject_id is not None:
         partner = Partner(
@@ -507,15 +512,18 @@ def create_partner(
             partner_number=partner_number,
             linked_case_id=linked_case_id,
             subject_id=shared_subject_id,
+            person_id=shared_person_id,
             **partner_kwargs,
         )
     else:
         subject = Subject(**subject_kwargs)
+        person = Person()
         partner = Partner(
             case_id=case_id,
             partner_number=partner_number,
             linked_case_id=linked_case_id,
             subject=subject,
+            person=person,
             **partner_kwargs,
         )
     db.add(partner)

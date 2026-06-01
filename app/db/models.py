@@ -233,6 +233,30 @@ def _sprop(name: str) -> property:
 
 
 # ---------------------------------------------------------------------------
+# Person  (stable real-world identity — one row per individual)
+# ---------------------------------------------------------------------------
+
+
+class Person(Base):
+    """
+    Identity anchor for a real-world individual.
+    A person may appear as a Case, a Partner, or both across different clusters.
+    person_id is the canonical graph-node key for transmission chain deduplication.
+    """
+
+    __tablename__ = "persons"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    cases: Mapped[list["Case"]] = relationship("Case", back_populates="person")
+    partners: Mapped[list["Partner"]] = relationship("Partner", back_populates="person")
+
+    def __repr__(self) -> str:
+        return f"<Person id={self.id}>"
+
+
+# ---------------------------------------------------------------------------
 # Subject  (shared clinical profile — owned by one Case or one Partner)
 # ---------------------------------------------------------------------------
 
@@ -299,6 +323,12 @@ class Case(Base):
     __tablename__ = "cases"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    # Cross-case identity
+    person_id: Mapped[int | None] = mapped_column(
+        ForeignKey("persons.id", ondelete="SET NULL"), nullable=True
+    )
+    person: Mapped["Person | None"] = relationship("Person", back_populates="cases")
 
     # Patient identifiers (OP sheet rows 1-2)
     patient_name: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -380,6 +410,12 @@ class Partner(Base):
     partner_number: Mapped[int] = mapped_column(Integer, nullable=False)  # 1, 2, 3...
 
     name: Mapped[str | None] = mapped_column(String(200))
+
+    # Cross-case identity
+    person_id: Mapped[int | None] = mapped_column(
+        ForeignKey("persons.id", ondelete="SET NULL"), nullable=True
+    )
+    person: Mapped["Person | None"] = relationship("Person", back_populates="partners")
 
     # When this partner has their own case record, link it here for chain traversal
     linked_case_id: Mapped[int | None] = mapped_column(
