@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useFieldArray, useForm } from 'react-hook-form'
 
 import { runQuickGhostingAnalysis } from './api'
@@ -1069,6 +1069,15 @@ export function QuickGhostPage() {
   // Reactive people list for dropdowns and SVG preview
   const watchedPeople = watch('people')
 
+  // True after a successful run; cleared when any analysis input changes so results don't silently go stale.
+  const freshResultsRef = useRef(false)
+  useEffect(() => {
+    if (freshResultsRef.current) {
+      setResultMap(new Map())
+      freshResultsRef.current = false
+    }
+  }, [watchedPeople, edges])
+
   function handleAddPerson() {
     appendPerson(makePersonDefaults(peopleFields.length + 1))
   }
@@ -1155,10 +1164,12 @@ export function QuickGhostPage() {
     }
 
     setResultMap(newMap)
+    freshResultsRef.current = newMap.size > 0
     setLoading(false)
   }
 
   function handleClear() {
+    freshResultsRef.current = false
     const fresh = [makePersonDefaults(1), makePersonDefaults(2)]
     reset({ people: fresh })
     setEdges([])
