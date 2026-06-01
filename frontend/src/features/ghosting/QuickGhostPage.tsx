@@ -67,13 +67,20 @@ type PersonFields = {
   treatment_date: string
 }
 
+// A partner has their own clinical data plus a list of their own contacts,
+// who are analyzed as: [this partner] vs [each contact].
+type PartnerEntry = PersonFields & {
+  contacts: PersonFields[]
+}
+
 type QuickGhostForm = {
-  person_a: PersonFields
-  partners: PersonFields[]
+  op: PersonFields
+  partners: PartnerEntry[]
 }
 
 type PairResult = {
   label: string
+  description: string
   result: GhostingAnalysisResult | null
   error: string | null
 }
@@ -85,13 +92,18 @@ const EMPTY_SYMPTOM: SymptomRow = {
   anatomical_site: '',
 }
 
-const DEFAULT_PERSON: PersonFields = {
+const EMPTY_PERSON: PersonFields = {
   name: '',
   symptoms: [],
   exp_first: '',
   exp_last: '',
   body_parts: [],
   treatment_date: '',
+}
+
+const EMPTY_PARTNER: PartnerEntry = {
+  ...EMPTY_PERSON,
+  contacts: [],
 }
 
 // ---------------------------------------------------------------------------
@@ -124,20 +136,18 @@ function computeInoculationAvg(symptom: GhostingSymptomInput): string {
 }
 
 function buildPayload(op: PersonFields, partner: PersonFields) {
-  const opSymptoms = toSymptomInputs(op.symptoms)
-  const partnerSymptoms = toSymptomInputs(partner.symptoms)
   const opHasExposure = op.exp_first && op.exp_last
   const partnerHasExposure = partner.exp_first && partner.exp_last
   return {
-    op_name: op.name.trim() || 'Person A',
-    op_symptoms: opSymptoms,
+    op_name: op.name.trim() || 'OP',
+    op_symptoms: toSymptomInputs(op.symptoms),
     op_exposure: opHasExposure
       ? { first: op.exp_first, last: op.exp_last, exposure_modalities: [] }
       : null,
     op_treatment_date: op.treatment_date || null,
     op_body_parts: op.body_parts,
     partner_name: partner.name.trim() || 'Partner',
-    partner_symptoms: partnerSymptoms,
+    partner_symptoms: toSymptomInputs(partner.symptoms),
     partner_exposure: partnerHasExposure
       ? { first: partner.exp_first, last: partner.exp_last, exposure_modalities: [] }
       : null,
@@ -146,8 +156,22 @@ function buildPayload(op: PersonFields, partner: PersonFields) {
   }
 }
 
+async function runPair(
+  op: PersonFields,
+  partner: PersonFields,
+  label: string,
+  description: string,
+): Promise<PairResult> {
+  try {
+    const result = await runQuickGhostingAnalysis(buildPayload(op, partner))
+    return { label, description, result, error: null }
+  } catch (err: unknown) {
+    return { label, description, result: null, error: err instanceof Error ? err.message : 'Analysis failed.' }
+  }
+}
+
 // ---------------------------------------------------------------------------
-// Symptom editor sub-component
+// Symptom editor
 // ---------------------------------------------------------------------------
 
 function SymptomEditor({
@@ -161,10 +185,7 @@ function SymptomEditor({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   register: any
 }) {
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: `${prefix}.symptoms`,
-  })
+  const { fields, append, remove } = useFieldArray({ control, name: `${prefix}.symptoms` })
 
   return (
     <div className="stack-sm">
@@ -175,15 +196,7 @@ function SymptomEditor({
         </p>
       )}
       {fields.map((field, i) => (
-        <div
-          key={field.id}
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '0.5rem',
-            alignItems: 'flex-end',
-          }}
-        >
+        <div key={field.id} style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'flex-end' }}>
           <label className="field" style={{ margin: 0, flex: '2 1 140px', minWidth: 0 }}>
             {i === 0 && <span style={{ fontSize: '0.75rem' }}>Type</span>}
             <select {...register(`${prefix}.symptoms.${i}.type`)}>
@@ -196,12 +209,8 @@ function SymptomEditor({
           </label>
           <label className="field" style={{ margin: 0, flex: '0 1 90px', minWidth: 70 }}>
             {i === 0 && <span style={{ fontSize: '0.75rem' }}>Duration (d)</span>}
-            <input
-              type="number"
-              min={0}
-              max={90}
-              {...register(`${prefix}.symptoms.${i}.duration_days`, { valueAsNumber: true })}
-            />
+            <input type="number" min={0} max={90}
+              {...register(`${prefix}.symptoms.${i}.duration_days`, { valueAsNumber: true })} />
           </label>
           <label className="field" style={{ margin: 0, flex: '2 1 140px', minWidth: 0 }}>
             {i === 0 && <span style={{ fontSize: '0.75rem' }}>Anatomical site</span>}
@@ -210,23 +219,14 @@ function SymptomEditor({
               {ANATOMICAL_SITES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </label>
-          <button
-            type="button"
-            className="button"
-            onClick={() => remove(i)}
-            style={{ padding: '6px 10px', flex: '0 0 auto', alignSelf: 'flex-end' }}
-            title="Remove symptom"
-          >
+          <button type="button" className="button" onClick={() => remove(i)}
+            style={{ padding: '6px 10px', flex: '0 0 auto', alignSelf: 'flex-end' }} title="Remove symptom">
             ✕
           </button>
         </div>
       ))}
-      <button
-        type="button"
-        className="button"
-        style={{ alignSelf: 'flex-start' }}
-        onClick={() => append({ ...EMPTY_SYMPTOM })}
-      >
+      <button type="button" className="button" style={{ alignSelf: 'flex-start' }}
+        onClick={() => append({ ...EMPTY_SYMPTOM })}>
         + Add symptom
       </button>
     </div>
@@ -247,15 +247,11 @@ function BodyPartsCheckboxes({
 }) {
   return (
     <div className="stack-xs">
-      <p className="eyebrow" style={{ marginBottom: '0.25rem' }}>
-        Body parts used during contact
-      </p>
+      <p className="eyebrow" style={{ marginBottom: '0.25rem' }}>Body parts used during contact</p>
       <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
         {BODY_PARTS.map(({ value, label }) => (
-          <label
-            key={value}
-            style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem', cursor: 'pointer' }}
-          >
+          <label key={value}
+            style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem', cursor: 'pointer' }}>
             <input type="checkbox" value={value} {...register(`${prefix}.body_parts`)} />
             {label}
           </label>
@@ -266,49 +262,23 @@ function BodyPartsCheckboxes({
 }
 
 // ---------------------------------------------------------------------------
-// Person panel (reusable for OP and each partner)
+// Person clinical data fields (reused for OP, partners, and contacts)
 // ---------------------------------------------------------------------------
 
-function PersonPanel({
+function PersonClinicalFields({
   prefix,
-  label,
   control,
   register,
-  onRemove,
 }: {
   prefix: string
-  label: string
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   control: any
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   register: any
-  onRemove?: () => void
 }) {
   return (
-    <div className="panel stack-md">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ flex: 1 }}>
-          <p className="eyebrow">{label}</p>
-          <label className="field" style={{ marginTop: '0.5rem' }}>
-            <span>Name / identifier</span>
-            <input type="text" {...register(`${prefix}.name`)} placeholder={label} />
-          </label>
-        </div>
-        {onRemove && (
-          <button
-            type="button"
-            className="button"
-            onClick={onRemove}
-            style={{ marginLeft: '0.75rem', padding: '4px 10px', fontSize: '0.8rem' }}
-            title="Remove this partner"
-          >
-            Remove
-          </button>
-        )}
-      </div>
-
+    <>
       <SymptomEditor prefix={prefix} control={control} register={register} />
-
       <div className="stack-sm">
         <p className="eyebrow">Exposure window</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
@@ -323,17 +293,181 @@ function PersonPanel({
         </div>
         <BodyPartsCheckboxes prefix={prefix} register={register} />
       </div>
-
       <label className="field">
         <span>Treatment date</span>
         <input type="date" {...register(`${prefix}.treatment_date`)} />
       </label>
+    </>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Contact card — compact sub-panel used inside a partner's contacts section
+// ---------------------------------------------------------------------------
+
+function ContactCard({
+  prefix,
+  index,
+  control,
+  register,
+  onRemove,
+}: {
+  prefix: string
+  index: number
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  control: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  register: any
+  onRemove: () => void
+}) {
+  const [open, setOpen] = useState(true)
+
+  return (
+    <div style={{
+      border: '1px solid #d8d3cb',
+      borderRadius: '6px',
+      overflow: 'hidden',
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.75rem',
+        padding: '0.5rem 0.75rem',
+        background: '#f4f2ec',
+        borderBottom: open ? '1px solid #d8d3cb' : 'none',
+      }}>
+        <button type="button" onClick={() => setOpen(o => !o)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '0.8rem', color: '#666' }}>
+          {open ? '▼' : '▶'}
+        </button>
+        <label className="field" style={{ margin: 0, flex: 1 }}>
+          <input type="text" {...register(`${prefix}.name`)}
+            placeholder={`Contact ${index + 1}`}
+            style={{ fontSize: '0.85rem', padding: '3px 6px' }} />
+        </label>
+        <button type="button" className="button" onClick={onRemove}
+          style={{ padding: '3px 8px', fontSize: '0.8rem' }}>
+          Remove
+        </button>
+      </div>
+      {open && (
+        <div className="stack-md" style={{ padding: '0.75rem' }}>
+          <PersonClinicalFields prefix={prefix} control={control} register={register} />
+        </div>
+      )}
     </div>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Shared criteria / verdict components
+// Partner panel — includes their own contacts sub-section
+// ---------------------------------------------------------------------------
+
+function PartnerPanel({
+  partnerIdx,
+  control,
+  register,
+  onRemove,
+}: {
+  partnerIdx: number
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  control: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  register: any
+  onRemove?: () => void
+}) {
+  const prefix = `partners.${partnerIdx}`
+  const [contactsOpen, setContactsOpen] = useState(false)
+
+  const { fields: contactFields, append: appendContact, remove: removeContact } = useFieldArray({
+    control,
+    name: `${prefix}.contacts`,
+  })
+
+  return (
+    <div className="panel stack-md">
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ flex: 1 }}>
+          <p className="eyebrow">Partner {partnerIdx + 1}</p>
+          <label className="field" style={{ marginTop: '0.5rem' }}>
+            <span>Name / identifier</span>
+            <input type="text" {...register(`${prefix}.name`)} placeholder={`Partner ${partnerIdx + 1}`} />
+          </label>
+        </div>
+        {onRemove && (
+          <button type="button" className="button" onClick={onRemove}
+            style={{ marginLeft: '0.75rem', padding: '4px 10px', fontSize: '0.8rem' }}>
+            Remove
+          </button>
+        )}
+      </div>
+
+      {/* Clinical data */}
+      <PersonClinicalFields prefix={prefix} control={control} register={register} />
+
+      {/* This partner's contacts — the next level of the transmission network */}
+      <div style={{
+        borderTop: '1px solid #e0dbd2',
+        paddingTop: '0.75rem',
+        marginTop: '0.25rem',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: contactsOpen || contactFields.length > 0 ? '0.75rem' : 0 }}>
+          <button
+            type="button"
+            onClick={() => setContactsOpen(o => !o)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '0.8rem', color: '#555', display: 'flex', alignItems: 'center', gap: '4px' }}
+          >
+            {contactsOpen || contactFields.length > 0 ? '▼' : '▶'}
+            <span style={{ fontWeight: 500, fontSize: '0.8rem' }}>
+              This partner's contacts
+              {contactFields.length > 0 && (
+                <span style={{ color: '#888', fontWeight: 400 }}> ({contactFields.length})</span>
+              )}
+            </span>
+          </button>
+          <span style={{ fontSize: '0.75rem', color: '#888' }}>
+            — analyzed as: [this partner] vs [each contact]
+          </span>
+        </div>
+
+        {(contactsOpen || contactFields.length > 0) && (
+          <div className="stack-sm">
+            {contactFields.length === 0 && (
+              <p style={{ fontSize: '0.82rem', color: '#999', margin: 0 }}>
+                No contacts entered for this partner yet.
+              </p>
+            )}
+            {contactFields.map((field, ci) => (
+              <ContactCard
+                key={field.id}
+                prefix={`${prefix}.contacts.${ci}`}
+                index={ci}
+                control={control}
+                register={register}
+                onRemove={() => removeContact(ci)}
+              />
+            ))}
+            <button
+              type="button"
+              className="button"
+              style={{ alignSelf: 'flex-start', fontSize: '0.82rem' }}
+              onClick={() => {
+                setContactsOpen(true)
+                appendContact({ ...EMPTY_PERSON })
+              }}
+            >
+              + Add contact for this partner
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Verdict / criteria display components
 // ---------------------------------------------------------------------------
 
 function StatusBadge({ check }: { check: GhostingCriteriaCheck }) {
@@ -378,12 +512,7 @@ function EnhancedCriteriaTable({
   return (
     <table className="data-table" style={{ width: '100%' }}>
       <thead>
-        <tr>
-          <th>Criterion</th>
-          <th>Range</th>
-          <th>Result</th>
-          <th>Detail</th>
-        </tr>
+        <tr><th>Criterion</th><th>Range</th><th>Result</th><th>Detail</th></tr>
       </thead>
       <tbody>
         <tr>
@@ -406,14 +535,12 @@ function EnhancedCriteriaTable({
               : `outside ghosted lesion (${ghostedLesion.onset} → ${ghostedLesion.end})`}
           </td>
         </tr>
-
         <tr>
           <td style={{ fontWeight: 500 }}>Exposure modality</td>
           <td style={{ ...tdMuted, fontSize: '0.8rem' }}>Expected</td>
           <td><StatusBadge check={expected.exposure_modality} /></td>
           <td style={tdMuted}>{expected.exposure_modality.detail}</td>
         </tr>
-
         <tr>
           <td rowSpan={3} style={{ fontWeight: 500, verticalAlign: 'middle' }}>Latency</td>
           <td style={{ fontSize: '0.8rem', color: '#888' }}>Optimistic (min)</td>
@@ -430,7 +557,6 @@ function EnhancedCriteriaTable({
           <td><StatusBadge check={conservative.latency} /></td>
           <td style={tdMuted}>{conservative.latency.detail}</td>
         </tr>
-
         <tr>
           <td style={{ fontWeight: 500 }}>Natural order</td>
           <td style={{ ...tdMuted, fontSize: '0.8rem' }}>Expected</td>
@@ -442,7 +568,7 @@ function EnhancedCriteriaTable({
   )
 }
 
-function VerdictBanner({ verdict }: { verdict: string }) {
+function VerdictBanner({ verdict, compact }: { verdict: string; compact?: boolean }) {
   const upper = verdict.toUpperCase()
   let color = '#e24b4a'
   let bg = '#fdf0f0'
@@ -452,6 +578,17 @@ function VerdictBanner({ verdict }: { verdict: string }) {
   else if (upper.includes('⚠') || upper.includes('OVERLAP')) { color = '#8a6d00'; bg = '#fef8ec'; border = '#ef9f27' }
   else if (upper.includes('SOURCE')) { color = '#1d9e75'; bg = '#eafaf3'; border = '#1d9e75' }
   else if (upper.includes('SPREAD')) { color = '#378add'; bg = '#e8f3fd'; border = '#378add' }
+
+  if (compact) {
+    return (
+      <span style={{
+        padding: '2px 10px', borderRadius: '4px', background: bg, border: `1px solid ${border}`,
+        color, fontSize: '0.8rem', fontWeight: 700, whiteSpace: 'nowrap',
+      }}>
+        {verdict}
+      </span>
+    )
+  }
 
   return (
     <div style={{ padding: '1rem 1.25rem', borderRadius: '8px', background: bg, border: `1.5px solid ${border}`, color }}>
@@ -501,7 +638,9 @@ function VerdictContext({ result }: { result: GhostingAnalysisResult }) {
           <p style={{ fontWeight: 600, color: '#1d9e75', marginBottom: '0.25rem' }}>Supporting evidence — criteria that passed:</p>
           <ul style={{ margin: 0, paddingLeft: '1.25rem', marginBottom: failing.length > 0 ? '0.75rem' : 0 }}>
             {passing.map((p, i) => (
-              <li key={i} style={{ marginBottom: '0.35rem' }}><strong style={{ color: '#1d9e75' }}>[{p.scenario}]</strong>{' '}{p.text}</li>
+              <li key={i} style={{ marginBottom: '0.35rem' }}>
+                <strong style={{ color: '#1d9e75' }}>[{p.scenario}]</strong>{' '}{p.text}
+              </li>
             ))}
           </ul>
         </>
@@ -511,7 +650,9 @@ function VerdictContext({ result }: { result: GhostingAnalysisResult }) {
           <p style={{ fontWeight: 600, color: '#e24b4a', marginBottom: '0.25rem' }}>Limiting factors — criteria that failed:</p>
           <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
             {failing.map((f, i) => (
-              <li key={i} style={{ marginBottom: '0.35rem' }}><strong style={{ color: '#c0392b' }}>[{f.scenario}]</strong>{' '}{f.text}</li>
+              <li key={i} style={{ marginBottom: '0.35rem' }}>
+                <strong style={{ color: '#c0392b' }}>[{f.scenario}]</strong>{' '}{f.text}
+              </li>
             ))}
           </ul>
         </>
@@ -521,26 +662,22 @@ function VerdictContext({ result }: { result: GhostingAnalysisResult }) {
 }
 
 // ---------------------------------------------------------------------------
-// Single-pair results section
+// Single-pair results
 // ---------------------------------------------------------------------------
 
-function Results({ result }: { result: GhostingAnalysisResult }) {
+function PairResultDetail({ pair }: { pair: PairResult }) {
   const [logOpen, setLogOpen] = useState(false)
   const [scenarioTab, setScenarioTab] = useState<'source' | 'spread'>('source')
+  const { result } = pair
+
+  if (!result) {
+    return <p className="error-text">{pair.error}</p>
+  }
+
   const srcLesion = result.source_scenarios.range_lesions.expected
   const sprLesion = result.spread_scenarios.range_lesions.expected
-
-  const activeScenario =
-    scenarioTab === 'source' ? result.source_scenarios : result.spread_scenarios
-  const activeGhostedLesion =
-    scenarioTab === 'source' ? result.ghosted_source : result.ghosted_spread
-
-  function buildHypothesis(tab: 'source' | 'spread'): string {
-    if (tab === 'source') {
-      return `This scenario tests whether ${result.case2_name} infected ${result.case1_name}.`
-    }
-    return `This scenario tests whether ${result.case1_name} infected ${result.case2_name}.`
-  }
+  const activeScenario = scenarioTab === 'source' ? result.source_scenarios : result.spread_scenarios
+  const activeGhostedLesion = scenarioTab === 'source' ? result.ghosted_source : result.ghosted_spread
 
   return (
     <div className="stack-lg">
@@ -569,54 +706,38 @@ function Results({ result }: { result: GhostingAnalysisResult }) {
       <div className="panel stack-xs">
         <p className="eyebrow">Anchor symptom</p>
         <p style={{ fontSize: '0.9rem' }}>
-          <strong>{result.case1_name}</strong> ·{' '}
-          {result.case1_symptom.type} · Onset {result.case1_symptom.onset}
-          {result.case1_symptom.duration_days > 0
-            ? ` · Duration ${result.case1_symptom.duration_days}d`
-            : ''}
+          <strong>{result.case1_name}</strong> · {result.case1_symptom.type} · Onset {result.case1_symptom.onset}
+          {result.case1_symptom.duration_days > 0 ? ` · Duration ${result.case1_symptom.duration_days}d` : ''}
           {' · '}Avg inoculation date: <strong>{computeInoculationAvg(result.case1_symptom)}</strong>
         </p>
-        <p style={{ fontSize: '0.85rem', color: '#888' }}>
-          Comparison patient: {result.case2_name}
-        </p>
+        <p style={{ fontSize: '0.85rem', color: '#888' }}>Comparison patient: {result.case2_name}</p>
       </div>
 
       <div className="panel stack-md">
         <nav className="tab-nav" aria-label="Scenario">
-          <button
-            type="button"
+          <button type="button"
             className={scenarioTab === 'source' ? 'tab-link tab-link-active' : 'tab-link'}
-            onClick={() => setScenarioTab('source')}
-          >
+            onClick={() => setScenarioTab('source')}>
             Source scenario
           </button>
-          <button
-            type="button"
+          <button type="button"
             className={scenarioTab === 'spread' ? 'tab-link tab-link-active' : 'tab-link'}
-            onClick={() => setScenarioTab('spread')}
-          >
+            onClick={() => setScenarioTab('spread')}>
             Spread scenario
           </button>
         </nav>
-
-        <div
-          style={{
-            background: '#f8f9fa',
-            borderLeft: '3px solid #378add',
-            padding: '0.75rem 1rem',
-            fontSize: '0.875rem',
-            borderRadius: '0 4px 4px 0',
-          }}
-        >
+        <div style={{ background: '#f8f9fa', borderLeft: '3px solid #378add', padding: '0.75rem 1rem', fontSize: '0.875rem', borderRadius: '0 4px 4px 0' }}>
           <p className="eyebrow" style={{ marginBottom: '0.25rem' }}>What this scenario tests</p>
-          <p>{buildHypothesis(scenarioTab)}</p>
+          <p>
+            {scenarioTab === 'source'
+              ? `Whether ${result.case2_name} was the source who infected ${result.case1_name}.`
+              : `Whether ${result.case1_name} spread the infection to ${result.case2_name}.`}
+          </p>
         </div>
-
         <div style={{ fontSize: '0.82rem', color: '#555' }}>
           Confidence: <strong>{activeScenario.confidence}</strong>
           &nbsp;·&nbsp;Criteria passed: {activeScenario.pass_count} / 4
         </div>
-
         <EnhancedCriteriaTable
           aggressive={activeScenario.range_data.aggressive}
           expected={activeScenario.range_data.expected}
@@ -628,24 +749,11 @@ function Results({ result }: { result: GhostingAnalysisResult }) {
       </div>
 
       <div className="panel stack-sm">
-        <button
-          type="button"
-          className="button"
-          onClick={() => setLogOpen(o => !o)}
-          style={{ alignSelf: 'flex-start' }}
-        >
+        <button type="button" className="button" onClick={() => setLogOpen(o => !o)} style={{ alignSelf: 'flex-start' }}>
           {logOpen ? '▲ Hide' : '▼ Show'} step-by-step log
         </button>
         {logOpen && (
-          <pre style={{
-            background: '#F4F2EC',
-            padding: '0.75rem',
-            borderRadius: '4px',
-            fontSize: '0.8rem',
-            lineHeight: 1.6,
-            overflowX: 'auto',
-            margin: 0,
-          }}>
+          <pre style={{ background: '#F4F2EC', padding: '0.75rem', borderRadius: '4px', fontSize: '0.8rem', lineHeight: 1.6, overflowX: 'auto', margin: 0 }}>
             {result.log.join('\n')}
           </pre>
         )}
@@ -655,50 +763,63 @@ function Results({ result }: { result: GhostingAnalysisResult }) {
 }
 
 // ---------------------------------------------------------------------------
-// Multi-pair results display
+// Results: grouped by transmission level
 // ---------------------------------------------------------------------------
 
-function MultiResults({ pairs }: { pairs: PairResult[] }) {
-  const [openIdx, setOpenIdx] = useState<number>(0)
+type ResultGroup = {
+  heading: string
+  subheading: string
+  pairs: PairResult[]
+}
+
+function ResultsSection({ groups }: { groups: ResultGroup[] }) {
+  const [openPairs, setOpenPairs] = useState<Record<string, boolean>>({})
+  const toggle = (key: string) => setOpenPairs(prev => ({ ...prev, [key]: !prev[key] }))
 
   return (
     <section className="stack-lg" style={{ marginTop: '1.5rem' }}>
       <div style={{ borderTop: '2px solid #E8E5DF', paddingTop: '1.5rem' }}>
-        <p className="eyebrow">Analysis results</p>
+        <p className="eyebrow">Transmission network — analysis results</p>
       </div>
-      {pairs.map((pair, i) => (
-        <div key={i} className="panel stack-md">
-          <button
-            type="button"
-            onClick={() => setOpenIdx(openIdx === i ? -1 : i)}
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              background: 'none',
-              border: 'none',
-              padding: 0,
-              cursor: 'pointer',
-              width: '100%',
-              textAlign: 'left',
-            }}
-          >
-            <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{pair.label}</span>
-            {pair.result && (
-              <VerdictBanner verdict={pair.result.verdict} />
-            )}
-            <span style={{ fontSize: '0.8rem', color: '#888', marginLeft: '0.75rem' }}>
-              {openIdx === i ? '▲' : '▼'}
-            </span>
-          </button>
-          {openIdx === i && (
-            <>
-              {pair.error && (
-                <p className="error-text">{pair.error}</p>
-              )}
-              {pair.result && <Results result={pair.result} />}
-            </>
-          )}
+
+      {groups.map((group, gi) => (
+        <div key={gi} className="stack-md">
+          <div>
+            <p style={{ fontWeight: 700, fontSize: '1rem', margin: 0 }}>{group.heading}</p>
+            <p style={{ fontSize: '0.82rem', color: '#777', margin: '2px 0 0' }}>{group.subheading}</p>
+          </div>
+
+          {group.pairs.map((pair, pi) => {
+            const key = `${gi}-${pi}`
+            const isOpen = !!openPairs[key]
+            return (
+              <div key={pi} className="panel stack-sm" style={{ padding: '0.75rem 1rem' }}>
+                <button
+                  type="button"
+                  onClick={() => toggle(key)}
+                  style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    background: 'none', border: 'none', padding: 0, cursor: 'pointer', width: '100%', textAlign: 'left', gap: '1rem',
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{pair.label}</span>
+                    <span style={{ fontSize: '0.8rem', color: '#888', marginLeft: '0.5rem' }}>{pair.description}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+                    {pair.result && <VerdictBanner verdict={pair.result.verdict} compact />}
+                    {pair.error && <span className="badge badge-fail">Error</span>}
+                    <span style={{ fontSize: '0.8rem', color: '#888' }}>{isOpen ? '▲' : '▼'}</span>
+                  </div>
+                </button>
+                {isOpen && (
+                  <div style={{ marginTop: '1rem', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
+                    <PairResultDetail pair={pair} />
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       ))}
     </section>
@@ -710,14 +831,14 @@ function MultiResults({ pairs }: { pairs: PairResult[] }) {
 // ---------------------------------------------------------------------------
 
 export function QuickGhostPage() {
-  const [pairResults, setPairResults] = useState<PairResult[]>([])
+  const [resultGroups, setResultGroups] = useState<ResultGroup[]>([])
   const [apiError, setApiError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const { register, control, handleSubmit, reset, getValues } = useForm<QuickGhostForm>({
+  const { register, control, handleSubmit, reset } = useForm<QuickGhostForm>({
     defaultValues: {
-      person_a: { ...DEFAULT_PERSON, name: 'OP' },
-      partners: [{ ...DEFAULT_PERSON, name: 'Partner 1' }],
+      op: { ...EMPTY_PERSON, name: 'OP' },
+      partners: [{ ...EMPTY_PARTNER, name: 'Partner 1' }],
     },
   })
 
@@ -726,57 +847,87 @@ export function QuickGhostPage() {
     name: 'partners',
   })
 
-  // Run OP vs each partner independently
-  async function runAllPairs(values: QuickGhostForm) {
-    const results: PairResult[] = []
-    for (let i = 0; i < values.partners.length; i++) {
-      const partnerName = values.partners[i].name.trim() || `Partner ${i + 1}`
-      const opName = values.person_a.name.trim() || 'OP'
-      const label = `${opName} ↔ ${partnerName}`
-      try {
-        const res = await runQuickGhostingAnalysis(buildPayload(values.person_a, values.partners[i]))
-        results.push({ label, result: res, error: null })
-      } catch (err: unknown) {
-        results.push({ label, result: null, error: err instanceof Error ? err.message : 'Analysis failed.' })
-      }
-    }
-    return results
-  }
+  // Run OP vs all partners — answers "who is the OP's source / who did OP infect?"
+  async function runAllPairs(values: QuickGhostForm): Promise<ResultGroup[]> {
+    const opName = values.op.name.trim() || 'OP'
 
-  // Run chain: (OP, P1), (P1, P2), (P2, P3), …
-  async function runChain(values: QuickGhostForm) {
-    const all = [values.person_a, ...values.partners]
-    const results: PairResult[] = []
-    for (let i = 0; i < all.length - 1; i++) {
-      const aName = all[i].name.trim() || (i === 0 ? 'OP' : `Partner ${i}`)
-      const bName = all[i + 1].name.trim() || `Partner ${i + 1}`
-      const label = `${aName} → ${bName}`
-      try {
-        const res = await runQuickGhostingAnalysis(buildPayload(all[i], all[i + 1]))
-        results.push({ label, result: res, error: null })
-      } catch (err: unknown) {
-        results.push({ label, result: null, error: err instanceof Error ? err.message : 'Analysis failed.' })
+    // Level 1: OP vs each partner
+    const level1Pairs: PairResult[] = []
+    for (let i = 0; i < values.partners.length; i++) {
+      const p = values.partners[i]
+      const pName = p.name.trim() || `Partner ${i + 1}`
+      level1Pairs.push(
+        await runPair(
+          values.op,
+          p,
+          `${opName} ↔ ${pName}`,
+          `Did ${pName} infect ${opName}, or did ${opName} infect ${pName}?`,
+        )
+      )
+    }
+
+    // Level 2: each partner vs their own contacts
+    const level2Groups: ResultGroup[] = []
+    for (let i = 0; i < values.partners.length; i++) {
+      const p = values.partners[i]
+      const pName = p.name.trim() || `Partner ${i + 1}`
+      if (!p.contacts || p.contacts.length === 0) continue
+
+      const pairs: PairResult[] = []
+      for (let ci = 0; ci < p.contacts.length; ci++) {
+        const contact = p.contacts[ci]
+        const cName = contact.name.trim() || `Contact ${ci + 1}`
+        pairs.push(
+          await runPair(
+            p,
+            contact,
+            `${pName} ↔ ${cName}`,
+            `Did ${cName} infect ${pName}, or did ${pName} infect ${cName}?`,
+          )
+        )
+      }
+
+      if (pairs.length > 0) {
+        level2Groups.push({
+          heading: `${pName}'s transmission network`,
+          subheading: `${pName} analyzed as OP against their own contacts`,
+          pairs,
+        })
       }
     }
-    return results
+
+    const groups: ResultGroup[] = [
+      {
+        heading: `${opName}'s partners`,
+        subheading: `Source/spread analysis for ${opName} against each partner`,
+        pairs: level1Pairs,
+      },
+      ...level2Groups,
+    ]
+
+    return groups
   }
 
   async function onSubmit(values: QuickGhostForm) {
     setApiError(null)
-    setPairResults([])
+    setResultGroups([])
     setLoading(true)
 
-    const aSymptoms = toSymptomInputs(values.person_a.symptoms)
-    const allPartnerSymptoms = values.partners.flatMap(p => toSymptomInputs(p.symptoms))
-    if (aSymptoms.length === 0 && allPartnerSymptoms.length === 0) {
+    const opSymptoms = toSymptomInputs(values.op.symptoms)
+    const allPartnerSymptoms = values.partners.flatMap(p => [
+      ...toSymptomInputs(p.symptoms),
+      ...(p.contacts ?? []).flatMap(c => toSymptomInputs(c.symptoms)),
+    ])
+
+    if (opSymptoms.length === 0 && allPartnerSymptoms.length === 0) {
       setApiError('At least one person must have a symptom entered.')
       setLoading(false)
       return
     }
 
     try {
-      const results = await runAllPairs(values)
-      setPairResults(results)
+      const groups = await runAllPairs(values)
+      setResultGroups(groups)
     } catch (err: unknown) {
       setApiError(err instanceof Error ? err.message : 'Analysis failed.')
     } finally {
@@ -784,35 +935,12 @@ export function QuickGhostPage() {
     }
   }
 
-  async function handleChain() {
-    setApiError(null)
-    setPairResults([])
-    setLoading(true)
-    const values = getValues()
-
-    const all = [values.person_a, ...values.partners]
-    if (all.length < 2) {
-      setApiError('Chain analysis requires at least 2 people (OP + 1 partner).')
-      setLoading(false)
-      return
-    }
-
-    try {
-      const results = await runChain(values)
-      setPairResults(results)
-    } catch (err: unknown) {
-      setApiError(err instanceof Error ? err.message : 'Chain analysis failed.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   function handleClear() {
-    setPairResults([])
+    setResultGroups([])
     setApiError(null)
     reset({
-      person_a: { ...DEFAULT_PERSON, name: 'OP' },
-      partners: [{ ...DEFAULT_PERSON, name: 'Partner 1' }],
+      op: { ...EMPTY_PERSON, name: 'OP' },
+      partners: [{ ...EMPTY_PARTNER, name: 'Partner 1' }],
     })
   }
 
@@ -825,10 +953,11 @@ export function QuickGhostPage() {
             <p className="eyebrow">Tools</p>
             <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Quick Ghosting Analysis</h1>
           </div>
-          <p style={{ color: '#555', fontSize: '0.9rem', maxWidth: 700 }}>
-            Run the VCA ghosting engine on any group of people — no case required.
-            Add partners, then use <strong>Run all pairs</strong> to compare OP against each partner,
-            or <strong>Run chain</strong> to trace OP → P1 → P2 → … in sequence.
+          <p style={{ color: '#555', fontSize: '0.9rem', maxWidth: 720 }}>
+            Enter the OP and all their partners. For any partner who is also infected, expand
+            their <strong>contacts</strong> section to enter their own network — those pairs are
+            analyzed as [that partner] vs [their contact], building the full transmission network.
+            Click <strong>Run network analysis</strong> to run all pairs at once.
           </p>
 
           <details style={{ marginTop: '0.25rem' }}>
@@ -848,24 +977,29 @@ export function QuickGhostPage() {
 
         {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)}>
-          {/* Person A (OP) */}
-          <PersonPanel
-            prefix="person_a"
-            label="Person A (OP)"
-            control={control}
-            register={register}
-          />
+          {/* OP */}
+          <div className="panel stack-md">
+            <div>
+              <p className="eyebrow">Index patient (OP)</p>
+              <label className="field" style={{ marginTop: '0.5rem' }}>
+                <span>Name / identifier</span>
+                <input type="text" {...register('op.name')} placeholder="OP" />
+              </label>
+            </div>
+            <PersonClinicalFields prefix="op" control={control} register={register} />
+          </div>
 
           {/* Partners */}
           <div className="stack-md" style={{ marginTop: '1.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <p className="eyebrow" style={{ margin: 0 }}>Partners</p>
+              <p className="eyebrow" style={{ margin: 0 }}>OP's partners</p>
               <button
                 type="button"
                 className="button button-primary"
-                onClick={() =>
-                  appendPartner({ ...DEFAULT_PERSON, name: `Partner ${partnerFields.length + 1}` })
-                }
+                onClick={() => appendPartner({
+                  ...EMPTY_PARTNER,
+                  name: `Partner ${partnerFields.length + 1}`,
+                })}
                 style={{ fontSize: '0.85rem', padding: '4px 12px' }}
               >
                 + Add partner
@@ -874,16 +1008,19 @@ export function QuickGhostPage() {
 
             {partnerFields.length === 0 && (
               <p style={{ color: '#888', fontSize: '0.875rem' }}>
-                No partners yet — click Add partner to add one.
+                No partners yet — click Add partner.
               </p>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: partnerFields.length > 1 ? '1fr 1fr' : '1fr', gap: '1.5rem' }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: partnerFields.length > 1 ? '1fr 1fr' : '1fr',
+              gap: '1.5rem',
+            }}>
               {partnerFields.map((field, i) => (
-                <PersonPanel
+                <PartnerPanel
                   key={field.id}
-                  prefix={`partners.${i}`}
-                  label={`Partner ${i + 1}`}
+                  partnerIdx={i}
                   control={control}
                   register={register}
                   onRemove={partnerFields.length > 1 ? () => removePartner(i) : undefined}
@@ -892,25 +1029,32 @@ export function QuickGhostPage() {
             </div>
           </div>
 
+          {/* How the analysis works callout */}
+          {partnerFields.length > 0 && (
+            <div style={{
+              marginTop: '1rem',
+              padding: '0.75rem 1rem',
+              background: '#f4f2ec',
+              borderRadius: '6px',
+              fontSize: '0.82rem',
+              color: '#555',
+            }}>
+              <strong>What will be analyzed:</strong>{' '}
+              OP vs each of the {partnerFields.length} partner{partnerFields.length > 1 ? 's' : ''} above.
+              Partners that have contacts entered will also be analyzed against each of their contacts
+              (as the OP in those sub-analyses), growing the network.
+            </div>
+          )}
+
           {/* Actions */}
           <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <button
               className="button button-primary"
               type="submit"
               disabled={loading}
-              style={{ minWidth: 160 }}
+              style={{ minWidth: 200 }}
             >
-              {loading ? 'Running…' : '▶ Run all pairs'}
-            </button>
-            <button
-              type="button"
-              className="button"
-              onClick={handleChain}
-              disabled={loading}
-              style={{ minWidth: 140 }}
-              title="Run chain: OP → P1 → P2 → … treating each person as the source for the next"
-            >
-              ⛓ Run chain
+              {loading ? 'Running…' : '▶ Run network analysis'}
             </button>
             <button type="button" className="button" onClick={handleClear} disabled={loading}>
               Clear
@@ -922,7 +1066,7 @@ export function QuickGhostPage() {
         </form>
 
         {/* Results */}
-        {pairResults.length > 0 && <MultiResults pairs={pairResults} />}
+        {resultGroups.length > 0 && <ResultsSection groups={resultGroups} />}
       </div>
     </div>
   )
