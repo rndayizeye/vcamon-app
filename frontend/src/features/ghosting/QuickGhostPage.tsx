@@ -47,8 +47,16 @@ const CLINICAL_REF = [
   { phase: 'Secondary', range: '14–28–42 d' },
 ]
 
+// Verdict → edge color in the SVG preview
+const VERDICT_COLORS: Record<string, string> = {
+  SOURCE: '#1d9e75',
+  SPREAD: '#378add',
+  AMBIGUOUS: '#ef9f27',
+  UNRELATED: '#e24b4a',
+}
+
 // ---------------------------------------------------------------------------
-// Form types
+// Data types
 // ---------------------------------------------------------------------------
 
 type SymptomRow = {
@@ -58,7 +66,9 @@ type SymptomRow = {
   anatomical_site: string
 }
 
-type PersonFields = {
+// Each patient in the investigation — _pid is a stable local ID used by edges.
+type NetworkPerson = {
+  _pid: string
   name: string
   symptoms: SymptomRow[]
   exp_first: string
@@ -67,20 +77,22 @@ type PersonFields = {
   treatment_date: string
 }
 
-// A partner has their own clinical data plus a list of their own contacts,
-// who are analyzed as: [this partner] vs [each contact].
-type PartnerEntry = PersonFields & {
-  contacts: PersonFields[]
+// A connection between two patients — referenced by their _pid.
+// "OP" and "Partner" are analytical roles derived by the engine, not by position here.
+type NetworkEdge = {
+  id: string
+  aId: string
+  bId: string
 }
 
+// The form only owns the patient list. Edges live in plain state so they can
+// cross-reference patients by _pid without being part of a nested form structure.
 type QuickGhostForm = {
-  op: PersonFields
-  partners: PartnerEntry[]
+  people: NetworkPerson[]
 }
 
 type PairResult = {
   label: string
-  description: string
   result: GhostingAnalysisResult | null
   error: string | null
 }
@@ -92,18 +104,20 @@ const EMPTY_SYMPTOM: SymptomRow = {
   anatomical_site: '',
 }
 
-const EMPTY_PERSON: PersonFields = {
-  name: '',
-  symptoms: [],
-  exp_first: '',
-  exp_last: '',
-  body_parts: [],
-  treatment_date: '',
+function makePersonDefaults(n: number): NetworkPerson {
+  return {
+    _pid: crypto.randomUUID(),
+    name: `Patient ${n}`,
+    symptoms: [],
+    exp_first: '',
+    exp_last: '',
+    body_parts: [],
+    treatment_date: '',
+  }
 }
 
-const EMPTY_PARTNER: PartnerEntry = {
-  ...EMPTY_PERSON,
-  contacts: [],
+function makeEdge(aId: string, bId: string): NetworkEdge {
+  return { id: crypto.randomUUID(), aId, bId }
 }
 
 // ---------------------------------------------------------------------------
@@ -121,6 +135,27 @@ function toSymptomInputs(rows: SymptomRow[]): GhostingSymptomInput[] {
     }))
 }
 
+function buildPayload(a: NetworkPerson, b: NetworkPerson) {
+  const aHasExposure = a.exp_first && a.exp_last
+  const bHasExposure = b.exp_first && b.exp_last
+  return {
+    op_name: a.name.trim() || 'Patient A',
+    op_symptoms: toSymptomInputs(a.symptoms),
+    op_exposure: aHasExposure
+      ? { first: a.exp_first, last: a.exp_last, exposure_modalities: [] }
+      : null,
+    op_treatment_date: a.treatment_date || null,
+    op_body_parts: a.body_parts,
+    partner_name: b.name.trim() || 'Patient B',
+    partner_symptoms: toSymptomInputs(b.symptoms),
+    partner_exposure: bHasExposure
+      ? { first: b.exp_first, last: b.exp_last, exposure_modalities: [] }
+      : null,
+    partner_treatment_date: b.treatment_date || null,
+    partner_body_parts: b.body_parts,
+  }
+}
+
 function isoAddDays(iso: string, days: number): string {
   const d = new Date(iso)
   d.setDate(d.getDate() + days)
@@ -135,39 +170,14 @@ function computeInoculationAvg(symptom: GhostingSymptomInput): string {
   return isoAddDays(symptom.onset, -21)
 }
 
-function buildPayload(op: PersonFields, partner: PersonFields) {
-  const opHasExposure = op.exp_first && op.exp_last
-  const partnerHasExposure = partner.exp_first && partner.exp_last
-  return {
-    op_name: op.name.trim() || 'OP',
-    op_symptoms: toSymptomInputs(op.symptoms),
-    op_exposure: opHasExposure
-      ? { first: op.exp_first, last: op.exp_last, exposure_modalities: [] }
-      : null,
-    op_treatment_date: op.treatment_date || null,
-    op_body_parts: op.body_parts,
-    partner_name: partner.name.trim() || 'Partner',
-    partner_symptoms: toSymptomInputs(partner.symptoms),
-    partner_exposure: partnerHasExposure
-      ? { first: partner.exp_first, last: partner.exp_last, exposure_modalities: [] }
-      : null,
-    partner_treatment_date: partner.treatment_date || null,
-    partner_body_parts: partner.body_parts,
-  }
-}
-
-async function runPair(
-  op: PersonFields,
-  partner: PersonFields,
-  label: string,
-  description: string,
-): Promise<PairResult> {
-  try {
-    const result = await runQuickGhostingAnalysis(buildPayload(op, partner))
-    return { label, description, result, error: null }
-  } catch (err: unknown) {
-    return { label, description, result: null, error: err instanceof Error ? err.message : 'Analysis failed.' }
-  }
+function verdictEdgeColor(verdict: string | undefined): string {
+  if (!verdict) return '#cccccc'
+  const up = verdict.toUpperCase()
+  if (up.includes('SOURCE')) return VERDICT_COLORS.SOURCE
+  if (up.includes('SPREAD')) return VERDICT_COLORS.SPREAD
+  if (up.includes('AMBIGUOUS') || up.includes('OVERLAP') || up.includes('⚠')) return VERDICT_COLORS.AMBIGUOUS
+  if (up.includes('UNRELATED')) return VERDICT_COLORS.UNRELATED
+  return '#cccccc'
 }
 
 // ---------------------------------------------------------------------------
@@ -186,7 +196,6 @@ function SymptomEditor({
   register: any
 }) {
   const { fields, append, remove } = useFieldArray({ control, name: `${prefix}.symptoms` })
-
   return (
     <div className="stack-sm">
       <p className="eyebrow">Symptoms</p>
@@ -220,7 +229,7 @@ function SymptomEditor({
             </select>
           </label>
           <button type="button" className="button" onClick={() => remove(i)}
-            style={{ padding: '6px 10px', flex: '0 0 auto', alignSelf: 'flex-end' }} title="Remove symptom">
+            style={{ padding: '6px 10px', flex: '0 0 auto', alignSelf: 'flex-end' }}>
             ✕
           </button>
         </div>
@@ -262,10 +271,10 @@ function BodyPartsCheckboxes({
 }
 
 // ---------------------------------------------------------------------------
-// Person clinical data fields (reused for OP, partners, and contacts)
+// Patient clinical data fields (shared by all patients)
 // ---------------------------------------------------------------------------
 
-function PersonClinicalFields({
+function PatientClinicalFields({
   prefix,
   control,
   register,
@@ -302,57 +311,64 @@ function PersonClinicalFields({
 }
 
 // ---------------------------------------------------------------------------
-// Contact card — compact sub-panel used inside a partner's contacts section
+// Patient card (collapsible — expands to show clinical data)
 // ---------------------------------------------------------------------------
 
-function ContactCard({
-  prefix,
+function PatientCard({
   index,
   control,
   register,
   onRemove,
+  canRemove,
 }: {
-  prefix: string
   index: number
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   control: any
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   register: any
   onRemove: () => void
+  canRemove: boolean
 }) {
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(false)
+  const prefix = `people.${index}`
 
   return (
-    <div style={{
-      border: '1px solid #d8d3cb',
-      borderRadius: '6px',
-      overflow: 'hidden',
-    }}>
+    <div style={{ border: '1px solid #d8d3cb', borderRadius: '6px', overflow: 'hidden' }}>
       <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.75rem',
-        padding: '0.5rem 0.75rem',
-        background: '#f4f2ec',
+        display: 'flex', alignItems: 'center', gap: '0.75rem',
+        padding: '0.5rem 0.75rem', background: '#f4f2ec',
         borderBottom: open ? '1px solid #d8d3cb' : 'none',
       }}>
-        <button type="button" onClick={() => setOpen(o => !o)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '0.8rem', color: '#666' }}>
+        <button
+          type="button"
+          onClick={() => setOpen(o => !o)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '0.8rem', color: '#666', flexShrink: 0 }}
+          title={open ? 'Collapse' : 'Expand clinical data'}
+        >
           {open ? '▼' : '▶'}
         </button>
+        {/* Name inline in header for quick scanning */}
         <label className="field" style={{ margin: 0, flex: 1 }}>
-          <input type="text" {...register(`${prefix}.name`)}
-            placeholder={`Contact ${index + 1}`}
-            style={{ fontSize: '0.85rem', padding: '3px 6px' }} />
+          <input
+            type="text"
+            {...register(`${prefix}.name`)}
+            placeholder={`Patient ${index + 1}`}
+            style={{ fontWeight: 500, background: 'transparent', border: '1px solid transparent', borderRadius: '4px' }}
+            onFocus={e => (e.currentTarget.style.borderColor = '#6b6459')}
+            onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
+          />
         </label>
-        <button type="button" className="button" onClick={onRemove}
-          style={{ padding: '3px 8px', fontSize: '0.8rem' }}>
-          Remove
-        </button>
+        <span style={{ fontSize: '0.72rem', color: '#aaa', flexShrink: 0 }}>Patient {index + 1}</span>
+        {canRemove && (
+          <button type="button" className="button" onClick={onRemove}
+            style={{ padding: '3px 8px', fontSize: '0.8rem', flexShrink: 0 }}>
+            Remove
+          </button>
+        )}
       </div>
       {open && (
-        <div className="stack-md" style={{ padding: '0.75rem' }}>
-          <PersonClinicalFields prefix={prefix} control={control} register={register} />
+        <div className="stack-md" style={{ padding: '0.75rem 1rem' }}>
+          <PatientClinicalFields prefix={prefix} control={control} register={register} />
         </div>
       )}
     </div>
@@ -360,143 +376,238 @@ function ContactCard({
 }
 
 // ---------------------------------------------------------------------------
-// Partner panel — includes their own contacts sub-section
+// Connections panel
 // ---------------------------------------------------------------------------
 
-function PartnerPanel({
-  partnerIdx,
-  control,
-  register,
+function ConnectionsPanel({
+  edges,
+  people,
+  onAdd,
   onRemove,
+  onChangeA,
+  onChangeB,
 }: {
-  partnerIdx: number
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  control: any
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  register: any
-  onRemove?: () => void
+  edges: NetworkEdge[]
+  people: { _pid: string; name: string }[]
+  onAdd: () => void
+  onRemove: (id: string) => void
+  onChangeA: (id: string, pid: string) => void
+  onChangeB: (id: string, pid: string) => void
 }) {
-  const prefix = `partners.${partnerIdx}`
-  const [contactsOpen, setContactsOpen] = useState(false)
-
-  const { fields: contactFields, append: appendContact, remove: removeContact } = useFieldArray({
-    control,
-    name: `${prefix}.contacts`,
-  })
+  function displayName(pid: string): string {
+    const idx = people.findIndex(p => p._pid === pid)
+    const p = people[idx]
+    if (!p) return '(removed)'
+    return p.name.trim() || `Patient ${idx + 1}`
+  }
 
   return (
     <div className="panel stack-md">
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ flex: 1 }}>
-          <p className="eyebrow">Partner {partnerIdx + 1}</p>
-          <label className="field" style={{ marginTop: '0.5rem' }}>
-            <span>Name / identifier</span>
-            <input type="text" {...register(`${prefix}.name`)} placeholder={`Partner ${partnerIdx + 1}`} />
-          </label>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div>
+          <p className="eyebrow" style={{ margin: 0 }}>Connections</p>
+          <p style={{ fontSize: '0.8rem', color: '#888', margin: '2px 0 0' }}>
+            Each connection is one VCA analysis. "OP" and "Partner" roles are determined by the engine, not by order here.
+          </p>
         </div>
-        {onRemove && (
-          <button type="button" className="button" onClick={onRemove}
-            style={{ marginLeft: '0.75rem', padding: '4px 10px', fontSize: '0.8rem' }}>
-            Remove
-          </button>
-        )}
+        <button
+          type="button"
+          className="button button-primary"
+          onClick={onAdd}
+          disabled={people.length < 2}
+          style={{ fontSize: '0.85rem', padding: '4px 14px', flexShrink: 0 }}
+          title={people.length < 2 ? 'Add at least 2 patients first' : undefined}
+        >
+          + Add connection
+        </button>
       </div>
 
-      {/* Clinical data */}
-      <PersonClinicalFields prefix={prefix} control={control} register={register} />
-
-      {/* This partner's contacts — the next level of the transmission network */}
-      <div style={{
-        borderTop: '1px solid #e0dbd2',
-        paddingTop: '0.75rem',
-        marginTop: '0.25rem',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: contactsOpen || contactFields.length > 0 ? '0.75rem' : 0 }}>
-          <button
-            type="button"
-            onClick={() => setContactsOpen(o => !o)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '0.8rem', color: '#555', display: 'flex', alignItems: 'center', gap: '4px' }}
-          >
-            {contactsOpen || contactFields.length > 0 ? '▼' : '▶'}
-            <span style={{ fontWeight: 500, fontSize: '0.8rem' }}>
-              This partner's contacts
-              {contactFields.length > 0 && (
-                <span style={{ color: '#888', fontWeight: 400 }}> ({contactFields.length})</span>
-              )}
-            </span>
-          </button>
-          <span style={{ fontSize: '0.75rem', color: '#888' }}>
-            — analyzed as: [this partner] vs [each contact]
-          </span>
+      {edges.length === 0 ? (
+        <p style={{ color: '#888', fontSize: '0.875rem' }}>
+          No connections yet. Add patients above, then connect them here.
+        </p>
+      ) : (
+        <div className="stack-sm">
+          {edges.map(edge => {
+            const selfLoop = edge.aId === edge.bId
+            return (
+              <div key={edge.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <select
+                  value={edge.aId}
+                  onChange={e => onChangeA(edge.id, e.target.value)}
+                  style={{ flex: '1 1 130px', padding: '5px 6px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '0.875rem' }}
+                >
+                  {people.map((p, i) => (
+                    <option key={p._pid} value={p._pid}>
+                      {p.name.trim() || `Patient ${i + 1}`}
+                    </option>
+                  ))}
+                </select>
+                <span style={{ color: '#888', fontSize: '1rem', flexShrink: 0 }}>↔</span>
+                <select
+                  value={edge.bId}
+                  onChange={e => onChangeB(edge.id, e.target.value)}
+                  style={{ flex: '1 1 130px', padding: '5px 6px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '0.875rem' }}
+                >
+                  {people.map((p, i) => (
+                    <option key={p._pid} value={p._pid}>
+                      {p.name.trim() || `Patient ${i + 1}`}
+                    </option>
+                  ))}
+                </select>
+                {selfLoop && (
+                  <span style={{ fontSize: '0.78rem', color: '#e24b4a', flexShrink: 0 }}>
+                    ⚠ Same person
+                  </span>
+                )}
+                <button
+                  type="button"
+                  className="button"
+                  onClick={() => onRemove(edge.id)}
+                  style={{ padding: '4px 10px', fontSize: '0.8rem', flexShrink: 0 }}
+                  title={`Remove connection: ${displayName(edge.aId)} ↔ ${displayName(edge.bId)}`}
+                >
+                  ×
+                </button>
+              </div>
+            )
+          })}
         </div>
+      )}
+    </div>
+  )
+}
 
-        {(contactsOpen || contactFields.length > 0) && (
-          <div className="stack-sm">
-            {contactFields.length === 0 && (
-              <p style={{ fontSize: '0.82rem', color: '#999', margin: 0 }}>
-                No contacts entered for this partner yet.
-              </p>
-            )}
-            {contactFields.map((field, ci) => (
-              <ContactCard
-                key={field.id}
-                prefix={`${prefix}.contacts.${ci}`}
-                index={ci}
-                control={control}
-                register={register}
-                onRemove={() => removeContact(ci)}
-              />
-            ))}
-            <button
-              type="button"
-              className="button"
-              style={{ alignSelf: 'flex-start', fontSize: '0.82rem' }}
-              onClick={() => {
-                setContactsOpen(true)
-                appendContact({ ...EMPTY_PERSON })
-              }}
+// ---------------------------------------------------------------------------
+// SVG network preview
+// ---------------------------------------------------------------------------
+
+type SvgNodePos = { pid: string; label: string; x: number; y: number }
+
+const SVG_W = 400
+const SVG_H = 280
+const NODE_R = 22
+
+function buildNodePositions(people: { _pid: string; name: string }[]): SvgNodePos[] {
+  const N = people.length
+  if (N === 0) return []
+  const cx = SVG_W / 2
+  const cy = SVG_H / 2
+  const ringR = N <= 1 ? 0 : N === 2 ? 90 : N <= 4 ? 100 : 115
+  return people.map((p, i) => {
+    const angle = N === 1 ? -Math.PI / 2 : (2 * Math.PI * i) / N - Math.PI / 2
+    return {
+      pid: p._pid,
+      label: p.name.trim() || `P${i + 1}`,
+      x: cx + ringR * Math.cos(angle),
+      y: cy + ringR * Math.sin(angle),
+    }
+  })
+}
+
+function NetworkPreview({
+  people,
+  edges,
+  resultMap,
+}: {
+  people: { _pid: string; name: string }[]
+  edges: NetworkEdge[]
+  resultMap: Map<string, PairResult>
+}) {
+  const nodes = buildNodePositions(people)
+  const nodeMap = new Map(nodes.map(n => [n.pid, n]))
+
+  if (people.length < 2) {
+    return (
+      <div className="panel" style={{ padding: '0.75rem', minHeight: 80, display: 'flex', alignItems: 'center' }}>
+        <p style={{ color: '#aaa', fontSize: '0.82rem', margin: 0 }}>
+          Add at least 2 patients to see the network preview.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="panel stack-sm" style={{ padding: '0.75rem' }}>
+      <p className="eyebrow" style={{ margin: 0 }}>Network preview</p>
+      <svg
+        viewBox={`0 0 ${SVG_W} ${SVG_H}`}
+        style={{ width: '100%', height: 'auto', display: 'block' }}
+        aria-label="Patient network preview"
+      >
+        {/* Edges */}
+        {edges.map(edge => {
+          if (edge.aId === edge.bId) return null
+          const from = nodeMap.get(edge.aId)
+          const to = nodeMap.get(edge.bId)
+          if (!from || !to) return null
+          const dx = to.x - from.x
+          const dy = to.y - from.y
+          const dist = Math.sqrt(dx * dx + dy * dy)
+          if (dist < 1) return null
+          const ux = dx / dist
+          const uy = dy / dist
+          const pr = resultMap.get(edge.id)
+          const color = verdictEdgeColor(pr?.result?.verdict)
+          return (
+            <line
+              key={edge.id}
+              x1={from.x + ux * NODE_R} y1={from.y + uy * NODE_R}
+              x2={to.x - ux * NODE_R} y2={to.y - uy * NODE_R}
+              stroke={color}
+              strokeWidth={3}
+              strokeLinecap="round"
+            />
+          )
+        })}
+        {/* Nodes */}
+        {nodes.map(node => (
+          <g key={node.pid}>
+            <circle cx={node.x} cy={node.y} r={NODE_R} fill="#6b6459" />
+            <text
+              x={node.x} y={node.y}
+              textAnchor="middle" dominantBaseline="central"
+              fontSize={9} fontWeight={700} fill="#fff"
+              style={{ userSelect: 'none', pointerEvents: 'none' }}
             >
-              + Add contact for this partner
-            </button>
+              {node.label.slice(0, 5)}
+            </text>
+          </g>
+        ))}
+      </svg>
+      {/* Legend */}
+      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+        {Object.entries(VERDICT_COLORS).map(([v, c]) => (
+          <div key={v} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem' }}>
+            <div style={{ width: 20, height: 3, background: c, borderRadius: 2 }} />
+            <span style={{ color: '#555' }}>{v}</span>
           </div>
-        )}
+        ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem' }}>
+          <div style={{ width: 20, height: 3, background: '#ccc', borderRadius: 2 }} />
+          <span style={{ color: '#888' }}>Not yet run</span>
+        </div>
       </div>
     </div>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Verdict / criteria display components
+// Results: verdict + criteria display
 // ---------------------------------------------------------------------------
 
 function StatusBadge({ check }: { check: GhostingCriteriaCheck }) {
   const styles: Record<string, string> = {
-    pass: 'badge badge-pass',
-    fail: 'badge badge-fail',
-    warn: 'badge badge-warn',
-    na: 'badge badge-na',
+    pass: 'badge badge-pass', fail: 'badge badge-fail', warn: 'badge badge-warn', na: 'badge badge-na',
   }
   const labels: Record<string, string> = {
-    pass: '✓ Pass',
-    fail: '✗ Fail',
-    warn: '⚠ Warn',
-    na: '— N/A',
+    pass: '✓ Pass', fail: '✗ Fail', warn: '⚠ Warn', na: '— N/A',
   }
-  return (
-    <span className={styles[check.status] ?? 'badge'}>
-      {labels[check.status] ?? check.status}
-    </span>
-  )
+  return <span className={styles[check.status] ?? 'badge'}>{labels[check.status] ?? check.status}</span>
 }
 
 function EnhancedCriteriaTable({
-  aggressive,
-  expected,
-  conservative,
-  case1Symptom,
-  ghostedLesion,
-  case1Name,
+  aggressive, expected, conservative, case1Symptom, ghostedLesion, case1Name,
 }: {
   aggressive: GhostingScenarioCriteria
   expected: GhostingScenarioCriteria
@@ -508,7 +619,6 @@ function EnhancedCriteriaTable({
   const inocAvg = computeInoculationAvg(case1Symptom)
   const inocInWindow = dateInRange(inocAvg, ghostedLesion.onset, ghostedLesion.end)
   const tdMuted: React.CSSProperties = { fontSize: '0.875rem', color: '#555' }
-
   return (
     <table className="data-table" style={{ width: '100%' }}>
       <thead>
@@ -569,42 +679,32 @@ function EnhancedCriteriaTable({
 }
 
 function VerdictBanner({ verdict, compact }: { verdict: string; compact?: boolean }) {
-  const upper = verdict.toUpperCase()
-  let color = '#e24b4a'
-  let bg = '#fdf0f0'
-  let border = '#e24b4a'
-  if (upper.includes('UNRELATED')) { color = '#e24b4a'; bg = '#fdf0f0'; border = '#e24b4a' }
-  else if (upper.includes('AMBIGUOUS')) { color = '#8a6d00'; bg = '#fef8ec'; border = '#ef9f27' }
-  else if (upper.includes('⚠') || upper.includes('OVERLAP')) { color = '#8a6d00'; bg = '#fef8ec'; border = '#ef9f27' }
-  else if (upper.includes('SOURCE')) { color = '#1d9e75'; bg = '#eafaf3'; border = '#1d9e75' }
-  else if (upper.includes('SPREAD')) { color = '#378add'; bg = '#e8f3fd'; border = '#378add' }
+  const up = verdict.toUpperCase()
+  let color = '#e24b4a', bg = '#fdf0f0', border = '#e24b4a'
+  if (up.includes('AMBIGUOUS') || up.includes('⚠') || up.includes('OVERLAP')) { color = '#8a6d00'; bg = '#fef8ec'; border = '#ef9f27' }
+  else if (up.includes('SOURCE')) { color = '#1d9e75'; bg = '#eafaf3'; border = '#1d9e75' }
+  else if (up.includes('SPREAD')) { color = '#378add'; bg = '#e8f3fd'; border = '#378add' }
 
   if (compact) {
     return (
-      <span style={{
-        padding: '2px 10px', borderRadius: '4px', background: bg, border: `1px solid ${border}`,
-        color, fontSize: '0.8rem', fontWeight: 700, whiteSpace: 'nowrap',
-      }}>
+      <span style={{ padding: '2px 10px', borderRadius: '4px', background: bg, border: `1px solid ${border}`, color, fontSize: '0.8rem', fontWeight: 700, whiteSpace: 'nowrap' }}>
         {verdict}
       </span>
     )
   }
-
   return (
     <div style={{ padding: '1rem 1.25rem', borderRadius: '8px', background: bg, border: `1.5px solid ${border}`, color }}>
-      <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', opacity: 0.7, display: 'block', marginBottom: '0.25rem' }}>
-        SOURCE SPREAD ANALYSIS
-      </span>
+      <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', opacity: 0.7, display: 'block', marginBottom: '0.25rem' }}>SOURCE SPREAD ANALYSIS</span>
       <p style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>{verdict}</p>
     </div>
   )
 }
 
 function VerdictContext({ result }: { result: GhostingAnalysisResult }) {
-  const srcExpected = result.source_scenarios.range_data.expected
-  const sprExpected = result.spread_scenarios.range_data.expected
-  const srcLesion = result.source_scenarios.range_lesions.expected
-  const sprLesion = result.spread_scenarios.range_lesions.expected
+  const srcE = result.source_scenarios.range_data.expected
+  const sprE = result.spread_scenarios.range_data.expected
+  const srcL = result.source_scenarios.range_lesions.expected
+  const sprL = result.spread_scenarios.range_lesions.expected
   const c1 = result.case1_name
   const c2 = result.case2_name
 
@@ -612,31 +712,31 @@ function VerdictContext({ result }: { result: GhostingAnalysisResult }) {
   const passing: Item[] = []
   const failing: Item[] = []
 
-  if (srcExpected.exposure.status === 'pass') passing.push({ scenario: 'Source', text: srcExpected.exposure.detail })
-  else if (srcExpected.exposure.status === 'fail') failing.push({ scenario: 'Source', text: `${c1} was likely not infected by ${c2} — the exposure window does not overlap with ${c2}'s ghosted source lesion (${srcLesion.onset} → ${srcLesion.end}).` })
-  if (srcExpected.exposure_modality.status === 'pass') passing.push({ scenario: 'Source', text: srcExpected.exposure_modality.detail })
-  else if (srcExpected.exposure_modality.status === 'fail') failing.push({ scenario: 'Source', text: `The type of sexual contact is not compatible with the site of ${c1}'s ${result.case1_symptom.type}.` })
-  if (srcExpected.latency.status === 'pass') passing.push({ scenario: 'Source', text: srcExpected.latency.detail })
-  else if (srcExpected.latency.status === 'fail') failing.push({ scenario: 'Source', text: srcExpected.latency.detail })
-  if (srcExpected.natural_order.status === 'pass') passing.push({ scenario: 'Source', text: srcExpected.natural_order.detail })
-  else if (srcExpected.natural_order.status === 'fail') failing.push({ scenario: 'Source', text: `The ghosted source lesion would have occurred after ${c2}'s existing secondary lesion — primary must precede secondary.` })
+  if (srcE.exposure.status === 'pass') passing.push({ scenario: 'Source', text: srcE.exposure.detail })
+  else if (srcE.exposure.status === 'fail') failing.push({ scenario: 'Source', text: `${c1} was likely not infected by ${c2} — exposure window does not overlap with ${c2}'s ghosted source lesion (${srcL.onset} → ${srcL.end}).` })
+  if (srcE.exposure_modality.status === 'pass') passing.push({ scenario: 'Source', text: srcE.exposure_modality.detail })
+  else if (srcE.exposure_modality.status === 'fail') failing.push({ scenario: 'Source', text: `Contact type is not compatible with the site of ${c1}'s ${result.case1_symptom.type}.` })
+  if (srcE.latency.status === 'pass') passing.push({ scenario: 'Source', text: srcE.latency.detail })
+  else if (srcE.latency.status === 'fail') failing.push({ scenario: 'Source', text: srcE.latency.detail })
+  if (srcE.natural_order.status === 'pass') passing.push({ scenario: 'Source', text: srcE.natural_order.detail })
+  else if (srcE.natural_order.status === 'fail') failing.push({ scenario: 'Source', text: `Ghosted source lesion would occur after ${c2}'s secondary lesion — primary must precede secondary.` })
 
-  if (sprExpected.exposure.status === 'pass') passing.push({ scenario: 'Spread', text: sprExpected.exposure.detail })
-  else if (sprExpected.exposure.status === 'fail') failing.push({ scenario: 'Spread', text: `${c2} was likely not infected by ${c1} — the exposure window does not overlap with ${c1}'s infectious period (${sprLesion.onset} → ${sprLesion.end}).` })
-  if (sprExpected.exposure_modality.status === 'pass') passing.push({ scenario: 'Spread', text: sprExpected.exposure_modality.detail })
-  else if (sprExpected.exposure_modality.status === 'fail') failing.push({ scenario: 'Spread', text: `The type of sexual contact is not compatible with the site of ${c1}'s ${result.case1_symptom.type}. ${sprExpected.exposure_modality.detail}` })
-  if (sprExpected.latency.status === 'pass') passing.push({ scenario: 'Spread', text: sprExpected.latency.detail })
-  else if (sprExpected.latency.status === 'fail') failing.push({ scenario: 'Spread', text: sprExpected.latency.detail })
-  if (sprExpected.natural_order.status === 'pass') passing.push({ scenario: 'Spread', text: sprExpected.natural_order.detail })
-  else if (sprExpected.natural_order.status === 'fail') failing.push({ scenario: 'Spread', text: `The ghosted spread lesion would have occurred after ${c2}'s existing secondary lesion — primary must precede secondary.` })
+  if (sprE.exposure.status === 'pass') passing.push({ scenario: 'Spread', text: sprE.exposure.detail })
+  else if (sprE.exposure.status === 'fail') failing.push({ scenario: 'Spread', text: `${c2} was likely not infected by ${c1} — exposure window does not overlap with ${c1}'s infectious period (${sprL.onset} → ${sprL.end}).` })
+  if (sprE.exposure_modality.status === 'pass') passing.push({ scenario: 'Spread', text: sprE.exposure_modality.detail })
+  else if (sprE.exposure_modality.status === 'fail') failing.push({ scenario: 'Spread', text: `Contact type is not compatible with the site of ${c1}'s ${result.case1_symptom.type}. ${sprE.exposure_modality.detail}` })
+  if (sprE.latency.status === 'pass') passing.push({ scenario: 'Spread', text: sprE.latency.detail })
+  else if (sprE.latency.status === 'fail') failing.push({ scenario: 'Spread', text: sprE.latency.detail })
+  if (sprE.natural_order.status === 'pass') passing.push({ scenario: 'Spread', text: sprE.natural_order.detail })
+  else if (sprE.natural_order.status === 'fail') failing.push({ scenario: 'Spread', text: `Ghosted spread lesion would occur after ${c2}'s secondary lesion — primary must precede secondary.` })
 
   return (
     <div style={{ borderRadius: '6px', padding: '0.75rem 1rem', fontSize: '0.875rem', border: '1px solid #dde', background: '#f9f9fb' }}>
       <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>Why?</p>
       {passing.length > 0 && (
         <>
-          <p style={{ fontWeight: 600, color: '#1d9e75', marginBottom: '0.25rem' }}>Supporting evidence — criteria that passed:</p>
-          <ul style={{ margin: 0, paddingLeft: '1.25rem', marginBottom: failing.length > 0 ? '0.75rem' : 0 }}>
+          <p style={{ fontWeight: 600, color: '#1d9e75', marginBottom: '0.25rem' }}>Supporting evidence:</p>
+          <ul style={{ margin: 0, paddingLeft: '1.25rem', marginBottom: failing.length ? '0.75rem' : 0 }}>
             {passing.map((p, i) => (
               <li key={i} style={{ marginBottom: '0.35rem' }}>
                 <strong style={{ color: '#1d9e75' }}>[{p.scenario}]</strong>{' '}{p.text}
@@ -647,7 +747,7 @@ function VerdictContext({ result }: { result: GhostingAnalysisResult }) {
       )}
       {failing.length > 0 && (
         <>
-          <p style={{ fontWeight: 600, color: '#e24b4a', marginBottom: '0.25rem' }}>Limiting factors — criteria that failed:</p>
+          <p style={{ fontWeight: 600, color: '#e24b4a', marginBottom: '0.25rem' }}>Limiting factors:</p>
           <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
             {failing.map((f, i) => (
               <li key={i} style={{ marginBottom: '0.35rem' }}>
@@ -660,10 +760,6 @@ function VerdictContext({ result }: { result: GhostingAnalysisResult }) {
     </div>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Single-pair results
-// ---------------------------------------------------------------------------
 
 function PairResultDetail({ pair }: { pair: PairResult }) {
   const [logOpen, setLogOpen] = useState(false)
@@ -685,49 +781,43 @@ function PairResultDetail({ pair }: { pair: PairResult }) {
       <VerdictContext result={result} />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
-        <div className="panel stack-xs">
-          <p className="eyebrow">Ghosted source onset</p>
-          <p style={{ fontWeight: 700, fontSize: '1.05rem' }}>{srcLesion.onset}</p>
-        </div>
-        <div className="panel stack-xs">
-          <p className="eyebrow">Ghosted source end</p>
-          <p style={{ fontWeight: 700, fontSize: '1.05rem' }}>{srcLesion.end}</p>
-        </div>
-        <div className="panel stack-xs">
-          <p className="eyebrow">Ghosted spread onset</p>
-          <p style={{ fontWeight: 700, fontSize: '1.05rem' }}>{sprLesion.onset}</p>
-        </div>
-        <div className="panel stack-xs">
-          <p className="eyebrow">Ghosted spread end</p>
-          <p style={{ fontWeight: 700, fontSize: '1.05rem' }}>{sprLesion.end}</p>
-        </div>
+        {[
+          { label: 'Ghosted source onset', val: srcLesion.onset },
+          { label: 'Ghosted source end', val: srcLesion.end },
+          { label: 'Ghosted spread onset', val: sprLesion.onset },
+          { label: 'Ghosted spread end', val: sprLesion.end },
+        ].map(({ label, val }) => (
+          <div key={label} className="panel stack-xs">
+            <p className="eyebrow">{label}</p>
+            <p style={{ fontWeight: 700, fontSize: '1.05rem' }}>{val}</p>
+          </div>
+        ))}
       </div>
 
       <div className="panel stack-xs">
-        <p className="eyebrow">Anchor symptom</p>
+        <p className="eyebrow">Anchor symptom (engine-selected OP)</p>
         <p style={{ fontSize: '0.9rem' }}>
           <strong>{result.case1_name}</strong> · {result.case1_symptom.type} · Onset {result.case1_symptom.onset}
           {result.case1_symptom.duration_days > 0 ? ` · Duration ${result.case1_symptom.duration_days}d` : ''}
-          {' · '}Avg inoculation date: <strong>{computeInoculationAvg(result.case1_symptom)}</strong>
+          {' · '}Avg inoculation: <strong>{computeInoculationAvg(result.case1_symptom)}</strong>
         </p>
-        <p style={{ fontSize: '0.85rem', color: '#888' }}>Comparison patient: {result.case2_name}</p>
+        <p style={{ fontSize: '0.82rem', color: '#888' }}>
+          Comparison patient: {result.case2_name}
+        </p>
       </div>
 
       <div className="panel stack-md">
         <nav className="tab-nav" aria-label="Scenario">
-          <button type="button"
-            className={scenarioTab === 'source' ? 'tab-link tab-link-active' : 'tab-link'}
-            onClick={() => setScenarioTab('source')}>
-            Source scenario
-          </button>
-          <button type="button"
-            className={scenarioTab === 'spread' ? 'tab-link tab-link-active' : 'tab-link'}
-            onClick={() => setScenarioTab('spread')}>
-            Spread scenario
-          </button>
+          {(['source', 'spread'] as const).map(tab => (
+            <button key={tab} type="button"
+              className={scenarioTab === tab ? 'tab-link tab-link-active' : 'tab-link'}
+              onClick={() => setScenarioTab(tab)}>
+              {tab.charAt(0).toUpperCase() + tab.slice(1)} scenario
+            </button>
+          ))}
         </nav>
         <div style={{ background: '#f8f9fa', borderLeft: '3px solid #378add', padding: '0.75rem 1rem', fontSize: '0.875rem', borderRadius: '0 4px 4px 0' }}>
-          <p className="eyebrow" style={{ marginBottom: '0.25rem' }}>What this scenario tests</p>
+          <p className="eyebrow" style={{ marginBottom: '0.25rem' }}>Hypothesis</p>
           <p>
             {scenarioTab === 'source'
               ? `Whether ${result.case2_name} was the source who infected ${result.case1_name}.`
@@ -763,65 +853,65 @@ function PairResultDetail({ pair }: { pair: PairResult }) {
 }
 
 // ---------------------------------------------------------------------------
-// Results: grouped by transmission level
+// Results section — one card per edge
 // ---------------------------------------------------------------------------
 
-type ResultGroup = {
-  heading: string
-  subheading: string
-  pairs: PairResult[]
-}
+function ResultsSection({
+  edges,
+  people,
+  resultMap,
+}: {
+  edges: NetworkEdge[]
+  people: { _pid: string; name: string }[]
+  resultMap: Map<string, PairResult>
+}) {
+  const [openEdge, setOpenEdge] = useState<string | null>(null)
 
-function ResultsSection({ groups }: { groups: ResultGroup[] }) {
-  const [openPairs, setOpenPairs] = useState<Record<string, boolean>>({})
-  const toggle = (key: string) => setOpenPairs(prev => ({ ...prev, [key]: !prev[key] }))
+  function displayName(pid: string): string {
+    const idx = people.findIndex(p => p._pid === pid)
+    const p = people[idx]
+    return p ? (p.name.trim() || `Patient ${idx + 1}`) : '(removed)'
+  }
 
   return (
     <section className="stack-lg" style={{ marginTop: '1.5rem' }}>
       <div style={{ borderTop: '2px solid #E8E5DF', paddingTop: '1.5rem' }}>
-        <p className="eyebrow">Transmission network — analysis results</p>
+        <p className="eyebrow">Analysis results</p>
+        <p style={{ fontSize: '0.82rem', color: '#777', marginTop: '2px' }}>
+          {resultMap.size} pair{resultMap.size !== 1 ? 's' : ''} analyzed — click any row to expand details.
+        </p>
       </div>
-
-      {groups.map((group, gi) => (
-        <div key={gi} className="stack-md">
-          <div>
-            <p style={{ fontWeight: 700, fontSize: '1rem', margin: 0 }}>{group.heading}</p>
-            <p style={{ fontSize: '0.82rem', color: '#777', margin: '2px 0 0' }}>{group.subheading}</p>
-          </div>
-
-          {group.pairs.map((pair, pi) => {
-            const key = `${gi}-${pi}`
-            const isOpen = !!openPairs[key]
-            return (
-              <div key={pi} className="panel stack-sm" style={{ padding: '0.75rem 1rem' }}>
-                <button
-                  type="button"
-                  onClick={() => toggle(key)}
-                  style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    background: 'none', border: 'none', padding: 0, cursor: 'pointer', width: '100%', textAlign: 'left', gap: '1rem',
-                  }}
-                >
-                  <div style={{ flex: 1 }}>
-                    <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{pair.label}</span>
-                    <span style={{ fontSize: '0.8rem', color: '#888', marginLeft: '0.5rem' }}>{pair.description}</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
-                    {pair.result && <VerdictBanner verdict={pair.result.verdict} compact />}
-                    {pair.error && <span className="badge badge-fail">Error</span>}
-                    <span style={{ fontSize: '0.8rem', color: '#888' }}>{isOpen ? '▲' : '▼'}</span>
-                  </div>
-                </button>
-                {isOpen && (
-                  <div style={{ marginTop: '1rem', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
-                    <PairResultDetail pair={pair} />
-                  </div>
-                )}
+      {edges.map(edge => {
+        const pair = resultMap.get(edge.id)
+        if (!pair) return null
+        const isOpen = openEdge === edge.id
+        return (
+          <div key={edge.id} className="panel" style={{ padding: '0.75rem 1rem' }}>
+            <button
+              type="button"
+              onClick={() => setOpenEdge(isOpen ? null : edge.id)}
+              style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                background: 'none', border: 'none', padding: 0, cursor: 'pointer', width: '100%', textAlign: 'left', gap: '1rem',
+              }}
+            >
+              <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>
+                {displayName(edge.aId)} ↔ {displayName(edge.bId)}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+                {pair.result && <VerdictBanner verdict={pair.result.verdict} compact />}
+                {pair.error && <span className="badge badge-fail">Error</span>}
+                <span style={{ fontSize: '0.8rem', color: '#888' }}>{isOpen ? '▲' : '▼'}</span>
               </div>
-            )
-          })}
-        </div>
-      ))}
+            </button>
+            {isOpen && (
+              <div style={{ marginTop: '1rem', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
+                <PairResultDetail pair={pair} />
+              </div>
+            )}
+          </div>
+        )
+      })}
     </section>
   )
 }
@@ -831,135 +921,117 @@ function ResultsSection({ groups }: { groups: ResultGroup[] }) {
 // ---------------------------------------------------------------------------
 
 export function QuickGhostPage() {
-  const [resultGroups, setResultGroups] = useState<ResultGroup[]>([])
+  const [edges, setEdges] = useState<NetworkEdge[]>([])
+  const [resultMap, setResultMap] = useState<Map<string, PairResult>>(new Map())
   const [apiError, setApiError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const { register, control, handleSubmit, reset } = useForm<QuickGhostForm>({
-    defaultValues: {
-      op: { ...EMPTY_PERSON, name: 'OP' },
-      partners: [{ ...EMPTY_PARTNER, name: 'Partner 1' }],
-    },
+  const defaultPeople = [makePersonDefaults(1), makePersonDefaults(2)]
+
+  const { register, control, getValues, reset, watch } = useForm<QuickGhostForm>({
+    defaultValues: { people: defaultPeople },
   })
 
-  const { fields: partnerFields, append: appendPartner, remove: removePartner } = useFieldArray({
+  const { fields: peopleFields, append: appendPerson, remove: removePerson } = useFieldArray({
     control,
-    name: 'partners',
+    name: 'people',
   })
 
-  // Run OP vs all partners — answers "who is the OP's source / who did OP infect?"
-  async function runAllPairs(values: QuickGhostForm): Promise<ResultGroup[]> {
-    const opName = values.op.name.trim() || 'OP'
+  // Reactive people list for dropdowns and SVG preview
+  const watchedPeople = watch('people')
 
-    // Level 1: OP vs each partner
-    const level1Pairs: PairResult[] = []
-    for (let i = 0; i < values.partners.length; i++) {
-      const p = values.partners[i]
-      const pName = p.name.trim() || `Partner ${i + 1}`
-      level1Pairs.push(
-        await runPair(
-          values.op,
-          p,
-          `${opName} ↔ ${pName}`,
-          `Did ${pName} infect ${opName}, or did ${opName} infect ${pName}?`,
-        )
-      )
-    }
-
-    // Level 2: each partner vs their own contacts
-    const level2Groups: ResultGroup[] = []
-    for (let i = 0; i < values.partners.length; i++) {
-      const p = values.partners[i]
-      const pName = p.name.trim() || `Partner ${i + 1}`
-      if (!p.contacts || p.contacts.length === 0) continue
-
-      const pairs: PairResult[] = []
-      for (let ci = 0; ci < p.contacts.length; ci++) {
-        const contact = p.contacts[ci]
-        const cName = contact.name.trim() || `Contact ${ci + 1}`
-        pairs.push(
-          await runPair(
-            p,
-            contact,
-            `${pName} ↔ ${cName}`,
-            `Did ${cName} infect ${pName}, or did ${pName} infect ${cName}?`,
-          )
-        )
-      }
-
-      if (pairs.length > 0) {
-        level2Groups.push({
-          heading: `${pName}'s transmission network`,
-          subheading: `${pName} analyzed as OP against their own contacts`,
-          pairs,
-        })
-      }
-    }
-
-    const groups: ResultGroup[] = [
-      {
-        heading: `${opName}'s partners`,
-        subheading: `Source/spread analysis for ${opName} against each partner`,
-        pairs: level1Pairs,
-      },
-      ...level2Groups,
-    ]
-
-    return groups
+  function handleAddPerson() {
+    appendPerson(makePersonDefaults(peopleFields.length + 1))
   }
 
-  async function onSubmit(values: QuickGhostForm) {
+  function handleRemovePerson(idx: number) {
+    const pid = getValues(`people.${idx}._pid`)
+    // Drop any edges that referenced the removed person
+    setEdges(prev => prev.filter(e => e.aId !== pid && e.bId !== pid))
+    removePerson(idx)
+  }
+
+  function handleAddEdge() {
+    const people = getValues('people')
+    if (people.length < 2) return
+    // Default: first two people, or first unused pair
+    setEdges(prev => [...prev, makeEdge(people[0]._pid, people[1]._pid)])
+  }
+
+  function handleRemoveEdge(id: string) {
+    setEdges(prev => prev.filter(e => e.id !== id))
+  }
+
+  function handleChangeEdgeA(id: string, pid: string) {
+    setEdges(prev => prev.map(e => e.id === id ? { ...e, aId: pid } : e))
+  }
+
+  function handleChangeEdgeB(id: string, pid: string) {
+    setEdges(prev => prev.map(e => e.id === id ? { ...e, bId: pid } : e))
+  }
+
+  async function onRunAnalysis() {
     setApiError(null)
-    setResultGroups([])
+    setResultMap(new Map())
     setLoading(true)
 
-    const opSymptoms = toSymptomInputs(values.op.symptoms)
-    const allPartnerSymptoms = values.partners.flatMap(p => [
-      ...toSymptomInputs(p.symptoms),
-      ...(p.contacts ?? []).flatMap(c => toSymptomInputs(c.symptoms)),
-    ])
-
-    if (opSymptoms.length === 0 && allPartnerSymptoms.length === 0) {
-      setApiError('At least one person must have a symptom entered.')
+    const validEdges = edges.filter(e => e.aId !== e.bId)
+    if (validEdges.length === 0) {
+      setApiError('Add at least one valid connection (between two different patients) to run the analysis.')
       setLoading(false)
       return
     }
 
-    try {
-      const groups = await runAllPairs(values)
-      setResultGroups(groups)
-    } catch (err: unknown) {
-      setApiError(err instanceof Error ? err.message : 'Analysis failed.')
-    } finally {
-      setLoading(false)
+    const people = getValues('people')
+    const newMap = new Map<string, PairResult>()
+
+    for (const edge of validEdges) {
+      const personA = people.find(p => p._pid === edge.aId)
+      const personB = people.find(p => p._pid === edge.bId)
+      if (!personA || !personB) continue
+
+      const idxA = people.indexOf(personA)
+      const idxB = people.indexOf(personB)
+      const nameA = personA.name.trim() || `Patient ${idxA + 1}`
+      const nameB = personB.name.trim() || `Patient ${idxB + 1}`
+      const label = `${nameA} ↔ ${nameB}`
+
+      try {
+        const result = await runQuickGhostingAnalysis(buildPayload(personA, personB))
+        newMap.set(edge.id, { label, result, error: null })
+      } catch (err: unknown) {
+        newMap.set(edge.id, { label, result: null, error: err instanceof Error ? err.message : 'Analysis failed.' })
+      }
     }
+
+    setResultMap(newMap)
+    setLoading(false)
   }
 
   function handleClear() {
-    setResultGroups([])
+    const fresh = [makePersonDefaults(1), makePersonDefaults(2)]
+    reset({ people: fresh })
+    setEdges([])
+    setResultMap(new Map())
     setApiError(null)
-    reset({
-      op: { ...EMPTY_PERSON, name: 'OP' },
-      partners: [{ ...EMPTY_PARTNER, name: 'Partner 1' }],
-    })
   }
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '1.5rem' }}>
       <div className="stack-lg">
-        {/* Page header */}
+
+        {/* Header */}
         <header className="panel stack-sm">
           <div>
             <p className="eyebrow">Tools</p>
             <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Quick Ghosting Analysis</h1>
           </div>
           <p style={{ color: '#555', fontSize: '0.9rem', maxWidth: 720 }}>
-            Enter the OP and all their partners. For any partner who is also infected, expand
-            their <strong>contacts</strong> section to enter their own network — those pairs are
-            analyzed as [that partner] vs [their contact], building the full transmission network.
-            Click <strong>Run network analysis</strong> to run all pairs at once.
+            Add any number of patients, then draw connections between them.
+            Each connection is one VCA analysis — the engine determines who is the
+            anchor ("OP") from the clinical data, so roles shift per pair rather than
+            being fixed by form position.
           </p>
-
           <details style={{ marginTop: '0.25rem' }}>
             <summary style={{ cursor: 'pointer', fontSize: '0.85rem', color: '#444', fontWeight: 500 }}>
               Clinical reference constants
@@ -975,98 +1047,85 @@ export function QuickGhostPage() {
           </details>
         </header>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)}>
-          {/* OP */}
-          <div className="panel stack-md">
-            <div>
-              <p className="eyebrow">Index patient (OP)</p>
-              <label className="field" style={{ marginTop: '0.5rem' }}>
-                <span>Name / identifier</span>
-                <input type="text" {...register('op.name')} placeholder="OP" />
-              </label>
-            </div>
-            <PersonClinicalFields prefix="op" control={control} register={register} />
-          </div>
+        {/* Two-column layout: patients left, network preview right */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '1.5rem', alignItems: 'start' }}>
 
-          {/* Partners */}
-          <div className="stack-md" style={{ marginTop: '1.5rem' }}>
+          {/* Left: patients */}
+          <div className="stack-md">
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <p className="eyebrow" style={{ margin: 0 }}>OP's partners</p>
+              <p className="eyebrow" style={{ margin: 0 }}>
+                Patients{' '}
+                <span style={{ color: '#aaa', fontWeight: 400 }}>({peopleFields.length})</span>
+              </p>
               <button
                 type="button"
                 className="button button-primary"
-                onClick={() => appendPartner({
-                  ...EMPTY_PARTNER,
-                  name: `Partner ${partnerFields.length + 1}`,
-                })}
+                onClick={handleAddPerson}
                 style={{ fontSize: '0.85rem', padding: '4px 12px' }}
               >
-                + Add partner
+                + Add patient
               </button>
             </div>
-
-            {partnerFields.length === 0 && (
-              <p style={{ color: '#888', fontSize: '0.875rem' }}>
-                No partners yet — click Add partner.
-              </p>
-            )}
-
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: partnerFields.length > 1 ? '1fr 1fr' : '1fr',
-              gap: '1.5rem',
-            }}>
-              {partnerFields.map((field, i) => (
-                <PartnerPanel
+            <div className="stack-sm">
+              {peopleFields.map((field, i) => (
+                <PatientCard
                   key={field.id}
-                  partnerIdx={i}
+                  index={i}
                   control={control}
                   register={register}
-                  onRemove={partnerFields.length > 1 ? () => removePartner(i) : undefined}
+                  onRemove={() => handleRemovePerson(i)}
+                  canRemove={peopleFields.length > 2}
                 />
               ))}
             </div>
           </div>
 
-          {/* How the analysis works callout */}
-          {partnerFields.length > 0 && (
-            <div style={{
-              marginTop: '1rem',
-              padding: '0.75rem 1rem',
-              background: '#f4f2ec',
-              borderRadius: '6px',
-              fontSize: '0.82rem',
-              color: '#555',
-            }}>
-              <strong>What will be analyzed:</strong>{' '}
-              OP vs each of the {partnerFields.length} partner{partnerFields.length > 1 ? 's' : ''} above.
-              Partners that have contacts entered will also be analyzed against each of their contacts
-              (as the OP in those sub-analyses), growing the network.
-            </div>
-          )}
-
-          {/* Actions */}
-          <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <button
-              className="button button-primary"
-              type="submit"
-              disabled={loading}
-              style={{ minWidth: 200 }}
-            >
-              {loading ? 'Running…' : '▶ Run network analysis'}
-            </button>
-            <button type="button" className="button" onClick={handleClear} disabled={loading}>
-              Clear
-            </button>
-            {apiError && (
-              <p className="error-text" style={{ margin: 0 }}>{apiError}</p>
-            )}
+          {/* Right: network preview */}
+          <div>
+            <NetworkPreview
+              people={watchedPeople}
+              edges={edges}
+              resultMap={resultMap}
+            />
           </div>
-        </form>
+        </div>
+
+        {/* Connections */}
+        <ConnectionsPanel
+          edges={edges}
+          people={watchedPeople}
+          onAdd={handleAddEdge}
+          onRemove={handleRemoveEdge}
+          onChangeA={handleChangeEdgeA}
+          onChangeB={handleChangeEdgeB}
+        />
+
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            className="button button-primary"
+            type="button"
+            onClick={onRunAnalysis}
+            disabled={loading || edges.length === 0}
+            style={{ minWidth: 200 }}
+          >
+            {loading ? 'Running…' : '▶ Run analysis'}
+          </button>
+          <button type="button" className="button" onClick={handleClear} disabled={loading}>
+            Clear all
+          </button>
+          {apiError && <p className="error-text" style={{ margin: 0 }}>{apiError}</p>}
+        </div>
 
         {/* Results */}
-        {resultGroups.length > 0 && <ResultsSection groups={resultGroups} />}
+        {resultMap.size > 0 && (
+          <ResultsSection
+            edges={edges}
+            people={watchedPeople}
+            resultMap={resultMap}
+          />
+        )}
+
       </div>
     </div>
   )
