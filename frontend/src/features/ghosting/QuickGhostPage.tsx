@@ -81,6 +81,7 @@ type NetworkEdge = {
   id: string
   aId: string
   bId: string
+  label: string                   // user-editable episode label — distinguishes reinfection episodes for the same pair
   exp_first: string
   exp_last: string
   a_body_parts: BodyPartValue[]   // body parts person A used in this encounter
@@ -115,16 +116,25 @@ function makePersonDefaults(n: number): NetworkPerson {
   }
 }
 
-function makeEdge(aId: string, bId: string): NetworkEdge {
+function makeEdge(aId: string, bId: string, label: string): NetworkEdge {
   return {
     id: crypto.randomUUID(),
     aId,
     bId,
+    label,
     exp_first: '',
     exp_last: '',
     a_body_parts: [],
     b_body_parts: [],
   }
+}
+
+// Returns "Episode 1" for a new pair, "Episode 2" for the second edge between the same two people, etc.
+function defaultEpisodeLabel(aId: string, bId: string, existingEdges: NetworkEdge[]): string {
+  const n = existingEdges.filter(e =>
+    (e.aId === aId && e.bId === bId) || (e.aId === bId && e.bId === aId)
+  ).length
+  return `Episode ${n + 1}`
 }
 
 // ---------------------------------------------------------------------------
@@ -383,6 +393,7 @@ function EdgeRow({
   onRemove,
   onChangeExposure,
   onToggleBodyPart,
+  onChangeLabel,
 }: {
   edge: NetworkEdge
   people: { _pid: string; name: string }[]
@@ -391,6 +402,7 @@ function EdgeRow({
   onRemove: () => void
   onChangeExposure: (field: 'exp_first' | 'exp_last', value: string) => void
   onToggleBodyPart: (person: 'a' | 'b', part: BodyPartValue) => void
+  onChangeLabel: (label: string) => void
 }) {
   const [open, setOpen] = useState(false)
   const selfLoop = edge.aId === edge.bId
@@ -446,11 +458,32 @@ function EdgeRow({
             {edge.a_body_parts.length > 0 || edge.b_body_parts.length > 0 ? ' · body parts set' : ''}
           </span>
         )}
+        {/* Episode label — primary identifier for same-pair reinfection episodes */}
+        <input
+          type="text"
+          value={edge.label}
+          onChange={e => onChangeLabel(e.target.value)}
+          placeholder="Episode label"
+          style={{
+            fontSize: '0.75rem',
+            padding: '3px 10px',
+            border: '1px solid #d0cbc3',
+            borderRadius: '12px',
+            background: '#eee9e0',
+            color: '#555',
+            width: '120px',
+            flexShrink: 0,
+            marginLeft: 'auto',
+            outline: 'none',
+          }}
+          onFocus={e => (e.currentTarget.style.borderColor = '#6b6459')}
+          onBlur={e => (e.currentTarget.style.borderColor = '#d0cbc3')}
+        />
         <button
           type="button"
           className="button"
           onClick={onRemove}
-          style={{ padding: '4px 10px', fontSize: '0.8rem', flexShrink: 0, marginLeft: 'auto' }}
+          style={{ padding: '4px 10px', fontSize: '0.8rem', flexShrink: 0 }}
           title={`Remove: ${nameOf(edge.aId)} ↔ ${nameOf(edge.bId)}`}
         >
           ×
@@ -511,6 +544,7 @@ function ConnectionsPanel({
   onChangeB,
   onChangeExposure,
   onToggleBodyPart,
+  onChangeLabel,
 }: {
   edges: NetworkEdge[]
   people: { _pid: string; name: string }[]
@@ -520,6 +554,7 @@ function ConnectionsPanel({
   onChangeB: (id: string, pid: string) => void
   onChangeExposure: (id: string, field: 'exp_first' | 'exp_last', value: string) => void
   onToggleBodyPart: (id: string, person: 'a' | 'b', part: BodyPartValue) => void
+  onChangeLabel: (id: string, label: string) => void
 }) {
   return (
     <div className="panel stack-md">
@@ -558,6 +593,7 @@ function ConnectionsPanel({
               onRemove={() => onRemove(edge.id)}
               onChangeExposure={(field, value) => onChangeExposure(edge.id, field, value)}
               onToggleBodyPart={(person, part) => onToggleBodyPart(edge.id, person, part)}
+              onChangeLabel={label => onChangeLabel(edge.id, label)}
             />
           ))}
         </div>
@@ -985,6 +1021,11 @@ function ResultsSection({
             >
               <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>
                 {displayName(edge.aId)} ↔ {displayName(edge.bId)}
+                {edge.label && (
+                  <span style={{ fontWeight: 400, fontSize: '0.8rem', color: '#777', marginLeft: '0.6rem' }}>
+                    {edge.label}
+                  </span>
+                )}
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
                 {pair.result && <VerdictBanner verdict={pair.result.verdict} compact />}
@@ -1042,8 +1083,9 @@ export function QuickGhostPage() {
   function handleAddEdge() {
     const people = getValues('people')
     if (people.length < 2) return
-    // Default: first two people, or first unused pair
-    setEdges(prev => [...prev, makeEdge(people[0]._pid, people[1]._pid)])
+    const aId = people[0]._pid
+    const bId = people[1]._pid
+    setEdges(prev => [...prev, makeEdge(aId, bId, defaultEpisodeLabel(aId, bId, prev))])
   }
 
   function handleRemoveEdge(id: string) {
@@ -1060,6 +1102,10 @@ export function QuickGhostPage() {
 
   function handleChangeExposure(edgeId: string, field: 'exp_first' | 'exp_last', value: string) {
     setEdges(prev => prev.map(e => e.id === edgeId ? { ...e, [field]: value } : e))
+  }
+
+  function handleChangeLabel(edgeId: string, label: string) {
+    setEdges(prev => prev.map(e => e.id === edgeId ? { ...e, label } : e))
   }
 
   function handleToggleBodyPart(edgeId: string, person: 'a' | 'b', part: BodyPartValue) {
@@ -1204,6 +1250,7 @@ export function QuickGhostPage() {
           onChangeB={handleChangeEdgeB}
           onChangeExposure={handleChangeExposure}
           onToggleBodyPart={handleToggleBodyPart}
+          onChangeLabel={handleChangeLabel}
         />
 
         {/* Actions */}
