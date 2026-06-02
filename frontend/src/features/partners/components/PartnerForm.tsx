@@ -113,12 +113,15 @@ function toPartnerPayload(
   };
 }
 
+const NO_SYMPTOMS: SymptomEntryRead[] = [];
+const NO_LABS: LabResultEntryRead[] = [];
+
 export function PartnerForm({
   mode,
   initialPartner,
-  initialSymptoms = [],
-  initialNontrepLabs = [],
-  initialTrepLabs = [],
+  initialSymptoms = NO_SYMPTOMS,
+  initialNontrepLabs = NO_LABS,
+  initialTrepLabs = NO_LABS,
   onSubmit,
   submitting,
   errorMessage,
