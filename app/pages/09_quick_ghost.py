@@ -115,7 +115,7 @@ with st.expander("Glossary — VCA terms", expanded=False):
 | **Infectious window** | Period from max inoculation date to treatment during which the patient could have transmitted |
 | **LX / Lesion** | A syphilitic sore: primary = chancre, secondary = rash or mucous patch |
 | **Titer** | Antibody concentration from RPR/VDRL — expressed as a dilution ratio (1:1, 1:2, 1:4, etc.) |
-| **LOT** | Line-of-Treatment diagnosis code: 700 = Primary, 710 = Secondary, 720 = Early latent, 730 = Late latent |
+| **Stage code** | CDC morbidity reporting code for syphilis stage at diagnosis: 700 = Primary, 710 = Secondary, 720 = Early latent, 730 = Late latent, 755 = Congenital |
 """
     )
 

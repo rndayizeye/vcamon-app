@@ -35,9 +35,9 @@ const GLOSSARY_TERMS = [
       "The period from maximum inoculation date to treatment during which the patient could have transmitted to contacts.",
   },
   {
-    term: "LOT",
+    term: "Stage code",
     definition:
-      "Line-of-Treatment — the diagnosis stage code: 700 = Primary, 710 = Secondary, 720 = Early latent, 730 = Late latent, 755 = Congenital.",
+      "CDC morbidity reporting code for the syphilis stage at diagnosis: 700 = Primary, 710 = Secondary, 720 = Early latent, 730 = Late latent, 755 = Congenital.",
   },
   {
     term: "LX / Lesion",

@@ -980,7 +980,7 @@ export function VcaChartPage() {
             <dd>{caseData.patient_name}</dd>
           </div>
           <div>
-            <dt style={{ fontWeight: 600 }}>Diagnosis code (LOT)</dt>
+            <dt style={{ fontWeight: 600 }}>Stage</dt>
             <dd>{caseData.lot || '—'}</dd>
           </div>
           <div>
