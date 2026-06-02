@@ -97,9 +97,27 @@ with st.sidebar:
 
 st.title("⚡ Quick Ghosting Analysis")
 st.caption(
-    "Enter two people's symptom and exposure data below — no case required. "
-    "Results appear immediately after clicking **Run**."
+    "Enter symptom and exposure data for two people below. "
+    "No case record is needed — results appear as soon as you click **Run**."
 )
+
+with st.expander("Glossary — VCA terms", expanded=False):
+    st.markdown(
+        """
+| Term | Meaning |
+|------|---------|
+| **OP / Original Patient** | The index case — the first diagnosed patient in the cluster from which the investigation starts |
+| **VCA** | Visual Case Analysis — NCSDDD methodology for establishing probable transmission links |
+| **Ghosting / Ghosted lesion** | A calculated lesion window inferred from clinical constants when the lesion was not directly observed |
+| **MAP** | Major Analytical Points — 46-item systematic checklist for case documentation |
+| **Interview period** | Look-back window: 125 days (primary) or 237 days (secondary) before symptom onset |
+| **Inoculation date** | Estimated date of infection, back-calculated from symptom onset |
+| **Infectious window** | Period from max inoculation date to treatment during which the patient could have transmitted |
+| **LX / Lesion** | A syphilitic sore: primary = chancre, secondary = rash or mucous patch |
+| **Titer** | Antibody concentration from RPR/VDRL — expressed as a dilution ratio (1:1, 1:2, 1:4, etc.) |
+| **Stage code** | CDC morbidity reporting code for syphilis stage at diagnosis: 700 = Unknown, 710 = Primary, 720 = Secondary, 730 = Early non-primary non-secondary, 755 = Unknown duration or late |
+"""
+    )
 
 # Interview period helper banner
 with st.expander("Which dates do I need?", expanded=False):
@@ -139,6 +157,32 @@ st.divider()
 # row→Symptom / sex-type conversions are shared with the standalone Quick VCA
 # tool via app.utils.quick_inputs.
 
+# Local display labels for anatomical sites — engine values stay unchanged.
+# The SelectboxColumn shows friendly "lesion" labels; a helper translates back
+# before the rows are passed to the clinical engine.
+_LOCATION_DISPLAY = {
+    "Anal lesion": "Anal LX",
+    "Oral lesion": "Oral LX",
+    "Vaginal lesion": "Vaginal LX",
+    "Penile lesion": "Penile LX",
+    "Rectal lesion": "Rectal LX",
+    "Non-genital lesion": "Non-genital LX",
+    "Lesion (unspecified)": "LX",
+}
+_LOCATION_DISPLAY_OPTIONS = list(_LOCATION_DISPLAY.keys())
+
+
+def _translate_location_col(df: pd.DataFrame) -> pd.DataFrame:
+    """Map friendly display labels back to engine values in the Location column."""
+    if "Location" not in df.columns:
+        return df
+    df = df.copy()
+    df["Location"] = df["Location"].map(
+        lambda v: _LOCATION_DISPLAY.get(v, v) if isinstance(v, str) else v
+    )
+    return df
+
+
 col_a, col_b = st.columns(2)
 
 with col_a:
@@ -161,8 +205,8 @@ with col_a:
             ),
             "Location": st.column_config.SelectboxColumn(
                 "Anatomical site",
-                options=_LOCATION_OPTIONS,
-                help="Anatomical site of a primary chancre. Leave blank for secondary symptoms.",
+                options=_LOCATION_DISPLAY_OPTIONS,
+                help="Site of a primary chancre. Leave blank for secondary symptoms.",
             ),
         },
         key="a_sym_editor",
@@ -203,8 +247,8 @@ with col_b:
             ),
             "Location": st.column_config.SelectboxColumn(
                 "Anatomical site",
-                options=_LOCATION_OPTIONS,
-                help="Anatomical site of a primary chancre. Leave blank for secondary symptoms.",
+                options=_LOCATION_DISPLAY_OPTIONS,
+                help="Site of a primary chancre. Leave blank for secondary symptoms.",
             ),
         },
         key="b_sym_editor",
@@ -244,8 +288,8 @@ with clear_col:
 
 if run_btn:
     # Build symptom lists from multi-row editors
-    a_symptoms = _rows_to_symptoms(edited_a_sym_df)
-    b_symptoms = _rows_to_symptoms(edited_b_sym_df)
+    a_symptoms = _rows_to_symptoms(_translate_location_col(edited_a_sym_df))
+    b_symptoms = _rows_to_symptoms(_translate_location_col(edited_b_sym_df))
 
     if not a_symptoms and not b_symptoms:
         st.error("At least one person must have a symptom type selected.")

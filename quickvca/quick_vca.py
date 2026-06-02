@@ -66,6 +66,30 @@ st.set_page_config(page_title="Quick VCA", page_icon="🔎", layout="wide")
 # app.utils.quick_inputs)
 # ---------------------------------------------------------------------------
 
+# Display labels for anatomical sites — friendlier than the raw engine tokens.
+# The engine expects values like "Anal LX"; the dict maps from the display label
+# back to the engine value so _translate_location_col() can restore them before
+# clinical.py's _PRIMARY_LESION_VALUES frozenset comparison.
+_LOCATION_DISPLAY = {
+    "Anal lesion":               "Anal LX",
+    "Oral lesion":               "Oral LX",
+    "Vaginal lesion":            "Vaginal LX",
+    "Penile lesion":             "Penile LX",
+    "Rectal lesion":             "Rectal LX",
+    "Non-genital lesion":        "Non-genital LX",
+    "Lesion (unspecified site)": "LX",
+}
+_LOCATION_DISPLAY_OPTIONS = list(_LOCATION_DISPLAY.keys())
+
+
+def _translate_location_col(df: pd.DataFrame) -> pd.DataFrame:
+    """Map friendly display labels back to clinical engine values before analysis."""
+    if "Location" not in df.columns:
+        return df
+    df = df.copy()
+    df["Location"] = df["Location"].map(lambda v: _LOCATION_DISPLAY.get(v, v))
+    return df
+
 
 def _empty_sym_df() -> pd.DataFrame:
     return pd.DataFrame(columns=_SYM_COLUMNS)
@@ -170,9 +194,25 @@ with st.sidebar:
 
 st.title("🔎 Quick VCA")
 st.caption(
-    "Enter two people's symptoms and exposure history, then **Run** to see who the "
-    "ghosting method points to as source vs. spread. No case or login required."
+    "Enter symptom and exposure data for two people, then **Run** to see which "
+    "direction the clinical timing supports. No case record or login required."
 )
+
+with st.expander("📖 Glossary — VCA terms", expanded=False):
+    st.markdown("""
+| Term | Meaning |
+|------|---------|
+| **OP** | Original Patient — the index case from which the investigation starts |
+| **VCA** | Visual Case Analysis — NCSDDD methodology for establishing probable transmission links from clinical timing data |
+| **Ghosting / Ghosted lesion** | A calculated lesion window inferred from clinical constants when the lesion was not directly observed |
+| **MAP** | Major Analytical Points — a 46-item systematic checklist for documenting key case information |
+| **LX** | Lesion — a syphilitic sore (primary chancre) or secondary rash |
+| **Inoculation date** | Estimated date of infection, back-calculated from symptom onset using clinical constants |
+| **Interview period** | Look-back window for eliciting contacts: 125 days before primary onset, 237 days before secondary onset |
+| **Infectious window** | Period from maximum inoculation date to treatment during which the patient could have transmitted |
+| **Stage code** | CDC morbidity reporting code for syphilis stage at diagnosis: 700 = Unknown, 710 = Primary, 720 = Secondary, 730 = Early non-primary non-secondary, 755 = Unknown duration or late |
+| **Titer** | Antibody concentration expressed as a dilution ratio (1:1, 1:2, 1:4, 1:8…) |
+""")
 
 st.info(
     "**Read the result as a plausibility check, not a probability.** The tool runs the "
@@ -196,7 +236,7 @@ _sym_col_config = {
         "Duration (days, 0 = use avg)", min_value=0, max_value=90, default=0
     ),
     "Location": st.column_config.SelectboxColumn(
-        "Anatomical site (primary only)", options=_LOCATION_OPTIONS
+        "Anatomical site (primary only)", options=_LOCATION_DISPLAY_OPTIONS
     ),
 }
 
@@ -241,8 +281,8 @@ st.divider()
 run_btn = st.button("▶  Run analysis", type="primary")
 
 if run_btn:
-    a_syms = _rows_to_symptoms(a["df"])
-    b_syms = _rows_to_symptoms(b["df"])
+    a_syms = _rows_to_symptoms(_translate_location_col(a["df"]))
+    b_syms = _rows_to_symptoms(_translate_location_col(b["df"]))
     if not a_syms and not b_syms:
         st.error("At least one person needs a symptom row with a type and onset date.")
         st.stop()
@@ -328,10 +368,10 @@ st.caption(
 )
 
 m1, m2, m3, m4 = st.columns(4)
-m1.metric("Ghosted source onset", str(result.ghosted_source.onset))
-m2.metric("Ghosted source end", str(result.ghosted_source.end))
-m3.metric("Ghosted spread onset", str(result.ghosted_spread.onset))
-m4.metric("Ghosted spread end", str(result.ghosted_spread.end))
+m1.metric("Source lesion onset", str(result.ghosted_source.onset))
+m2.metric("Source lesion end", str(result.ghosted_source.end))
+m3.metric("Spread lesion onset", str(result.ghosted_spread.onset))
+m4.metric("Spread lesion end", str(result.ghosted_spread.end))
 
 # Scenario diagrams ---------------------------------------------------------
 st.divider()

@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { useQuery, useQueries } from '@tanstack/react-query'
 
 import { ErrorState } from '../../components/feedback/ErrorState'
+import { GlossaryPanel } from '../../components/GlossaryPanel'
 import { LoadingState } from '../../components/feedback/LoadingState'
 import { formatDate } from '../../lib/utils'
 import { getCase } from '../cases/api'
@@ -395,7 +396,7 @@ function VcaTimeline({
               (() => {
                 const color = p.isOp ? COLORS.exposureOp : COLORS.exposurePartner
                 const dash = p.isOp ? '3 5' : '8 5'
-                const label = p.isOp ? 'OP elicited exposure' : 'Partner reported exposure'
+                const label = p.isOp ? "Index patient's reported exposure" : 'Partner reported exposure'
                 return (
                   <line
                     x1={dateToX(p.firstExposure)}
@@ -749,12 +750,12 @@ const LEGEND_ITEMS = [
   { label: 'Primary symptom', symbol: '━', color: COLORS.primaryBar },
   { label: 'Secondary symptom', symbol: '━', color: COLORS.secondaryBar },
   { label: 'Inoculation avg (▲), max (►), min (◄)', symbol: '▲', color: COLORS.inoculation },
-  { label: 'Infectious window (max inoc → Rx)', symbol: '╌', color: COLORS.infectiousWindow },
+  { label: 'Infectious window (max inoculation → treatment)', symbol: '╌', color: COLORS.infectiousWindow },
   { label: 'Treatment date', symbol: '│', color: COLORS.treatment },
-  { label: 'Critical period (max inoc → Rx)', symbol: '━', color: COLORS.critical },
-  { label: 'Interview period (onset − days → Rx)', symbol: '╌', color: COLORS.interview },
+  { label: 'Critical period (max inoculation → treatment)', symbol: '━', color: COLORS.critical },
+  { label: 'Interview period (onset − days → treatment)', symbol: '╌', color: COLORS.interview },
   { label: 'Partner exposure window', symbol: '╌', color: COLORS.exposurePartner },
-  { label: 'OP elicited exposure', symbol: '·····', color: COLORS.exposureOp },
+  { label: "Index patient's reported exposure", symbol: '·····', color: COLORS.exposureOp },
   { label: 'Ghosted source lesion', symbol: '╌·╌', color: COLORS.ghostedSource },
   { label: 'Ghosted spread lesion', symbol: '╌·╌', color: COLORS.ghostedSpread },
   { label: 'Non-reactive lab', symbol: '╎', color: COLORS.nonReactiveLab },
@@ -992,6 +993,8 @@ export function VcaChartPage() {
           </div>
         </dl>
       </header>
+
+      <GlossaryPanel />
 
       {/* Layer toggles */}
       <div

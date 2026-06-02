@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 
 import { ErrorState } from '../../components/feedback/ErrorState'
 import { LoadingState } from '../../components/feedback/LoadingState'
+import { GlossaryPanel } from '../../components/GlossaryPanel'
 import { useCase } from '../cases/hooks'
 import { getPartnersForCase } from '../partners/api'
 import { useQuery } from '@tanstack/react-query'
@@ -213,7 +214,7 @@ function VerdictBanner({ verdict }: { verdict: string }) {
       }}
     >
       <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', opacity: 0.7, display: 'block', marginBottom: '0.25rem' }}>
-        SOURCE SPREAD ANALYSIS
+        TRANSMISSION ANALYSIS
       </span>
       {verdict}
     </div>
@@ -534,6 +535,8 @@ export function GhostingPage() {
         </div>
       </header>
 
+      <GlossaryPanel />
+
       {/* Clinical reference */}
       <div>
         <button
@@ -584,7 +587,7 @@ export function GhostingPage() {
           <p className="muted">No partners on file. Add partners on the Partners tab first.</p>
         ) : (
           <label className="field">
-            <span>Compare {caseData.patient_name} (OP) against</span>
+            <span>Compare {caseData.patient_name} (index patient) against</span>
             <select
               value={selectedPartnerId ?? ''}
               onChange={(e) => {
@@ -602,8 +605,7 @@ export function GhostingPage() {
         )}
 
         <p className="muted" style={{ fontSize: '0.8rem' }}>
-          The analysis uses symptoms and exposure dates saved on both the OP and the selected
-          partner. Ensure those records are complete before running.
+          The analysis uses symptom and exposure data saved for both patients. Ensure those records are complete before running.
         </p>
 
         <div>
@@ -652,10 +654,10 @@ export function GhostingPage() {
               gap: '0.75rem',
             }}
           >
-            <MetricCard label="Ghosted source onset" value={result.ghosted_source.onset} />
-            <MetricCard label="Ghosted source end" value={result.ghosted_source.end} />
-            <MetricCard label="Ghosted spread onset" value={result.ghosted_spread.onset} />
-            <MetricCard label="Ghosted spread end" value={result.ghosted_spread.end} />
+            <MetricCard label="Source lesion onset" value={result.ghosted_source.onset} />
+            <MetricCard label="Source lesion end" value={result.ghosted_source.end} />
+            <MetricCard label="Spread lesion onset" value={result.ghosted_spread.onset} />
+            <MetricCard label="Spread lesion end" value={result.ghosted_spread.end} />
           </div>
 
           {/* Scenario tabs */}
@@ -704,7 +706,7 @@ export function GhostingPage() {
                   }}
                 >
                   <div>
-                    <p className="eyebrow">Ghosted lesion window (expected)</p>
+                    <p className="eyebrow">Calculated lesion window (expected)</p>
                     <p style={{ fontWeight: 600 }}>
                       {activeGhostedLesion.onset} → {activeGhostedLesion.end}
                     </p>

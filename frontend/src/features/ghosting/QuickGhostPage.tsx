@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useFieldArray, useForm } from 'react-hook-form'
 
 import { runQuickGhostingAnalysis } from './api'
+import { GlossaryPanel } from '../../components/GlossaryPanel'
 import type {
   GhostingAnalysisResult,
   GhostingCriteriaCheck,
@@ -818,7 +819,7 @@ function VerdictBanner({ verdict, compact }: { verdict: string; compact?: boolea
   }
   return (
     <div style={{ padding: '1rem 1.25rem', borderRadius: '8px', background: bg, border: `1.5px solid ${border}`, color }}>
-      <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', opacity: 0.7, display: 'block', marginBottom: '0.25rem' }}>SOURCE SPREAD ANALYSIS</span>
+      <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', opacity: 0.7, display: 'block', marginBottom: '0.25rem' }}>TRANSMISSION ANALYSIS</span>
       <p style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>{verdict}</p>
     </div>
   )
@@ -906,10 +907,10 @@ function PairResultDetail({ pair }: { pair: PairResult }) {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
         {[
-          { label: 'Ghosted source onset', val: srcLesion.onset },
-          { label: 'Ghosted source end', val: srcLesion.end },
-          { label: 'Ghosted spread onset', val: sprLesion.onset },
-          { label: 'Ghosted spread end', val: sprLesion.end },
+          { label: 'Source lesion onset', val: srcLesion.onset },
+          { label: 'Source lesion end', val: srcLesion.end },
+          { label: 'Spread lesion onset', val: sprLesion.onset },
+          { label: 'Spread lesion end', val: sprLesion.end },
         ].map(({ label, val }) => (
           <div key={label} className="panel stack-xs">
             <p className="eyebrow">{label}</p>
@@ -919,7 +920,7 @@ function PairResultDetail({ pair }: { pair: PairResult }) {
       </div>
 
       <div className="panel stack-xs">
-        <p className="eyebrow">Anchor symptom (engine-selected OP)</p>
+        <p className="eyebrow">Anchor symptom (index patient selected by engine)</p>
         <p style={{ fontSize: '0.9rem' }}>
           <strong>{result.case1_name}</strong> · {result.case1_symptom.type} · Onset {result.case1_symptom.onset}
           {result.case1_symptom.duration_days > 0 ? ` · Duration ${result.case1_symptom.duration_days}d` : ''}
@@ -1188,11 +1189,12 @@ export function QuickGhostPage() {
             <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Quick Ghosting Analysis</h1>
           </div>
           <p style={{ color: '#555', fontSize: '0.9rem', maxWidth: 720 }}>
-            Add any number of patients, then draw connections between them.
-            Each connection is one VCA analysis — the engine determines who is the
-            anchor ("OP") from the clinical data, so roles shift per pair rather than
-            being fixed by form position.
+            Add two or more patients, then connect the pairs you want to compare.
+            For each connection the analysis determines who is the likely source
+            based on clinical timing — roles are not fixed by form position.
           </p>
+          <GlossaryPanel />
+
           <details style={{ marginTop: '0.25rem' }}>
             <summary style={{ cursor: 'pointer', fontSize: '0.85rem', color: '#444', fontWeight: 500 }}>
               Clinical reference constants

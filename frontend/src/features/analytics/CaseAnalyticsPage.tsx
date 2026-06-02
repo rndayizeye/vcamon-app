@@ -75,7 +75,7 @@ export function CaseAnalyticsPage() {
         <div>
           <p className="eyebrow">People in network <span className="muted">(nodes)</span></p>
           <h2>Everyone being tracked</h2>
-          <p className="muted text-sm">Each row is one person. "OP" is the index patient; numbered rows are named partners.</p>
+          <p className="muted text-sm">Each row is one person. The index patient (OP) is listed first; numbered rows are their named contacts.</p>
         </div>
         <table className="data-table">
           <thead>

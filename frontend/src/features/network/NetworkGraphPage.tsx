@@ -244,6 +244,9 @@ export function NetworkGraphPage() {
         <div>
           <p className="eyebrow">Network</p>
           <h2>Transmission network</h2>
+          <p className="muted small-text">
+            This network maps transmission relationships between the index patient and all contacts.
+          </p>
         </div>
         <label className="field field-inline">
           <span>As-of date</span>

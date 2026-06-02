@@ -515,3 +515,54 @@ textarea {
         size: landscape;
     }
 }
+
+/* ─── GlossaryPanel ──────────────────────────────────────────────────── */
+
+.glossary-panel {
+    border: 1px solid var(--color-border, #d7e1ec);
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    background: var(--color-surface, #faf9f6);
+    font-size: 0.85rem;
+}
+
+.glossary-panel > summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--color-text-muted, #5b6f82);
+    list-style: none;
+    padding: 0.25rem 0;
+}
+
+.glossary-panel > summary::marker,
+.glossary-panel > summary::-webkit-details-marker {
+    display: none;
+}
+
+.glossary-panel > summary::before {
+    content: '▸ ';
+    font-size: 0.75rem;
+}
+
+.glossary-panel[open] > summary::before {
+    content: '▾ ';
+}
+
+.glossary-list {
+    display: grid;
+    gap: 0.6rem;
+    margin-top: 0.6rem;
+}
+
+.glossary-entry dt {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--color-text, #2c2c2a);
+}
+
+.glossary-entry dd {
+    font-size: 0.82rem;
+    color: var(--color-text-muted, #5b6f82);
+    margin-top: 0.1rem;
+    margin-left: 0;
+}

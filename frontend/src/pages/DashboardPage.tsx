@@ -75,7 +75,7 @@ export function DashboardPage() {
         <div>
           <p className="eyebrow">VCA Monitor</p>
           <h1>Case Dashboard</h1>
-          <p className="muted small-text">Manage VCA cases and monitor treatment status.</p>
+          <p className="muted small-text">Manage cases and monitor treatment status.</p>
         </div>
         <button className="button button-primary" onClick={() => navigate('/cases/new')}>
           + New Case
