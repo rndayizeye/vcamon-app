@@ -247,7 +247,7 @@ export function CaseForm({
             ))}
           </select>
           <span className="muted small-text">
-            Allowed values currently include 700, 710, 720, 730, and 755.
+            710 = Primary · 720 = Secondary · 730 = Early non-primary non-secondary · 755 = Unknown duration or late
           </span>
         </label>
 

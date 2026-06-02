@@ -334,7 +334,7 @@ class Case(Base):
     patient_name: Mapped[str] = mapped_column(String(200), nullable=False)
     lot: Mapped[str | None] = mapped_column(
         String(10)
-    )  # legacy diagnosis/stage code: 700, 710, 720, 730, 755
+    )  # CDC stage code: 710=primary, 720=secondary, 730=early non-primary non-secondary, 755=unknown duration or late
     case_manager: Mapped[str | None] = mapped_column(String(200))
     initial_contact_date: Mapped[date | None] = mapped_column(Date)
 
