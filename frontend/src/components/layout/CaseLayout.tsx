@@ -60,22 +60,6 @@ export function CaseLayout() {
           Partners
         </NavLink>
         <NavLink
-          to="analytics"
-          className={({ isActive }) =>
-            isActive ? "tab-link tab-link-active" : "tab-link"
-          }
-        >
-          Analytics
-        </NavLink>
-        <NavLink
-          to="network"
-          className={({ isActive }) =>
-            isActive ? "tab-link tab-link-active" : "tab-link"
-          }
-        >
-          Network
-        </NavLink>
-        <NavLink
           to="timeline"
           className={({ isActive }) =>
             isActive ? "tab-link tab-link-active" : "tab-link"
@@ -85,6 +69,7 @@ export function CaseLayout() {
         </NavLink>
         <NavLink
           to="map"
+          title="Major Analytical Points — 46-item systematic checklist"
           className={({ isActive }) =>
             isActive ? "tab-link tab-link-active" : "tab-link"
           }
@@ -93,6 +78,7 @@ export function CaseLayout() {
         </NavLink>
         <NavLink
           to="ghosting"
+          title="Ghosting Analysis — determine transmission likelihood between two patients"
           className={({ isActive }) =>
             isActive ? "tab-link tab-link-active" : "tab-link"
           }
@@ -101,11 +87,30 @@ export function CaseLayout() {
         </NavLink>
         <NavLink
           to="vca-chart"
+          title="VCA Timeline — visual case analysis chart"
           className={({ isActive }) =>
             isActive ? "tab-link tab-link-active" : "tab-link"
           }
         >
           VCA Chart
+        </NavLink>
+        <NavLink
+          to="network"
+          title="Transmission Network — map of all contacts and links"
+          className={({ isActive }) =>
+            isActive ? "tab-link tab-link-active" : "tab-link"
+          }
+        >
+          Network
+        </NavLink>
+        <NavLink
+          to="analytics"
+          title="Network Analytics — cluster and centrality summaries"
+          className={({ isActive }) =>
+            isActive ? "tab-link tab-link-active" : "tab-link"
+          }
+        >
+          Analytics
         </NavLink>
       </nav>
 

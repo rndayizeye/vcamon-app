@@ -56,9 +56,7 @@ export function CaseCreatePage() {
           <h1>Create case</h1>
         </div>
         <p className="muted">
-          Start a new case using <code>diagnosis_code</code>. Pair-specific
-          exposure dates will live on the OP-partner relationship, not on this
-          case form.
+          Enter the patient's name and diagnosis. Exposure dates with sexual contacts are recorded separately on each partner relationship.
         </p>
       </header>
 

@@ -29,7 +29,7 @@ export function CaseListPage() {
           ) : null}
         </div>
         <p className="muted">
-          Search the FastAPI case index and open a case to inspect analytics.
+          Search all cases and open a record to review.
         </p>
       </header>
 

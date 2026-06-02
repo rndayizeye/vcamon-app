@@ -136,9 +136,7 @@ export function CaseEditPage() {
           <h1>Edit case</h1>
         </div>
         <p className="muted">
-          Update the case record using <code>diagnosis_code</code>.
-          Pair-specific exposure dates belong on the OP-partner relationship,
-          not on this case.
+          Update the case record. Exposure dates with sexual contacts are recorded separately on each partner relationship.
         </p>
       </header>
 

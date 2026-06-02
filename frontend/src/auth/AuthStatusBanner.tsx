@@ -18,7 +18,7 @@ export function AuthStatusBanner() {
   if (status.enabled && !status.ready) {
     return (
       <div className="banner banner-danger">
-        Backend auth is enabled but not ready. Missing:{" "}
+        Authentication is enabled but not fully configured. Missing:{" "}
         {status.missing_configuration.join(", ")}.
       </div>
     );
@@ -27,15 +27,14 @@ export function AuthStatusBanner() {
   if (!status.enabled) {
     return (
       <div className="banner banner-info">
-        Backend auth is disabled in this environment. The app is running in open
-        access mode.
+        Authentication is not required in this environment.
       </div>
     );
   }
 
   return (
     <div className="banner banner-success">
-      Backend auth is enabled and ready for authenticated API calls.
+      Authenticated.
     </div>
   );
 }

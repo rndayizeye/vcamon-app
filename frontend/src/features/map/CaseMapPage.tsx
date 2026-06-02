@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { RequirePermission } from "../../auth/RequirePermission";
+import { GlossaryPanel } from "../../components/GlossaryPanel";
 import { EmptyState } from "../../components/feedback/EmptyState";
 import { ErrorState } from "../../components/feedback/ErrorState";
 import { LoadingState } from "../../components/feedback/LoadingState";
@@ -55,7 +56,7 @@ export function CaseMapPage() {
 
   const subjectOptions = useMemo<SubjectOption[]>(() => {
     const options: SubjectOption[] = [
-      { value: "case", label: "OP MAP sheet", partnerId: null },
+      { value: "case", label: "Index patient (OP)", partnerId: null },
     ];
 
     for (const partner of partnersQuery.data || []) {
@@ -216,7 +217,7 @@ export function CaseMapPage() {
           <p className="eyebrow">MAP</p>
           <h2>Major analytical points</h2>
           <p className="muted">
-            Capture the 46-item MAP checklist for the OP or a selected partner.
+            Capture the 46-item MAP checklist for the index patient (OP) or a selected partner.
           </p>
         </div>
 
@@ -282,6 +283,8 @@ export function CaseMapPage() {
           ) : null}
         </div>
       </header>
+
+      <GlossaryPanel />
 
       {liveSummary ? <MapSummaryCards summary={liveSummary} /> : null}
 

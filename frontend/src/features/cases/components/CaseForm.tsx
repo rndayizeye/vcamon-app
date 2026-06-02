@@ -209,9 +209,7 @@ export function CaseForm({
           <h2>{mode === "create" ? "Create case" : "Update case"}</h2>
         </div>
         <p className="muted">
-          New React case forms should use <code>diagnosis_code</code>. Exposure
-          dates are not collected here because they belong to each OP-partner
-          relationship, not the case record itself.
+          Enter the patient's name and diagnosis. Exposure dates with sexual contacts are recorded on each partner relationship, not here.
         </p>
       </div>
 

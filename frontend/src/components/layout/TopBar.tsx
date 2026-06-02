@@ -20,7 +20,7 @@ export function TopBar() {
           VCA Monitor
         </Link>
         <span className="muted small-text">
-          FastAPI analytics and case workflow
+          Syphilis case and contact management
         </span>
       </div>
 

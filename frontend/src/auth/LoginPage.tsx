@@ -64,8 +64,7 @@ export function LoginPage() {
           <p className="eyebrow">VCA Monitor</p>
           <h1>Sign in</h1>
           <p className="muted">
-            Authenticate with Supabase to access the FastAPI-backed case
-            workflow.
+            Sign in to access the case management system.
           </p>
         </div>
 
@@ -74,8 +73,7 @@ export function LoginPage() {
         {!backendAuthEnabled && !loading ? (
           <div className="stack-sm">
             <p>
-              Backend authentication is disabled in this environment, so you can
-              continue directly into the app.
+              No sign-in required in this environment — continue directly to the app.
             </p>
             <Link className="button button-primary" to="/cases">
               Continue to cases

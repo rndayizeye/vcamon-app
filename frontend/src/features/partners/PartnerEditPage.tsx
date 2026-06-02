@@ -188,7 +188,7 @@ export function PartnerEditPage() {
         )}
         {linkError && <p style={{ color: "var(--color-error, red)", fontSize: "0.85rem" }}>{linkError}</p>}
         <p className="text-secondary" style={{ fontSize: "0.8rem" }}>
-          When this partner has their own case record, link it here to enable chain traversal and cluster analysis.
+          When this partner has their own case record, link it here to track transmission relationships across cases.
         </p>
       </div>
     </div>

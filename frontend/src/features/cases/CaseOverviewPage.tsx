@@ -103,7 +103,7 @@ export function CaseOverviewPage() {
       <section className="panel stack-md">
         <div>
           <p className="eyebrow">Symptoms</p>
-          <h3>Recorded symptom rows</h3>
+          <h3>Symptoms</h3>
         </div>
 
         {derivedSymptomRows.length === 0 ? (
@@ -117,11 +117,11 @@ export function CaseOverviewPage() {
                 <tr>
                   <th>Type</th>
                   <th>Onset or observation</th>
-                  <th>Date type</th>
-                  <th>Derived onset</th>
+                  <th>Date source</th>
+                  <th>Calculated onset</th>
                   <th>Duration</th>
-                  <th>Duration source</th>
-                  <th>Derived ongoing</th>
+                  <th>Duration basis</th>
+                  <th>Still ongoing</th>
                 </tr>
               </thead>
               <tbody>
