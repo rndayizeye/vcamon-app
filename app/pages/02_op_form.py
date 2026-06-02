@@ -128,9 +128,17 @@ with st.form("op_form", border=True):
         )
     with col2:
         diagnosis_options = ["", "700", "710", "720", "730", "755"]
+        _stage_labels = {
+            "700": "700 — Unknown",
+            "710": "710 — Primary",
+            "720": "720 — Secondary",
+            "730": "730 — Early non-primary non-secondary",
+            "755": "755 — Unknown duration or late",
+        }
         lot = st.selectbox(
-            "Diagnosis / syphilis stage",
+            "Stage",
             options=diagnosis_options,
+            format_func=lambda c: _stage_labels.get(c, c) if c else "—",
             index=diagnosis_options.index(case.lot or "")
             if case and case.lot in diagnosis_options
             else 0,

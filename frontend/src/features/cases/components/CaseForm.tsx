@@ -19,6 +19,14 @@ import { SymptomEntriesEditor } from "./SymptomEntriesEditor";
 
 const DIAGNOSIS_CODE_OPTIONS = ["700", "710", "720", "730", "755"] as const;
 
+const DIAGNOSIS_CODE_LABELS: Record<string, string> = {
+  "700": "Unknown",
+  "710": "Primary",
+  "720": "Secondary",
+  "730": "Early non-primary non-secondary",
+  "755": "Unknown duration or late",
+};
+
 type LabDraft = Partial<LabResultEntryWriteInput>;
 
 type CaseFormValues = {
@@ -233,22 +241,17 @@ export function CaseForm({
         </label>
 
         <label className="field">
-          <span>Diagnosis code</span>
+          <span>Stage</span>
           <select {...register("diagnosis_code")}>
-            <option value="">Select a diagnosis code</option>
+            <option value="">Select a stage</option>
             {diagnosisOptions.map((option) => (
               <option key={option} value={option}>
-                {DIAGNOSIS_CODE_OPTIONS.includes(
-                  option as (typeof DIAGNOSIS_CODE_OPTIONS)[number],
-                )
-                  ? option
+                {DIAGNOSIS_CODE_LABELS[option]
+                  ? `${option} — ${DIAGNOSIS_CODE_LABELS[option]}`
                   : `${option} (legacy value)`}
               </option>
             ))}
           </select>
-          <span className="muted small-text">
-            710 = Primary · 720 = Secondary · 730 = Early non-primary non-secondary · 755 = Unknown duration or late
-          </span>
         </label>
 
         <label className="field">
