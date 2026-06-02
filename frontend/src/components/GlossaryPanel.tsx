@@ -37,7 +37,7 @@ const GLOSSARY_TERMS = [
   {
     term: "Stage code",
     definition:
-      "CDC morbidity reporting code for the syphilis stage at diagnosis: 700 = Primary, 710 = Secondary, 720 = Early latent, 730 = Late latent, 755 = Congenital.",
+      "CDC morbidity reporting code for syphilis stage at diagnosis: 710 = Primary, 720 = Secondary, 730 = Early non-primary non-secondary, 755 = Unknown duration or late.",
   },
   {
     term: "LX / Lesion",

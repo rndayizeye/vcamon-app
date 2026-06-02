@@ -210,7 +210,7 @@ with st.expander("📖 Glossary — VCA terms", expanded=False):
 | **Inoculation date** | Estimated date of infection, back-calculated from symptom onset using clinical constants |
 | **Interview period** | Look-back window for eliciting contacts: 125 days before primary onset, 237 days before secondary onset |
 | **Infectious window** | Period from maximum inoculation date to treatment during which the patient could have transmitted |
-| **Stage code** | CDC morbidity reporting code for syphilis stage at diagnosis: 700 = Primary, 710 = Secondary, 720 = Early latent, 730 = Late latent, 755 = Congenital |
+| **Stage code** | CDC morbidity reporting code for syphilis stage at diagnosis: 710 = Primary, 720 = Secondary, 730 = Early non-primary non-secondary, 755 = Unknown duration or late |
 | **Titer** | Antibody concentration expressed as a dilution ratio (1:1, 1:2, 1:4, 1:8…) |
 """)
 
