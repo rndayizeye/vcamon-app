@@ -3,11 +3,29 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createCase,
   getCase,
+  getCaseLatestLab,
+  getDashboardSummary,
   listCasePartners,
   listCases,
   updateCase,
 } from "./api";
 import type { CaseCreateInput, CaseRead, CaseUpdateInput } from "./types";
+
+export function useDashboardSummary() {
+  return useQuery({
+    queryKey: ["cases", "summary"],
+    queryFn: getDashboardSummary,
+    staleTime: 60_000,
+  });
+}
+
+export function useLatestLab(caseId: number) {
+  return useQuery({
+    queryKey: ["cases", caseId, "latest-lab"],
+    queryFn: () => getCaseLatestLab(caseId),
+    enabled: caseId > 0,
+  });
+}
 
 export function useCases(search?: string) {
   return useQuery({

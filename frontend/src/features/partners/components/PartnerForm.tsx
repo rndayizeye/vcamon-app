@@ -35,18 +35,6 @@ type PartnerFormValues = {
   trepLabs: LabDraft[];
 };
 
-const EMPTY_FORM_VALUES: PartnerFormValues = {
-  partner_number: "",
-  name: "",
-  reason_for_exam: "",
-  treatment_date: "",
-  treatment: "",
-  medical_info: "",
-  symptoms: [],
-  nontrepLabs: [],
-  trepLabs: [],
-};
-
 function normalizeText(value: string) {
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
