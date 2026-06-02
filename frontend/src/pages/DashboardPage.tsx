@@ -1,72 +1,39 @@
-import { useEffect, useState } from 'react'
+import { useDeferredValue, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import { ErrorState } from '../components/feedback/ErrorState'
 import { LoadingState } from '../components/feedback/LoadingState'
-import { getCaseLatestLab, getDashboardSummary, getCase, listCases } from '../features/cases/api'
+import { useCase, useCases, useDashboardSummary, useLatestLab } from '../features/cases/hooks'
 import { CaseDashboardTable } from '../features/cases/components/dashboard/CaseDashboardTable'
 import { CaseQuickView } from '../features/cases/components/dashboard/CaseQuickView'
 import { DashboardMetrics } from '../features/cases/components/dashboard/DashboardMetrics'
-import type { CaseRead, CaseSummary, DashboardSummary, LabResultEntry } from '../features/cases/types'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 export function DashboardPage() {
   const navigate = useNavigate()
-  const [cases, setCases] = useState<CaseSummary[]>([])
-  const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCaseId, setSelectedCaseId] = useState<number | null>(null)
-  const [selectedCaseData, setSelectedCaseData] = useState<CaseRead | null>(null)
-  const [latestLab, setLatestLab] = useState<LabResultEntry | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
 
-  // Initial load
-  useEffect(() => {
-    const load = async () => {
-      setIsLoading(true)
-      try {
-        const [summaryData, casesData] = await Promise.all([getDashboardSummary(), listCases('')])
-        setSummary(summaryData)
-        setCases(casesData)
-      } catch (err) {
-        console.error('Dashboard load error:', err)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    void load()
-  }, [])
+  useDocumentTitle('Case Dashboard')
+  const deferredSearch = useDeferredValue(searchQuery)
 
-  // Debounced search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      void listCases(searchQuery.trim()).then(setCases).catch(console.error)
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [searchQuery])
+  const summaryQuery = useDashboardSummary()
+  const casesQuery = useCases(deferredSearch)
+  const caseDetailQuery = useCase(selectedCaseId ?? 0)
+  const latestLabQuery = useLatestLab(selectedCaseId ?? 0)
 
-  // Case detail fetch when selection changes
-  useEffect(() => {
-    const loadDetail = async () => {
-      if (!selectedCaseId) {
-        setSelectedCaseData(null)
-        setLatestLab(null)
-        return
-      }
-      try {
-        const [caseData, labData] = await Promise.all([
-          getCase(selectedCaseId),
-          getCaseLatestLab(selectedCaseId),
-        ])
-        setSelectedCaseData(caseData)
-        setLatestLab(labData)
-      } catch (err) {
-        console.error('Case detail load error:', err)
-      }
-    }
-    void loadDetail()
-  }, [selectedCaseId])
-
-  if (isLoading) {
+  if (summaryQuery.isLoading) {
     return <LoadingState message="Loading dashboard…" />
+  }
+
+  if (summaryQuery.isError) {
+    return (
+      <ErrorState
+        title="Unable to load dashboard"
+        message={summaryQuery.error.message}
+        onRetry={() => void summaryQuery.refetch()}
+      />
+    )
   }
 
   return (
@@ -82,7 +49,7 @@ export function DashboardPage() {
         </button>
       </header>
 
-      {summary && <DashboardMetrics summary={summary} />}
+      {summaryQuery.data && <DashboardMetrics summary={summaryQuery.data} />}
 
       <div
         style={{
@@ -95,20 +62,33 @@ export function DashboardPage() {
         <div className="stack-sm">
           <label className="field">
             <input
+              id="case-search"
               type="search"
+              aria-label="Search patients by name"
               placeholder="Search patients by name…"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
           </label>
-          <CaseDashboardTable
-            cases={cases}
-            selectedCaseId={selectedCaseId}
-            onCaseSelect={setSelectedCaseId}
-          />
+          {casesQuery.isError ? (
+            <ErrorState
+              title="Unable to load cases"
+              message={casesQuery.error.message}
+              onRetry={() => void casesQuery.refetch()}
+            />
+          ) : (
+            <CaseDashboardTable
+              cases={casesQuery.data ?? []}
+              selectedCaseId={selectedCaseId}
+              onCaseSelect={setSelectedCaseId}
+            />
+          )}
         </div>
 
-        <CaseQuickView caseData={selectedCaseData} latestLab={latestLab} />
+        <CaseQuickView
+          caseData={caseDetailQuery.data ?? null}
+          latestLab={latestLabQuery.data ?? null}
+        />
       </div>
     </section>
   )

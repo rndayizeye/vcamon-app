@@ -301,6 +301,7 @@ export function CaseForm({
           fields={fields}
           append={append}
           remove={remove}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           register={register as any}
           disabled={submitting}
         />

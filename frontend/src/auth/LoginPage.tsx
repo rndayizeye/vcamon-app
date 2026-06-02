@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "./use-auth";
 import { AuthStatusBanner } from "./AuthStatusBanner";
 import { hasSupabaseClientConfig, supabase } from "../lib/supabase";
+import { useDocumentTitle } from "../lib/useDocumentTitle";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -13,6 +14,8 @@ export function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useDocumentTitle("Sign In");
 
   const from = useMemo(() => {
     const next = (location.state as { from?: string } | null)?.from;
@@ -83,9 +86,10 @@ export function LoginPage() {
 
         {backendAuthEnabled ? (
           <form className="stack-md" onSubmit={handleSubmit}>
-            <label className="field">
+            <label className="field" htmlFor="login-email">
               <span>Email</span>
               <input
+                id="login-email"
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}

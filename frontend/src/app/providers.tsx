@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 
 import { AuthProvider } from '../auth/auth-context'
 import { PageErrorBoundary } from '../components/feedback/PageErrorBoundary'
@@ -11,6 +12,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
       <AuthProvider>
         <PageErrorBoundary>{children}</PageErrorBoundary>
       </AuthProvider>
+      {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
     </QueryClientProvider>
   )
 }

@@ -1,4 +1,12 @@
 :root {
+    --color-navy:   #132238;
+    --color-slate:  #5b6f82;
+    --color-border: #d7e1ec;
+    --color-primary:#0c4a8a;
+    --color-danger: #b42318;
+    --color-success:#0a7a38;
+    --color-topbar: #0b1f33;
+
     font-family:
         Inter,
         ui-sans-serif,
@@ -9,7 +17,7 @@
         sans-serif;
     line-height: 1.5;
     font-weight: 400;
-    color: #132238;
+    color: var(--color-navy);
     background: #f4f7fb;
     font-synthesis: none;
     text-rendering: optimizeLegibility;
@@ -79,7 +87,7 @@ ul {
     align-items: center;
     gap: 1rem;
     padding: 1rem 1.5rem;
-    background: #0b1f33;
+    background: var(--color-topbar);
     color: #f8fbff;
 }
 
@@ -95,7 +103,7 @@ ul {
 }
 
 .sidebar {
-    border-right: 1px solid #d7e1ec;
+    border-right: 1px solid var(--color-border);
     background: #ffffff;
     padding: 1.5rem 1rem;
 }
@@ -114,7 +122,7 @@ ul {
 .sidebar-link-active,
 .tab-link-active {
     background: #ddecff;
-    color: #0c4a8a;
+    color: var(--color-primary);
     font-weight: 600;
 }
 
@@ -132,7 +140,7 @@ ul {
 .auth-card {
     width: min(560px, 100%);
     background: #ffffff;
-    border: 1px solid #d7e1ec;
+    border: 1px solid var(--color-border);
     border-radius: 18px;
     padding: 2rem;
     box-shadow: 0 18px 40px rgba(18, 34, 56, 0.08);
@@ -140,7 +148,7 @@ ul {
 
 .panel {
     background: #ffffff;
-    border: 1px solid #d7e1ec;
+    border: 1px solid var(--color-border);
     border-radius: 16px;
     padding: 1.25rem;
     box-shadow: 0 8px 24px rgba(18, 34, 56, 0.05);
@@ -173,12 +181,12 @@ ul {
     text-transform: uppercase;
     letter-spacing: 0.08em;
     font-size: 0.75rem;
-    color: #5b6f82;
+    color: var(--color-slate);
     font-weight: 700;
 }
 
 .muted {
-    color: #5b6f82;
+    color: var(--color-slate);
 }
 
 .small-text {
@@ -186,11 +194,11 @@ ul {
 }
 
 .success-text {
-    color: #0a7a38;
+    color: var(--color-success);
 }
 
 .error-text {
-    color: #b42318;
+    color: var(--color-danger);
 }
 
 .field {
@@ -206,7 +214,7 @@ input,
 select,
 textarea {
     width: 100%;
-    border: 1px solid #bfd0e2;
+    border: 1px solid var(--color-border);
     border-radius: 10px;
     padding: 0.75rem 0.875rem;
     background: #fff;
@@ -226,11 +234,11 @@ textarea {
 }
 
 .button {
-    border: 1px solid #bfd0e2;
+    border: 1px solid var(--color-border);
     border-radius: 10px;
     padding: 0.7rem 1rem;
     background: #fff;
-    color: #132238;
+    color: var(--color-navy);
 }
 
 .button:disabled {
@@ -239,15 +247,15 @@ textarea {
 }
 
 .button-primary {
-    background: #0c4a8a;
-    border-color: #0c4a8a;
+    background: var(--color-primary);
+    border-color: var(--color-primary);
     color: #fff;
 }
 
 .button-danger {
     background: #fff5f4;
     border-color: #f0b5b0;
-    color: #b42318;
+    color: var(--color-danger);
 }
 
 .banner {
@@ -258,17 +266,17 @@ textarea {
 
 .banner-info {
     background: #eef6ff;
-    color: #0c4a8a;
+    color: var(--color-primary);
 }
 
 .banner-success {
     background: #edf9f0;
-    color: #0a7a38;
+    color: var(--color-success);
 }
 
 .banner-danger {
     background: #fff1f1;
-    color: #b42318;
+    color: var(--color-danger);
 }
 
 .metadata-grid,
@@ -283,7 +291,7 @@ textarea {
 }
 
 .metadata-grid dt {
-    color: #5b6f82;
+    color: var(--color-slate);
     font-size: 0.875rem;
 }
 
@@ -319,12 +327,12 @@ textarea {
 }
 
 .data-table th {
-    color: #5b6f82;
+    color: var(--color-slate);
     font-size: 0.875rem;
 }
 
 .table-link {
-    color: #0c4a8a;
+    color: var(--color-primary);
     font-weight: 600;
 }
 
@@ -357,15 +365,15 @@ textarea {
     padding: 0.35rem 0.6rem;
     border-radius: 999px;
     background: #eef6ff;
-    color: #0c4a8a;
+    color: var(--color-primary);
     font-size: 0.875rem;
     font-weight: 600;
 }
 
-.badge-pass { background: #eafaf3; color: #0a7a38; }
-.badge-fail { background: #fff1f1; color: #b42318; }
+.badge-pass { background: #eafaf3; color: var(--color-success); }
+.badge-fail { background: #fff1f1; color: var(--color-danger); }
 .badge-warn { background: #fef8ec; color: #8a6d00; }
-.badge-na   { background: #f0f1f3; color: #5b6f82; }
+.badge-na   { background: #f0f1f3; color: var(--color-slate); }
 
 .list-reset {
     list-style: none;
@@ -379,7 +387,7 @@ textarea {
     align-items: center;
     gap: 1rem;
     padding: 0.75rem 0;
-    border-bottom: 1px solid #e5edf5;
+    border-bottom: 1px solid var(--color-border);
 }
 
 .list-row:last-child {

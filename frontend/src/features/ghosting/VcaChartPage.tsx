@@ -62,9 +62,7 @@ const MIN_CHART_SPAN_MS = 365 * 24 * 60 * 60 * 1000
 
 // Sub-track offsets relative to row center y
 const Y_EXPOSURE = -28
-const Y_SYMPTOM = 0
 const Y_INOC = 24
-const Y_GHOST = 38
 
 // ---------------------------------------------------------------------------
 // Date utilities
@@ -811,6 +809,7 @@ export function VcaChartPage() {
   const loadedGhostings = baseQuery.data?.ghostings
   useEffect(() => {
     if (!loadedGhostings) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setGhostingToggles((prev) => {
       const next = { ...prev }
       loadedGhostings.forEach((_, i) => {
@@ -935,14 +934,6 @@ export function VcaChartPage() {
 
   const partnerQueriesLoading = partnerDataQueries.some((q) => q.isLoading)
 
-  const totalPrimary = people.reduce(
-    (n, p) => n + p.symptoms.filter((s) => s.chartType !== 'Secondary Rash/Lesions').length,
-    0,
-  )
-  const totalSecondary = people.reduce(
-    (n, p) => n + p.symptoms.filter((s) => s.chartType === 'Secondary Rash/Lesions').length,
-    0,
-  )
 
   return (
     <section className="stack-lg">

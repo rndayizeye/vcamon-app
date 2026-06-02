@@ -1,29 +1,78 @@
+/* eslint-disable react-refresh/only-export-components */
+import { lazy, Suspense } from "react";
 import { Navigate, createBrowserRouter } from "react-router-dom";
 
 import { LoginPage } from "../auth/LoginPage";
 import { RequireAuth } from "../auth/RequireAuth";
 import { CaseLayout } from "../components/layout/CaseLayout";
 import { AppShell } from "../components/layout/AppShell";
-import { CaseAnalyticsPage } from "../features/analytics/CaseAnalyticsPage";
-import { CaseCreatePage } from "../features/cases/CaseCreatePage";
-import { CaseEditPage } from "../features/cases/CaseEditPage";
-import { DashboardPage } from "../pages/DashboardPage";
-import { CaseOverviewPage } from "../features/cases/CaseOverviewPage";
-import { CaseMapPage } from "../features/map/CaseMapPage";
-import { PartnerListPage } from "../features/partners/PartnerListPage";
-import { PartnerCreatePage } from "../features/partners/PartnerCreatePage";
-import { PartnerEditPage } from "../features/partners/PartnerEditPage";
-import { GhostingPage } from "../features/ghosting/GhostingPage";
-import { QuickGhostPage } from "../features/ghosting/QuickGhostPage";
-import { VcaChartPage } from "../features/ghosting/VcaChartPage";
-import { NetworkGraphPage } from "../features/network/NetworkGraphPage";
-import { TimelinePage } from "../features/timeline/TimelinePage";
-import { TransmissionChainPage } from "../features/transmission/TransmissionChainPage";
+import { LoadingState } from "../components/feedback/LoadingState";
+import { PageErrorBoundary } from "../components/feedback/PageErrorBoundary";
+
+const CaseAnalyticsPage = lazy(() =>
+  import("../features/analytics/CaseAnalyticsPage").then(m => ({ default: m.CaseAnalyticsPage }))
+);
+const CaseCreatePage = lazy(() =>
+  import("../features/cases/CaseCreatePage").then(m => ({ default: m.CaseCreatePage }))
+);
+const CaseEditPage = lazy(() =>
+  import("../features/cases/CaseEditPage").then(m => ({ default: m.CaseEditPage }))
+);
+const DashboardPage = lazy(() =>
+  import("../pages/DashboardPage").then(m => ({ default: m.DashboardPage }))
+);
+const CaseOverviewPage = lazy(() =>
+  import("../features/cases/CaseOverviewPage").then(m => ({ default: m.CaseOverviewPage }))
+);
+const CaseMapPage = lazy(() =>
+  import("../features/map/CaseMapPage").then(m => ({ default: m.CaseMapPage }))
+);
+const PartnerListPage = lazy(() =>
+  import("../features/partners/PartnerListPage").then(m => ({ default: m.PartnerListPage }))
+);
+const PartnerCreatePage = lazy(() =>
+  import("../features/partners/PartnerCreatePage").then(m => ({ default: m.PartnerCreatePage }))
+);
+const PartnerEditPage = lazy(() =>
+  import("../features/partners/PartnerEditPage").then(m => ({ default: m.PartnerEditPage }))
+);
+const GhostingPage = lazy(() =>
+  import("../features/ghosting/GhostingPage").then(m => ({ default: m.GhostingPage }))
+);
+const QuickGhostPage = lazy(() =>
+  import("../features/ghosting/QuickGhostPage").then(m => ({ default: m.QuickGhostPage }))
+);
+const VcaChartPage = lazy(() =>
+  import("../features/ghosting/VcaChartPage").then(m => ({ default: m.VcaChartPage }))
+);
+const NetworkGraphPage = lazy(() =>
+  import("../features/network/NetworkGraphPage").then(m => ({ default: m.NetworkGraphPage }))
+);
+const TimelinePage = lazy(() =>
+  import("../features/timeline/TimelinePage").then(m => ({ default: m.TimelinePage }))
+);
+const TransmissionChainPage = lazy(() =>
+  import("../features/transmission/TransmissionChainPage").then(m => ({
+    default: m.TransmissionChainPage,
+  }))
+);
+
+function RouteSuspense({ children }: { children: React.ReactNode }) {
+  return (
+    <PageErrorBoundary>
+      <Suspense fallback={<LoadingState />}>{children}</Suspense>
+    </PageErrorBoundary>
+  );
+}
 
 export const router = createBrowserRouter([
   {
     path: "/login",
-    element: <LoginPage />,
+    element: (
+      <PageErrorBoundary>
+        <LoginPage />
+      </PageErrorBoundary>
+    ),
   },
   {
     path: "/",
@@ -39,15 +88,27 @@ export const router = createBrowserRouter([
       },
       {
         path: "cases",
-        element: <DashboardPage />,
+        element: (
+          <RouteSuspense>
+            <DashboardPage />
+          </RouteSuspense>
+        ),
       },
       {
         path: "cases/new",
-        element: <CaseCreatePage />,
+        element: (
+          <RouteSuspense>
+            <CaseCreatePage />
+          </RouteSuspense>
+        ),
       },
       {
         path: "cases/:caseId/edit",
-        element: <CaseEditPage />,
+        element: (
+          <RouteSuspense>
+            <CaseEditPage />
+          </RouteSuspense>
+        ),
       },
       {
         path: "cases/:caseId",
@@ -59,53 +120,101 @@ export const router = createBrowserRouter([
           },
           {
             path: "overview",
-            element: <CaseOverviewPage />,
+            element: (
+              <RouteSuspense>
+                <CaseOverviewPage />
+              </RouteSuspense>
+            ),
           },
           {
             path: "partners",
-            element: <PartnerListPage />,
+            element: (
+              <RouteSuspense>
+                <PartnerListPage />
+              </RouteSuspense>
+            ),
           },
           {
             path: "partners/new",
-            element: <PartnerCreatePage />,
+            element: (
+              <RouteSuspense>
+                <PartnerCreatePage />
+              </RouteSuspense>
+            ),
           },
           {
             path: "partners/:partnerId/edit",
-            element: <PartnerEditPage />,
+            element: (
+              <RouteSuspense>
+                <PartnerEditPage />
+              </RouteSuspense>
+            ),
           },
           {
             path: "analytics",
-            element: <CaseAnalyticsPage />,
+            element: (
+              <RouteSuspense>
+                <CaseAnalyticsPage />
+              </RouteSuspense>
+            ),
           },
           {
             path: "map",
-            element: <CaseMapPage />,
+            element: (
+              <RouteSuspense>
+                <CaseMapPage />
+              </RouteSuspense>
+            ),
           },
           {
             path: "network",
-            element: <NetworkGraphPage />,
+            element: (
+              <RouteSuspense>
+                <NetworkGraphPage />
+              </RouteSuspense>
+            ),
           },
           {
             path: "timeline",
-            element: <TimelinePage />,
+            element: (
+              <RouteSuspense>
+                <TimelinePage />
+              </RouteSuspense>
+            ),
           },
           {
             path: "ghosting",
-            element: <GhostingPage />,
+            element: (
+              <RouteSuspense>
+                <GhostingPage />
+              </RouteSuspense>
+            ),
           },
           {
             path: "vca-chart",
-            element: <VcaChartPage />,
+            element: (
+              <RouteSuspense>
+                <VcaChartPage />
+              </RouteSuspense>
+            ),
           },
         ],
       },
       {
         path: "quick-ghost",
-        element: <QuickGhostPage />,
+        element: (
+          <RouteSuspense>
+            <QuickGhostPage />
+          </RouteSuspense>
+        ),
       },
       {
         path: "transmission-chain",
-        element: <TransmissionChainPage />,
+        element: (
+          <RouteSuspense>
+            <TransmissionChainPage />
+          </RouteSuspense>
+        ),
       },
     ],
   },

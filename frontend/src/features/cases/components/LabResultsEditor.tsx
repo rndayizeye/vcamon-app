@@ -7,6 +7,7 @@ import {
 } from "../../labs/constants";
 
 interface LabResultsEditorProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   control: Control<any>;
   nontrepName: string;
   trepName: string;
