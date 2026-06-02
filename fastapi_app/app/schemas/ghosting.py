@@ -142,3 +142,42 @@ class GhostingAnalysisRead(BaseModel):
     verdict: str
     log: list[str]
     suggested_records: list[SuggestedGhostingRecordRead] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Transmission chain schemas
+# ---------------------------------------------------------------------------
+
+
+class TransmissionNode(BaseModel):
+    id: str
+    label: str
+    type: str  # "case" | "partner"
+    case_id: int | None = None
+    partner_id: int | None = None
+    linked_case_id: int | None = None
+
+
+class TransmissionEdge(BaseModel):
+    from_node_id: str
+    to_node_id: str
+    verdict: str
+    source_confidence: str
+    spread_confidence: str
+    dominant_confidence: str
+    is_ambiguous: bool
+
+
+class TransmissionSkipped(BaseModel):
+    case_id: int
+    partner_id: int
+    partner_label: str
+    reason: str
+
+
+class TransmissionChainRead(BaseModel):
+    nodes: list[TransmissionNode]
+    edges: list[TransmissionEdge]
+    skipped: list[TransmissionSkipped]
+    total_pairs_analyzed: int
+    total_pairs_skipped: int

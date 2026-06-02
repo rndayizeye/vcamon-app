@@ -20,6 +20,14 @@ export function Sidebar() {
         >
           Quick Ghost
         </NavLink>
+        <NavLink
+          to="/transmission-chain"
+          className={({ isActive }) =>
+            isActive ? 'sidebar-link sidebar-link-active' : 'sidebar-link'
+          }
+        >
+          Transmission Chain
+        </NavLink>
       </nav>
     </aside>
   )

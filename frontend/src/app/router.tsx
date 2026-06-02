@@ -18,6 +18,7 @@ import { QuickGhostPage } from "../features/ghosting/QuickGhostPage";
 import { VcaChartPage } from "../features/ghosting/VcaChartPage";
 import { NetworkGraphPage } from "../features/network/NetworkGraphPage";
 import { TimelinePage } from "../features/timeline/TimelinePage";
+import { TransmissionChainPage } from "../features/transmission/TransmissionChainPage";
 
 export const router = createBrowserRouter([
   {
@@ -101,6 +102,10 @@ export const router = createBrowserRouter([
       {
         path: "quick-ghost",
         element: <QuickGhostPage />,
+      },
+      {
+        path: "transmission-chain",
+        element: <TransmissionChainPage />,
       },
     ],
   },

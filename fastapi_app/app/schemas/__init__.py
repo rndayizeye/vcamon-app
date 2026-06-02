@@ -39,6 +39,10 @@ from .ghosting import (
     GhostingSymptomInput,
     GhostingUpdate,
     SuggestedGhostingRecordRead,
+    TransmissionChainRead,
+    TransmissionEdge,
+    TransmissionNode,
+    TransmissionSkipped,
 )
 from .labs import LabResultEntryCreate, LabResultEntryRead, LabResultEntryUpdate
 from .map import (
@@ -96,6 +100,10 @@ __all__ = [
     "GhostedLesionRead",
     "SuggestedGhostingRecordRead",
     "GhostingAnalysisRead",
+    "TransmissionNode",
+    "TransmissionEdge",
+    "TransmissionSkipped",
+    "TransmissionChainRead",
     "LabResultEntryCreate",
     "LabResultEntryRead",
     "LabResultEntryUpdate",

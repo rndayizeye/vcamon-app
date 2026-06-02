@@ -10,6 +10,7 @@ from app.db.models import GhostingType
 from app.db.queries import (
     create_ghosting,
     delete_ghosting,
+    get_all_cases,
     get_case_by_id,
     get_case_partner_relationship,
     get_ghosting_by_id,
@@ -17,6 +18,7 @@ from app.db.queries import (
     get_lab_results_for_case,
     get_lab_results_for_partner,
     get_partner_by_id,
+    get_partners_for_case,
     get_symptoms_for_case,
     get_symptoms_for_partner,
     update_ghosting,
@@ -53,6 +55,10 @@ from fastapi_app.app.schemas import (
     GhostingSymptomInput,
     GhostingUpdate,
     SuggestedGhostingRecordRead,
+    TransmissionChainRead,
+    TransmissionEdge,
+    TransmissionNode,
+    TransmissionSkipped,
 )
 
 router = APIRouter(tags=["ghosting"])
@@ -510,6 +516,241 @@ def update_ghosting_endpoint(
             detail=f"Ghosting record {ghosting_id} not found",
         )
     return updated
+
+
+_CONFIDENCE_RANK: dict[str, int] = {
+    "Robust": 4,
+    "Likely": 3,
+    "Possible": 2,
+    "Unrelated": 0,
+}
+
+
+def _person_node_id(person_id: int | None, fallback_prefix: str, entity_id: int) -> str:
+    """Use a person-scoped node ID when available; fall back to entity-scoped."""
+    if person_id is not None:
+        return f"person-{person_id}"
+    return f"{fallback_prefix}-{entity_id}"
+
+
+@router.get("/transmission-chain", response_model=TransmissionChainRead)
+def get_transmission_chain(
+    db: Annotated[Session, Depends(get_db)],
+    _actor: OperatorAccess,
+):
+    """
+    Run VCA ghosting analysis for every known case-partner pair and return
+    a directed graph of plausible transmission links (UNRELATED pairs excluded).
+    Pairs with insufficient data or non-reactive treponemal labs are skipped.
+    Each real-world individual is keyed by person_id so mutual links between
+    two cases are deduplicated and never produce duplicate edges.
+    """
+    nodes: list[TransmissionNode] = []
+    edges: list[TransmissionEdge] = []
+    skipped: list[TransmissionSkipped] = []
+
+    seen_node_ids: set[str] = set()
+    seen_pair_ids: set[frozenset[str]] = set()
+    total_analyzed = 0
+
+    for case in get_all_cases(db):
+        case_node_id = _person_node_id(case.person_id, "case", case.id)
+        op_name = case.patient_name or f"Case {case.id}"
+
+        if case_node_id not in seen_node_ids:
+            nodes.append(
+                TransmissionNode(
+                    id=case_node_id,
+                    label=op_name,
+                    type="case",
+                    case_id=case.id,
+                )
+            )
+            seen_node_ids.add(case_node_id)
+
+        op_labs = get_lab_results_for_case(db, case.id)
+        op_excluded = _non_reactive_treponemal_name(op_labs)
+
+        for partner in get_partners_for_case(db, case.id):
+            partner_label = partner.name or f"Partner {partner.partner_number}"
+
+            # Resolve partner node — person_id takes priority (set by create_partner
+            # for both linked and unlinked partners). Fall back to linked_case_id
+            # resolution for rows that predate the persons table.
+            if partner.person_id is not None:
+                partner_node_id = f"person-{partner.person_id}"
+                if partner_node_id not in seen_node_ids:
+                    p_type = "case" if partner.linked_case_id else "partner"
+                    nodes.append(
+                        TransmissionNode(
+                            id=partner_node_id,
+                            label=partner_label,
+                            type=p_type,
+                            case_id=partner.linked_case_id,
+                            partner_id=partner.id if not partner.linked_case_id else None,
+                            linked_case_id=partner.linked_case_id,
+                        )
+                    )
+                    seen_node_ids.add(partner_node_id)
+            elif partner.linked_case_id:
+                linked_case = get_case_by_id(db, partner.linked_case_id)
+                partner_node_id = _person_node_id(
+                    linked_case.person_id if linked_case else None,
+                    "case",
+                    partner.linked_case_id,
+                )
+                if partner_node_id not in seen_node_ids:
+                    linked_label = (
+                        linked_case.patient_name
+                        if linked_case
+                        else f"Case {partner.linked_case_id}"
+                    )
+                    nodes.append(
+                        TransmissionNode(
+                            id=partner_node_id,
+                            label=linked_label,
+                            type="case",
+                            case_id=partner.linked_case_id,
+                            linked_case_id=partner.linked_case_id,
+                        )
+                    )
+                    seen_node_ids.add(partner_node_id)
+            else:
+                partner_node_id = f"partner-{partner.id}"
+                if partner_node_id not in seen_node_ids:
+                    nodes.append(
+                        TransmissionNode(
+                            id=partner_node_id,
+                            label=partner_label,
+                            type="partner",
+                            case_id=case.id,
+                            partner_id=partner.id,
+                        )
+                    )
+                    seen_node_ids.add(partner_node_id)
+
+            # Skip self-loops (partner linked to same case)
+            if partner_node_id == case_node_id:
+                continue
+
+            # Skip pairs already analyzed from the other direction
+            pair = frozenset({case_node_id, partner_node_id})
+            if pair in seen_pair_ids:
+                continue
+            seen_pair_ids.add(pair)
+
+            # Exclusion checks
+            if op_excluded:
+                skipped.append(
+                    TransmissionSkipped(
+                        case_id=case.id,
+                        partner_id=partner.id,
+                        partner_label=partner_label,
+                        reason=f"{op_name}: Non-reactive {op_excluded}",
+                    )
+                )
+                continue
+
+            partner_non_reactive = _non_reactive_treponemal_name(
+                get_lab_results_for_partner(db, partner.id)
+            )
+            if partner_non_reactive:
+                skipped.append(
+                    TransmissionSkipped(
+                        case_id=case.id,
+                        partner_id=partner.id,
+                        partner_label=partner_label,
+                        reason=f"{partner_label}: Non-reactive {partner_non_reactive}",
+                    )
+                )
+                continue
+
+            # Gather clinical inputs
+            op_symptoms = _symptom_entries_to_engine(
+                get_symptoms_for_case(db, case.id),
+                case.historical_primary_chancre,
+                case.historical_primary_date,
+            )
+            partner_symptoms = _symptom_entries_to_engine(
+                get_symptoms_for_partner(db, partner.id),
+                partner.historical_primary_chancre,
+                partner.historical_primary_date,
+            )
+            relationship = get_case_partner_relationship(db, case.id, partner.id)
+            shared_exposure = _relationship_exposure_to_engine(relationship)
+            op_body_parts = _parse_modalities(relationship.op_body_parts) if relationship else []
+            partner_body_parts = (
+                _parse_modalities(relationship.partner_body_parts) if relationship else []
+            )
+
+            try:
+                result = run_ghosting_analysis(
+                    op_name=op_name,
+                    op_symptoms=op_symptoms,
+                    op_exposure=shared_exposure,
+                    op_treatment_date=case.treatment_date,
+                    partner_name=partner_label,
+                    partner_symptoms=partner_symptoms,
+                    partner_exposure=shared_exposure,
+                    partner_treatment_date=partner.treatment_date,
+                    op_body_parts=op_body_parts,
+                    partner_body_parts=partner_body_parts,
+                )
+            except ValueError as exc:
+                skipped.append(
+                    TransmissionSkipped(
+                        case_id=case.id,
+                        partner_id=partner.id,
+                        partner_label=partner_label,
+                        reason=str(exc),
+                    )
+                )
+                continue
+
+            total_analyzed += 1
+
+            if "UNRELATED" in result.verdict:
+                continue
+
+            # Determine edge direction from confidence ranks
+            source_rank = _CONFIDENCE_RANK.get(result.source_scenarios.confidence, 0)
+            spread_rank = _CONFIDENCE_RANK.get(result.spread_scenarios.confidence, 0)
+            is_ambiguous = source_rank == spread_rank and source_rank > 0
+
+            # case1 is the anchor; source = case2→case1, spread = case1→case2
+            op_is_case1 = result.case1_name == op_name
+            if op_is_case1:
+                from_node_id = partner_node_id if source_rank >= spread_rank else case_node_id
+                to_node_id = case_node_id if source_rank >= spread_rank else partner_node_id
+            else:
+                from_node_id = case_node_id if source_rank >= spread_rank else partner_node_id
+                to_node_id = partner_node_id if source_rank >= spread_rank else case_node_id
+
+            dominant_confidence = (
+                result.source_scenarios.confidence
+                if source_rank >= spread_rank
+                else result.spread_scenarios.confidence
+            )
+
+            edges.append(
+                TransmissionEdge(
+                    from_node_id=from_node_id,
+                    to_node_id=to_node_id,
+                    verdict=result.verdict,
+                    source_confidence=result.source_scenarios.confidence,
+                    spread_confidence=result.spread_scenarios.confidence,
+                    dominant_confidence=dominant_confidence,
+                    is_ambiguous=is_ambiguous,
+                )
+            )
+
+    return TransmissionChainRead(
+        nodes=nodes,
+        edges=edges,
+        skipped=skipped,
+        total_pairs_analyzed=total_analyzed,
+        total_pairs_skipped=len(skipped),
+    )
 
 
 @router.delete("/cases/ghostings/{ghosting_id}", status_code=status.HTTP_204_NO_CONTENT)
