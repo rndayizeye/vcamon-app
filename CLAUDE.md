@@ -293,3 +293,30 @@ Frontend env (copy `frontend/.env.example` → `frontend/.env.local`):
 1. Create `frontend/src/features/<domain>/` with `api.ts`, `hooks.ts`, `types.ts`, and page component(s).
 2. Add the route to `frontend/src/app/router.tsx`.
 3. Use `apiFetch` from `lib/api-client.ts` for all HTTP calls — never use `fetch` directly.
+
+---
+
+## HospitalRun inspiration (tabled, revisit later)
+
+Reviewed [HospitalRun frontend](https://github.com/HospitalRun/hospitalrun-frontend) (archived React/TypeScript EMR) for UI/UX patterns to adopt. Key findings:
+
+### Patterns to adopt
+
+1. **URL-routed case tabs** — HospitalRun uses `/patients/:id/[section]` with 12 URL-driven tabs. Refactor vcamon's disconnected case pages into unified tabs under `/cases/:id/[section]`: `overview`, `partners`, `labs`, `symptoms`, `map`, `timeline`, `ghosting`, `network`, `analytics`.
+
+2. **Inline permission gating** — Gate individual buttons (Add, Delete, Edit) behind permission checks in JSX, not just at the page level. vcamon's `RequirePermission.tsx` should be used at the button level too.
+
+3. **Three-state list pattern** — Every list component: `if (isLoading) → <LoadingState />`, `if (empty) → <EmptyState />`, else `<Table />`. Audit all vcamon list pages for consistency.
+
+4. **Debounced search input** — 500ms debounce on case search → fires typed request object. Apply to dashboard search.
+
+5. **Modal-based partner creation** — Add partner to case via modal (keeping case context visible) rather than navigating to a separate page.
+
+6. **Feature module layout discipline** — All API calls must go through `api.ts`; hooks wrap queries; types isolated in `types.ts`. Some vcamon components currently bypass `api.ts`.
+
+### Priority order (when revisiting)
+1. URL-routed case tabs (biggest UX win)
+2. Three-state list pattern audit (quick consistency fix)
+3. Inline permission gating
+4. Debounced search
+5. Modal-based partner add
