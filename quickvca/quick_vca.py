@@ -416,19 +416,72 @@ else:
 st.divider()
 st.subheader("Criteria (average tier)")
 
+_CRITERIA_META: dict[str, dict[str, str]] = {
+    "exposure": {
+        "label": "Exposure overlap",
+        "description": (
+            "The alleged source's **infectious period** (from max inoculation date to treatment) "
+            "must overlap the **reported contact window** between the two people. "
+            "No overlap means transmission was physically impossible on this timeline."
+        ),
+    },
+    "exposure_modality": {
+        "label": "Anatomical compatibility",
+        "description": (
+            "Each party's **primary chancre site** must match a body part they reported using "
+            "during sexual contact. A penile lesion on someone who reported only oral contact, "
+            "for example, is anatomically inconsistent with the proposed route."
+        ),
+    },
+    "latency": {
+        "label": "Latency to secondary",
+        "description": (
+            "Enough time must separate the **end of the ghosted primary lesion** from the "
+            "recipient's earliest secondary symptom. Natural syphilis progression requires "
+            "the chancre to resolve before secondary stage begins (0–70 days of latency)."
+        ),
+    },
+    "natural_order": {
+        "label": "Natural progression order",
+        "description": (
+            "The recipient's symptoms must follow the expected syphilis sequence: "
+            "**primary before secondary**. If secondary symptoms appear before or during "
+            "the ghosted primary window, the scenario violates known disease biology."
+        ),
+    },
+}
+
+_STATUS_BADGE = {
+    "pass": "🟢 Pass",
+    "fail": "🔴 Fail",
+    "warn": "🟡 Warn",
+    "na":   "⚪ N/A",
+}
+
 
 def _render_criteria(criteria: dict) -> None:
-    icons = {"pass": "✓ Pass", "fail": "✗ Fail", "warn": "⚠ Warn", "na": "— N/A"}
-    rows = [
-        {
-            "Criterion": k.replace("_", " ").title(),
-            "Result": icons.get(v["status"], "?"),
-            "Detail": v["detail"],
-        }
-        for k, v in criteria.items()
-    ]
-    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    for key, val in criteria.items():
+        meta = _CRITERIA_META.get(
+            key,
+            {"label": key.replace("_", " ").title(), "description": ""},
+        )
+        status = val["status"]
+        badge = _STATUS_BADGE.get(status, "? Unknown")
+        with st.expander(
+            f"{badge} — {meta['label']}",
+            expanded=(status in ("fail", "warn")),
+        ):
+            if meta["description"]:
+                st.markdown(meta["description"])
+                st.divider()
+            st.markdown(f"**Engine output:** {val['detail']}")
 
+
+st.markdown(
+    "Each scenario is evaluated against **4 independent criteria** "
+    "(average natural-history tier shown). Failures rule a scenario out; "
+    "warnings weaken it. Failing/warning criteria are expanded automatically."
+)
 
 tab_src, tab_spr = st.tabs(["Source scenario", "Spread scenario"])
 with tab_src:
