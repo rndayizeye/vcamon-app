@@ -32,7 +32,7 @@ if _HERE not in sys.path:
     sys.path.append(_HERE)
 
 import io
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import pandas as pd
 import streamlit as st
@@ -344,8 +344,202 @@ if "qv_result" not in st.session_state:
 result = st.session_state["qv_result"]
 inp = st.session_state["qv_inputs"]
 
+
+def _pdf_safe(text: str) -> str:
+    """Replace common Unicode chars with Latin-1 equivalents for fpdf2 built-in fonts."""
+    return (
+        text
+        .replace("→", "->")   # →
+        .replace("←", "<-")   # ←
+        .replace("—", "-")    # — em dash
+        .replace("–", "-")    # – en dash
+        .replace("•", "*")    # •
+        .replace("·", "*")    # ·
+        .encode("latin-1", errors="replace").decode("latin-1")
+    )
+
+
+def _build_pdf(result, inp: dict, mode: str) -> bytes:
+    from fpdf import FPDF
+
+    p1_is_a = result.case1_name == inp["a_name"]
+    p1_symptom = result.case1_symptom
+    p2_syms = inp["b_syms"] if p1_is_a else inp["a_syms"]
+    p2_exp = inp["b_exp"] if p1_is_a else inp["a_exp"]
+    anchor = inp["a_tx"] or inp["b_tx"] or (p1_symptom.onset if p1_symptom else date.today())
+    x_range = (anchor - timedelta(days=274), anchor + timedelta(days=91))
+
+    sc, sp = result.source_scenarios, result.spread_scenarios
+
+    _labels = {
+        "exposure": "Exposure overlap",
+        "exposure_modality": "Anatomical compatibility",
+        "latency": "Latency to secondary",
+        "natural_order": "Natural progression order",
+    }
+    _status_text = {"pass": "PASS", "fail": "FAIL", "warn": "WARN", "na": "N/A"}
+
+    if mode == "Traditional VCA":
+        mode_detail = "Average natural-history constants only (NCSDDC methodology)"
+        src_ok = all(v["status"] != "fail" for v in sc.range_data["expected"].values())
+        spr_ok = all(v["status"] != "fail" for v in sp.range_data["expected"].values())
+        if src_ok and not spr_ok:
+            verdict_text = f"SOURCE — {result.case2_name} infected {result.case1_name}"
+        elif spr_ok and not src_ok:
+            verdict_text = f"SPREAD — {result.case1_name} infected {result.case2_name}"
+        elif src_ok and spr_ok:
+            verdict_text = "AMBIGUOUS — both directions pass. Manual review required."
+        else:
+            verdict_text = "UNRELATED INFECTIONS — neither direction supported."
+        direction_summary = (
+            f"Source: {'Pass' if src_ok else 'Fail'}  |  "
+            f"Spread: {'Pass' if spr_ok else 'Fail'}"
+        )
+    else:
+        mode_detail = "3 tiers: optimistic (min) / expected (avg) / conservative (max) constants"
+        verdict_text = result.verdict
+        direction_summary = (
+            f"Source: {sc.confidence} ({sc.pass_count}/3 tiers)  |  "
+            f"Spread: {sp.confidence} ({sp.pass_count}/3 tiers)"
+        )
+
+    pdf = FPDF()
+    pdf.set_margins(15, 15, 15)
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+
+    # --- Header ---
+    pdf.set_font("Helvetica", "B", 18)
+    pdf.cell(0, 10, "Quick VCA Analysis Report", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 10)
+    pdf.cell(0, 6, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(3)
+
+    # --- Analysis mode (prominent) ---
+    pdf.set_fill_color(220, 235, 255)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 8, f"Analysis Mode: {mode}", new_x="LMARGIN", new_y="NEXT", fill=True)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.cell(0, 6, mode_detail, new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(4)
+
+    # --- Persons ---
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(0, 7, "Persons", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 10)
+    pdf.cell(
+        0, 6,
+        _pdf_safe(f"Person A: {result.case1_name}     Person B: {result.case2_name}"),
+        new_x="LMARGIN", new_y="NEXT",
+    )
+    pdf.ln(3)
+
+    # --- Verdict ---
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(0, 7, "Verdict", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 10)
+    pdf.multi_cell(0, 6, _pdf_safe(verdict_text))
+    pdf.cell(0, 6, _pdf_safe(direction_summary), new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(3)
+
+    # --- Ghosted lesion windows ---
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(0, 7, "Ghosted Lesion Windows", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 10)
+    pdf.cell(
+        0, 6,
+        f"Source:  {result.ghosted_source.onset}  to  {result.ghosted_source.end}",
+        new_x="LMARGIN", new_y="NEXT",
+    )
+    pdf.cell(
+        0, 6,
+        f"Spread:  {result.ghosted_spread.onset}  to  {result.ghosted_spread.end}",
+        new_x="LMARGIN", new_y="NEXT",
+    )
+    pdf.ln(4)
+
+    # --- Scenario diagrams ---
+    if p1_symptom:
+        for scenario, diagram_label in [
+            ("source", f"Source: If {result.case2_name} infected {result.case1_name}"),
+            ("spread", f"Spread: If {result.case1_name} infected {result.case2_name}"),
+        ]:
+            pdf.set_font("Helvetica", "B", 11)
+            pdf.cell(0, 7, _pdf_safe(f"Scenario Diagram - {diagram_label}"), new_x="LMARGIN", new_y="NEXT")
+            try:
+                fig = build_scenario_figure(
+                    result=result,
+                    scenario=scenario,
+                    p1_name=result.case1_name,
+                    p2_name=result.case2_name,
+                    p1_symptom=p1_symptom,
+                    p2_symptoms=p2_syms,
+                    p2_exposure=p2_exp,
+                    criteria=result.criteria[scenario],
+                    x_range=x_range,
+                )
+                png_bytes = fig.to_image(format="png", width=1100, height=420)
+                pdf.image(io.BytesIO(png_bytes), w=pdf.epw)
+            except Exception:
+                pdf.set_font("Helvetica", "I", 9)
+                pdf.cell(
+                    0, 6, "(Diagram unavailable — install kaleido to enable)",
+                    new_x="LMARGIN", new_y="NEXT",
+                )
+            pdf.ln(4)
+
+    # --- Criteria ---
+    for scenario_key, scenario_label in [
+        ("source", "Source scenario"),
+        ("spread", "Spread scenario"),
+    ]:
+        pdf.add_page()
+        pdf.set_font("Helvetica", "B", 13)
+        pdf.cell(
+            0, 8, _pdf_safe(f"Criteria - {scenario_label} (average tier)"),
+            new_x="LMARGIN", new_y="NEXT",
+        )
+        pdf.ln(2)
+        for key, val in result.criteria[scenario_key].items():
+            label = _labels.get(key, key.replace("_", " ").title())
+            status = _status_text.get(val["status"], "?")
+            pdf.set_font("Helvetica", "B", 10)
+            pdf.cell(0, 6, f"[{status}]  {label}", new_x="LMARGIN", new_y="NEXT")
+            pdf.set_font("Helvetica", "", 9)
+            pdf.multi_cell(0, 5, _pdf_safe(val["detail"]))
+            pdf.ln(2)
+
+    # --- Interview period ---
+    if p1_symptom:
+        pdf.ln(3)
+        if p1_symptom.type in ("Primary Chancre", "Historical Primary", "Ghosted Primary"):
+            ip_days, ip_label = INTERVIEW_PERIOD_PRIMARY_DAYS, "primary"
+        else:
+            ip_days, ip_label = INTERVIEW_PERIOD_SECONDARY_DAYS, "secondary"
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.cell(0, 7, "Interview Period", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("Helvetica", "", 10)
+        pdf.cell(0, 6, f"Anchor onset: {p1_symptom.onset}", new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(
+            0, 6,
+            f"Elicit contacts back to: {p1_symptom.onset - timedelta(days=ip_days)}",
+            new_x="LMARGIN", new_y="NEXT",
+        )
+        pdf.cell(0, 6, f"Window: {ip_days} d ({ip_label})", new_x="LMARGIN", new_y="NEXT")
+
+    return bytes(pdf.output())
+
+
 st.divider()
 st.subheader("Source / Spread Analysis")
+
+_pdf_bytes = _build_pdf(result, inp, st.session_state.get("qv_mode", "Traditional VCA"))
+st.download_button(
+    "⬇ Download PDF report",
+    data=_pdf_bytes,
+    file_name=f"quickvca_{date.today()}.pdf",
+    mime="application/pdf",
+)
 
 sc, sp = result.source_scenarios, result.spread_scenarios
 _mode = st.session_state.get("qv_mode", "Traditional VCA")
