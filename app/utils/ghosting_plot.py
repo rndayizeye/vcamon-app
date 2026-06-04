@@ -209,7 +209,6 @@ def build_scenario_figure(
                 name="Exposure window",
                 hovertemplate=(
                     f"Exposure: {p2_exposure.first} → {p2_exposure.last}"
-                    f"<br>Sex types: {', '.join(p2_exposure.sex_types) or '—'}"
                     "<extra></extra>"
                 ),
             )
