@@ -331,7 +331,7 @@ result = st.session_state["qv_result"]
 inp = st.session_state["qv_inputs"]
 
 st.divider()
-st.subheader("Result")
+st.subheader("Source / Spread Analysis")
 
 verdict = result.verdict
 if "UNRELATED" in verdict:
@@ -351,21 +351,66 @@ def _warn_count(scenario_result) -> int:
 sc, sp = result.source_scenarios, result.spread_scenarios
 c1, c2 = st.columns(2)
 c1.metric(
-    f"Did {result.case2_name} infect {result.case1_name}?",
+    f"Source — did {result.case2_name} infect {result.case1_name}?",
     f"{sc.confidence} · {sc.pass_count}/3 tiers",
     delta=f"{_warn_count(sc)} warning(s)" if _warn_count(sc) else None,
     delta_color="off",
 )
 c2.metric(
-    f"Did {result.case1_name} infect {result.case2_name}?",
+    f"Spread — did {result.case1_name} infect {result.case2_name}?",
     f"{sp.confidence} · {sp.pass_count}/3 tiers",
     delta=f"{_warn_count(sp)} warning(s)" if _warn_count(sp) else None,
     delta_color="off",
 )
-st.caption(
-    "Tiers = how many of {min, avg, max} natural-history settings keep the scenario "
-    "plausible. This is a plausibility count, not a statistical confidence."
-)
+
+with st.expander("How the tier score is calculated"):
+    st.markdown(
+        "The 4 criteria are re-run **three times**, once per natural-history tier, "
+        "each time using a different set of syphilis progression constants. "
+        "A tier **passes** when none of its 4 criteria return Fail (warnings are allowed). "
+        "The score counts how many tiers pass.\n\n"
+        "| Score | Label | Interpretation |\n"
+        "|---|---|---|\n"
+        "| 3 / 3 | **Robust** | Scenario holds under fastest, average, and slowest progression |\n"
+        "| 2 / 3 | **Likely** | Holds under two of the three timing assumptions |\n"
+        "| 1 / 3 | **Possible** | Holds under only the most favorable timing assumption |\n"
+        "| 0 / 3 | **Unrelated** | Fails under all three — transmission unlikely on this timeline |\n"
+    )
+    st.markdown("**Constant values used per tier** (all durations in days):")
+    st.dataframe(
+        pd.DataFrame([
+            {
+                "Tier": "Optimistic",
+                "Constants used": "minimum",
+                "Rationale": "Fastest possible progression",
+                f"Incubation ({INCUBATION['min']}–{INCUBATION['max']} d)": INCUBATION["min"],
+                f"Primary chancre ({PRIMARY['min']}–{PRIMARY['max']} d)": PRIMARY["min"],
+                f"Latency ({LATENCY['min']}–{LATENCY['max']} d)": LATENCY["min"],
+                f"Secondary ({SECONDARY['min']}–{SECONDARY['max']} d)": SECONDARY["min"],
+            },
+            {
+                "Tier": "Expected",
+                "Constants used": "average",
+                "Rationale": "Average progression (used in Criteria tab above)",
+                f"Incubation ({INCUBATION['min']}–{INCUBATION['max']} d)": INCUBATION["avg"],
+                f"Primary chancre ({PRIMARY['min']}–{PRIMARY['max']} d)": PRIMARY["avg"],
+                f"Latency ({LATENCY['min']}–{LATENCY['max']} d)": LATENCY["avg"],
+                f"Secondary ({SECONDARY['min']}–{SECONDARY['max']} d)": SECONDARY["avg"],
+            },
+            {
+                "Tier": "Conservative",
+                "Constants used": "maximum",
+                "Rationale": "Slowest possible progression",
+                f"Incubation ({INCUBATION['min']}–{INCUBATION['max']} d)": INCUBATION["max"],
+                f"Primary chancre ({PRIMARY['min']}–{PRIMARY['max']} d)": PRIMARY["max"],
+                f"Latency ({LATENCY['min']}–{LATENCY['max']} d)": LATENCY["max"],
+                f"Secondary ({SECONDARY['min']}–{SECONDARY['max']} d)": SECONDARY["max"],
+            },
+        ]),
+        use_container_width=True,
+        hide_index=True,
+    )
+    st.caption("Source: NCSDDC VCA Training (2022), slide 10.")
 
 m1, m2, m3, m4 = st.columns(4)
 m1.metric("Source lesion onset", str(result.ghosted_source.onset))
