@@ -367,6 +367,26 @@ def _pdf_safe(text: str) -> str:
     )
 
 
+def _passes_expected(scenario_result) -> bool:
+    return all(v["status"] != "fail" for v in scenario_result.range_data["expected"].values())
+
+
+def _trad_verdict_strings(sc, sp, case1_name: str, case2_name: str) -> tuple:
+    """Single source of truth for Traditional VCA verdict text — used in both PDF and display."""
+    src_ok = _passes_expected(sc)
+    spr_ok = _passes_expected(sp)
+    if src_ok and not spr_ok:
+        text = f"SOURCE — {case2_name} infected {case1_name}"
+    elif spr_ok and not src_ok:
+        text = f"SPREAD — {case1_name} infected {case2_name}"
+    elif src_ok and spr_ok:
+        text = "AMBIGUOUS — both directions pass under average constants. Manual review required."
+    else:
+        text = "UNRELATED INFECTIONS — neither direction supported under average constants."
+    summary = f"Source: {'Pass' if src_ok else 'Fail'}  |  Spread: {'Pass' if spr_ok else 'Fail'}"
+    return src_ok, spr_ok, text, summary
+
+
 def _build_pdf(result, inp: dict, mode: str) -> bytes:
     from fpdf import FPDF
 
@@ -389,19 +409,8 @@ def _build_pdf(result, inp: dict, mode: str) -> bytes:
 
     if mode == "Traditional VCA":
         mode_detail = "Average natural-history constants only (NCSDDC methodology)"
-        src_ok = all(v["status"] != "fail" for v in sc.range_data["expected"].values())
-        spr_ok = all(v["status"] != "fail" for v in sp.range_data["expected"].values())
-        if src_ok and not spr_ok:
-            verdict_text = f"SOURCE — {result.case2_name} infected {result.case1_name}"
-        elif spr_ok and not src_ok:
-            verdict_text = f"SPREAD — {result.case1_name} infected {result.case2_name}"
-        elif src_ok and spr_ok:
-            verdict_text = "AMBIGUOUS — both directions pass. Manual review required."
-        else:
-            verdict_text = "UNRELATED INFECTIONS — neither direction supported."
-        direction_summary = (
-            f"Source: {'Pass' if src_ok else 'Fail'}  |  "
-            f"Spread: {'Pass' if spr_ok else 'Fail'}"
+        _, _, verdict_text, direction_summary = _trad_verdict_strings(
+            sc, sp, result.case1_name, result.case2_name
         )
     else:
         mode_detail = "3 tiers: optimistic (min) / expected (avg) / conservative (max) constants"
@@ -503,10 +512,10 @@ def _build_pdf(result, inp: dict, mode: str) -> bytes:
                 )
                 png_bytes = fig.to_image(format="png", width=1600, height=480)
                 pdf.image(io.BytesIO(png_bytes), w=pdf.epw)
-            except Exception:
+            except Exception as _exc:
                 pdf.set_font("Helvetica", "I", 9)
                 pdf.cell(
-                    0, 6, "(Diagram unavailable — install kaleido to enable)",
+                    0, 6, _pdf_safe(f"(Diagram unavailable: {_exc})"),
                     new_x="LMARGIN", new_y="NEXT",
                 )
             pdf.ln(4)
@@ -556,16 +565,22 @@ def _build_pdf(result, inp: dict, mode: str) -> bytes:
 st.divider()
 st.subheader("Source / Spread Analysis")
 
-_pdf_bytes = _build_pdf(result, inp, st.session_state.get("qv_mode", "Traditional VCA"))
+sc, sp = result.source_scenarios, result.spread_scenarios
+_mode = st.session_state.get("qv_mode", "Traditional VCA")
+
+# Rebuild the PDF only when the result or mode changes, not on every widget interaction.
+_pdf_cache_key = (id(result), _mode)
+if st.session_state.get("_qv_pdf_cache_key") != _pdf_cache_key:
+    st.session_state["_qv_pdf_bytes"] = _build_pdf(result, inp, _mode)
+    st.session_state["_qv_pdf_cache_key"] = _pdf_cache_key
+_pdf_bytes = st.session_state["_qv_pdf_bytes"]
+
 st.download_button(
     "⬇ Download PDF report",
     data=_pdf_bytes,
     file_name=f"quickvca_{date.today()}.pdf",
     mime="application/pdf",
 )
-
-sc, sp = result.source_scenarios, result.spread_scenarios
-_mode = st.session_state.get("qv_mode", "Traditional VCA")
 
 
 def _warn_count(scenario_result) -> int:
@@ -574,37 +589,33 @@ def _warn_count(scenario_result) -> int:
     )
 
 
-def _passes_expected(scenario_result) -> bool:
-    return all(v["status"] != "fail" for v in scenario_result.range_data["expected"].values())
-
-
 if _mode == "Traditional VCA":
     # ---- Traditional: single pass/fail derived from the average-constant tier ----
-    src_ok = _passes_expected(sc)
-    spr_ok = _passes_expected(sp)
+    src_ok, spr_ok, _verdict_text, _ = _trad_verdict_strings(
+        sc, sp, result.case1_name, result.case2_name
+    )
 
     if src_ok and not spr_ok:
-        st.success(f"**SOURCE — {result.case2_name} infected {result.case1_name}**")
+        st.success(f"**{_verdict_text}**")
     elif spr_ok and not src_ok:
-        st.success(f"**SPREAD — {result.case1_name} infected {result.case2_name}**")
+        st.success(f"**{_verdict_text}**")
     elif src_ok and spr_ok:
-        st.warning(
-            f"**AMBIGUOUS — both directions pass under average constants. Manual review required.**"
-        )
+        st.warning(f"**{_verdict_text}**")
     else:
-        st.error("**UNRELATED INFECTIONS — neither direction is supported under average constants.**")
+        st.error(f"**{_verdict_text}**")
 
+    _sc_warns, _sp_warns = _warn_count(sc), _warn_count(sp)
     c1, c2 = st.columns(2)
     c1.metric(
         f"Source — did {result.case2_name} infect {result.case1_name}?",
         "✓ Pass" if src_ok else "✗ Fail",
-        delta=f"{_warn_count(sc)} warning(s)" if _warn_count(sc) else None,
+        delta=f"{_sc_warns} warning(s)" if _sc_warns else None,
         delta_color="off",
     )
     c2.metric(
         f"Spread — did {result.case1_name} infect {result.case2_name}?",
         "✓ Pass" if spr_ok else "✗ Fail",
-        delta=f"{_warn_count(sp)} warning(s)" if _warn_count(sp) else None,
+        delta=f"{_sp_warns} warning(s)" if _sp_warns else None,
         delta_color="off",
     )
     st.caption(
@@ -622,17 +633,18 @@ else:
     else:
         st.success(f"**{verdict}**")
 
+    _sc_warns, _sp_warns = _warn_count(sc), _warn_count(sp)
     c1, c2 = st.columns(2)
     c1.metric(
         f"Source — did {result.case2_name} infect {result.case1_name}?",
         f"{sc.confidence} · {sc.pass_count}/3 tiers",
-        delta=f"{_warn_count(sc)} warning(s)" if _warn_count(sc) else None,
+        delta=f"{_sc_warns} warning(s)" if _sc_warns else None,
         delta_color="off",
     )
     c2.metric(
         f"Spread — did {result.case1_name} infect {result.case2_name}?",
         f"{sp.confidence} · {sp.pass_count}/3 tiers",
-        delta=f"{_warn_count(sp)} warning(s)" if _warn_count(sp) else None,
+        delta=f"{_sp_warns} warning(s)" if _sp_warns else None,
         delta_color="off",
     )
 
