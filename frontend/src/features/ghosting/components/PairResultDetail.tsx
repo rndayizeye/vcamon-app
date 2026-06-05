@@ -5,9 +5,9 @@ import { VerdictBanner, VerdictContext } from './VerdictDisplay'
 import { NH_CONSTANTS } from '../types-local'
 
 function isoAddDays(iso: string, days: number): string {
-  const d = new Date(iso)
+  const d = new Date(iso + 'T12:00:00')
   d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 function computeInoculationAvg(onset: string): string {
@@ -136,7 +136,7 @@ export function PairResultDetail({ pair }: { pair: PairResult }) {
         </div>
         <CriteriaCards
           rangeData={activeScenario.range_data}
-          scenario={scenarioTab}
+          mode={mode}
         />
       </div>
 

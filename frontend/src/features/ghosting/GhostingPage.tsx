@@ -342,12 +342,14 @@ export function GhostingPage() {
       ? NH_CONSTANTS.INCUBATION.avg
       : NH_CONSTANTS.INCUBATION.avg + NH_CONSTANTS.PRIMARY.avg + NH_CONSTANTS.LATENCY.avg
     const ipDays = isPrimary ? NH_CONSTANTS.INTERVIEW_PRIMARY : NH_CONSTANTS.INTERVIEW_SECONDARY
-    const d = new Date(sym.onset)
+    const d = new Date(sym.onset + 'T12:00:00')
     const d1 = new Date(d); d1.setDate(d1.getDate() - d1Offset)
     const elicit = new Date(d); elicit.setDate(elicit.getDate() - ipDays)
+    const fmtLocal = (dt: Date) =>
+      `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
     return {
-      d1: d1.toISOString().slice(0, 10),
-      elicitBack: elicit.toISOString().slice(0, 10),
+      d1: fmtLocal(d1),
+      elicitBack: fmtLocal(elicit),
       sourceOnset: result.ghosted_source.onset,
       sourceEnd: result.ghosted_source.end,
     }

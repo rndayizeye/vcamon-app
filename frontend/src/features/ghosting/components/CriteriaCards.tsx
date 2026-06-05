@@ -1,5 +1,5 @@
 import type { GhostingScenarioCriteria, GhostingCriteriaCheck } from '../types'
-import { CRITERIA_META } from '../types-local'
+import { CRITERIA_META, SCENARIO_LABELS } from '../types-local'
 
 const STATUS_BADGE: Record<string, { label: string; color: string; bg: string }> = {
   pass: { label: '✓ Pass',  color: '#1d9e75', bg: '#eafaf3' },
@@ -7,6 +7,14 @@ const STATUS_BADGE: Record<string, { label: string; color: string; bg: string }>
   warn: { label: '⚠ Warn',  color: '#8a6d00', bg: '#fef8ec' },
   na:   { label: '— N/A',   color: '#666',    bg: '#f5f5f5' },
 }
+
+const TIER_ORDER = [
+  'aggressive',
+  'expected',
+  'conservative',
+  'fast_infection_slow_disease',
+  'slow_infection_fast_disease',
+]
 
 function CriteriaBadge({ check }: { check: GhostingCriteriaCheck }) {
   const s = STATUS_BADGE[check.status] ?? STATUS_BADGE.na
@@ -29,21 +37,12 @@ function CriteriaBadge({ check }: { check: GhostingCriteriaCheck }) {
   )
 }
 
-type Props = {
-  rangeData: Record<string, GhostingScenarioCriteria>
-  scenario: 'source' | 'spread'
-}
-
-export function CriteriaCards({ rangeData, scenario }: Props) {
-  const expected = rangeData['expected']
-  if (!expected) return null
-
-  const criteriaKeys = Object.keys(expected) as (keyof GhostingScenarioCriteria)[]
-
+function CriteriaList({ tierCriteria }: { tierCriteria: GhostingScenarioCriteria }) {
+  const criteriaKeys = Object.keys(tierCriteria) as (keyof GhostingScenarioCriteria)[]
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
       {criteriaKeys.map((key) => {
-        const check = expected[key]
+        const check = tierCriteria[key]
         const meta = CRITERIA_META[key] ?? { label: key, description: '' }
         const isOpen = check.status === 'fail' || check.status === 'warn'
 
@@ -87,6 +86,58 @@ export function CriteriaCards({ rangeData, scenario }: Props) {
               </p>
             </div>
           </details>
+        )
+      })}
+    </div>
+  )
+}
+
+type Props = {
+  rangeData: Record<string, GhostingScenarioCriteria>
+  mode: 'traditional' | 'comprehensive'
+}
+
+export function CriteriaCards({ rangeData, mode }: Props) {
+  if (mode === 'traditional') {
+    const expected = rangeData['expected']
+    if (!expected) return null
+    return <CriteriaList tierCriteria={expected} />
+  }
+
+  const tiers = TIER_ORDER.filter(k => rangeData[k] != null)
+  if (tiers.length === 0) return null
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      {tiers.map(tierKey => {
+        const tierCriteria = rangeData[tierKey]
+        const label = SCENARIO_LABELS[tierKey] ?? tierKey
+        const keys = Object.keys(tierCriteria) as (keyof GhostingScenarioCriteria)[]
+        const passed = keys.every(k => tierCriteria[k].status !== 'fail')
+        return (
+          <div
+            key={tierKey}
+            style={{
+              border: `1px solid ${passed ? '#c3e6cb' : '#f5c6cb'}`,
+              borderRadius: 6,
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                padding: '0.5rem 0.9rem',
+                background: passed ? '#eafaf3' : '#fdf0f0',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                color: passed ? '#1d9e75' : '#c0392b',
+              }}
+            >
+              {passed ? '✓' : '✗'} {label}
+            </div>
+            <div style={{ padding: '0.5rem 0.9rem' }}>
+              <CriteriaList tierCriteria={tierCriteria} />
+            </div>
+          </div>
         )
       })}
     </div>

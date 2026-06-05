@@ -14,9 +14,11 @@ const CONFIDENCE_COLORS: Record<string, string> = {
   Robust: '#1D9E75',
   Likely: '#4CAF50',
   Possible: '#F5A623',
+  Weak: '#f59e0b',
+  Unlikely: '#ef4444',
   Ambiguous: '#9C27B0',
 }
-const CONFIDENCE_ORDER = ['Robust', 'Likely', 'Possible', 'Ambiguous', 'Unrelated']
+const CONFIDENCE_ORDER = ['Robust', 'Likely', 'Possible', 'Weak', 'Unlikely', 'Ambiguous', 'Unrelated']
 
 const SVG_W = 900
 const SVG_H = 600

@@ -960,11 +960,11 @@ def determine_verdict(
     # --- Base directional conclusion ---
     # source scenario = "Did Case2 infect Case1?" → Case2 is the SOURCE.
     # spread scenario = "Did Case1 infect Case2?" → Case1 is the SOURCE.
-    if s_rank > sp_rank and s_rank > 0:
+    if s_rank > sp_rank and s_rank >= 2:
         verdict = f"{case2_label} is the SOURCE — {case1_label} is a SPREAD."
-    elif sp_rank > s_rank and sp_rank > 0:
+    elif sp_rank > s_rank and sp_rank >= 2:
         verdict = f"{case1_label} is the SOURCE — {case2_label} is a SPREAD."
-    elif s_rank > 0 and s_rank == sp_rank:
+    elif s_rank >= 2 and s_rank == sp_rank:
         verdict = "AMBIGUOUS — both source and spread scenarios show similar confidence. Manual review required."
     else:
         verdict = "UNRELATED INFECTIONS — neither source nor spread scenario shows a likely transmission link."
@@ -1145,7 +1145,8 @@ def run_ghosting_analysis(
     def derive_confidence(data: dict[str, dict]) -> tuple[str, int]:
         passes = sum(1 for crit in data.values() if _scenario_passes(crit))
         levels = {5: "Robust", 4: "Likely", 3: "Possible", 2: "Weak", 1: "Unlikely", 0: "Unrelated"}
-        return levels.get(passes, "Possible"), passes
+        assert passes in levels, f"Unexpected pass_count {passes}"
+        return levels[passes], passes
 
     source_conf, source_pass_count = derive_confidence(source_range_data)
     spread_conf, spread_pass_count = derive_confidence(spread_range_data)

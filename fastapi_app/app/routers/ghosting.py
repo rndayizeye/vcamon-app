@@ -509,9 +509,11 @@ def update_ghosting_endpoint(
 
 
 _CONFIDENCE_RANK: dict[str, int] = {
-    "Robust": 4,
-    "Likely": 3,
-    "Possible": 2,
+    "Robust": 5,
+    "Likely": 4,
+    "Possible": 3,
+    "Weak": 2,
+    "Unlikely": 1,
     "Unrelated": 0,
 }
 
