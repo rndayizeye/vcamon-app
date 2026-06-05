@@ -403,7 +403,7 @@ def _build_pdf(result, inp: dict, mode: str) -> bytes:
             f"Spread: {sp.confidence} ({sp.pass_count}/3 tiers)"
         )
 
-    pdf = FPDF()
+    pdf = FPDF(orientation="L")  # A4 landscape — ~267 mm effective width
     pdf.set_margins(15, 15, 15)
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
@@ -438,7 +438,7 @@ def _build_pdf(result, inp: dict, mode: str) -> bytes:
     pdf.set_font("Helvetica", "B", 11)
     pdf.cell(0, 7, "Verdict", new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Helvetica", "", 10)
-    pdf.multi_cell(0, 6, _pdf_safe(verdict_text))
+    pdf.multi_cell(0, 6, _pdf_safe(verdict_text), new_x="LMARGIN", new_y="NEXT")
     pdf.cell(0, 6, _pdf_safe(direction_summary), new_x="LMARGIN", new_y="NEXT")
     pdf.ln(3)
 
@@ -478,7 +478,19 @@ def _build_pdf(result, inp: dict, mode: str) -> bytes:
                     criteria=result.criteria[scenario],
                     x_range=x_range,
                 )
-                png_bytes = fig.to_image(format="png", width=1100, height=420)
+                # Move legend below chart for PDF so it doesn't overlap the title.
+                # This only affects the exported PNG — Streamlit display is unchanged.
+                fig.update_layout(
+                    legend=dict(
+                        orientation="h",
+                        y=-0.28,
+                        x=0,
+                        font=dict(size=9),
+                        bgcolor="rgba(255,255,255,0.8)",
+                    ),
+                    margin=dict(l=10, r=10, t=45, b=90),
+                )
+                png_bytes = fig.to_image(format="png", width=1500, height=360)
                 pdf.image(io.BytesIO(png_bytes), w=pdf.epw)
             except Exception:
                 pdf.set_font("Helvetica", "I", 9)
