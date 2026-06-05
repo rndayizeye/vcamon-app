@@ -45,6 +45,7 @@ from app.utils.clinical import (
     PRIMARY,
     SECONDARY,
     Exposure,
+    calc_date1,
     run_ghosting_analysis,
 )
 from app.utils.ghosting_plot import build_scenario_figure
@@ -343,6 +344,13 @@ if "qv_result" not in st.session_state:
 
 result = st.session_state["qv_result"]
 inp = st.session_state["qv_inputs"]
+
+p1_is_a = result.case1_name == inp["a_name"]
+p1_symptom = result.case1_symptom
+p2_syms = inp["b_syms"] if p1_is_a else inp["a_syms"]
+p2_exp = inp["b_exp"] if p1_is_a else inp["a_exp"]
+_anchor = inp["a_tx"] or inp["b_tx"] or (p1_symptom.onset if p1_symptom else date.today())
+_x_range = (_anchor - timedelta(days=274), _anchor + timedelta(days=91))
 
 
 def _pdf_safe(text: str) -> str:
@@ -677,6 +685,23 @@ else:
         )
         st.caption("Source: NCSDDC VCA Training (2022), slide 10.")
 
+# Important Dates — subsection of Source / Spread Analysis
+if p1_symptom:
+    st.markdown("#### Important Dates")
+    _d1 = calc_date1(p1_symptom, constant_key="avg")
+    _ip_days = (
+        INTERVIEW_PERIOD_PRIMARY_DAYS
+        if p1_symptom.type in ("Primary Chancre", "Historical Primary", "Ghosted Primary")
+        else INTERVIEW_PERIOD_SECONDARY_DAYS
+    )
+    _elicit_back = p1_symptom.onset - timedelta(days=_ip_days)
+    st.markdown(
+        f"- **{result.case1_name} was likely infected on:** {_d1}  \n"
+        f"- **Elicit contacts back to:** {_elicit_back}  \n"
+        f"- **The likely source was infectious between:** "
+        f"{result.ghosted_source.onset} and {result.ghosted_source.end}"
+    )
+
 m1, m2, m3, m4 = st.columns(4)
 m1.metric("Source lesion onset", str(result.ghosted_source.onset))
 m2.metric("Source lesion end", str(result.ghosted_source.end))
@@ -686,14 +711,6 @@ m4.metric("Spread lesion end", str(result.ghosted_spread.end))
 # Scenario diagrams ---------------------------------------------------------
 st.divider()
 st.subheader("Scenario diagrams")
-
-p1_is_a = result.case1_name == inp["a_name"]
-p1_symptom = result.case1_symptom
-p2_syms = inp["b_syms"] if p1_is_a else inp["a_syms"]
-p2_exp = inp["b_exp"] if p1_is_a else inp["a_exp"]
-
-_anchor = inp["a_tx"] or inp["b_tx"] or (p1_symptom.onset if p1_symptom else date.today())
-_x_range = (_anchor - timedelta(days=274), _anchor + timedelta(days=91))
 
 if p1_symptom:
     d_src, d_spr = st.columns(2)
@@ -801,19 +818,6 @@ with tab_spr:
 
 with st.expander("Step-by-step log"):
     st.code("\n".join(result.log), language=None)
-
-# Interview period ----------------------------------------------------------
-if p1_symptom:
-    st.divider()
-    st.subheader("Interview period")
-    if p1_symptom.type in ("Primary Chancre", "Historical Primary", "Ghosted Primary"):
-        days, plabel = INTERVIEW_PERIOD_PRIMARY_DAYS, "primary"
-    else:
-        days, plabel = INTERVIEW_PERIOD_SECONDARY_DAYS, "secondary"
-    ip1, ip2, ip3 = st.columns(3)
-    ip1.metric("Anchor onset", str(p1_symptom.onset))
-    ip2.metric("Elicit contacts back to", str(p1_symptom.onset - timedelta(days=days)))
-    ip3.metric("Window", f"{days} d ({plabel})")
 
 # Feedback ------------------------------------------------------------------
 st.divider()
