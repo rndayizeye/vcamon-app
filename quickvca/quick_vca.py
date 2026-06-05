@@ -637,65 +637,76 @@ else:
     c1, c2 = st.columns(2)
     c1.metric(
         f"Source — did {result.case2_name} infect {result.case1_name}?",
-        f"{sc.confidence} · {sc.pass_count}/3 tiers",
+        f"{sc.confidence} · {sc.pass_count}/5 tiers",
         delta=f"{_sc_warns} warning(s)" if _sc_warns else None,
         delta_color="off",
     )
     c2.metric(
         f"Spread — did {result.case1_name} infect {result.case2_name}?",
-        f"{sp.confidence} · {sp.pass_count}/3 tiers",
+        f"{sp.confidence} · {sp.pass_count}/5 tiers",
         delta=f"{_sp_warns} warning(s)" if _sp_warns else None,
         delta_color="off",
     )
 
     with st.expander("How the tier score is calculated"):
         st.markdown(
-            "The 4 criteria are re-run **three times**, once per natural-history tier, "
-            "each time using a different set of syphilis progression constants. "
+            "The 4 criteria are re-run **five times**, once per natural-history tier, "
+            "each time using a different combination of syphilis progression constants. "
             "A tier **passes** when none of its 4 criteria return Fail (warnings are allowed). "
             "The score counts how many tiers pass.\n\n"
             "| Score | Label | Interpretation |\n"
             "|---|---|---|\n"
-            "| 3 / 3 | **Robust** | Scenario holds under fastest, average, and slowest progression |\n"
-            "| 2 / 3 | **Likely** | Holds under two of the three timing assumptions |\n"
-            "| 1 / 3 | **Possible** | Holds under only the most favorable timing assumption |\n"
-            "| 0 / 3 | **Unrelated** | Fails under all three — transmission unlikely on this timeline |\n"
+            "| 5 / 5 | **Robust** | Holds across all five timing combinations |\n"
+            "| 4 / 5 | **Likely** | Holds under four of five combinations |\n"
+            "| 3 / 5 | **Possible** | Holds in at least half of combinations |\n"
+            "| 2 / 5 | **Weak** | Holds in a minority of combinations |\n"
+            "| 1 / 5 | **Unlikely** | Holds under only one combination |\n"
+            "| 0 / 5 | **Unrelated** | Fails under all — transmission unlikely on this timeline |\n"
         )
         st.markdown("**Constant values used per tier** (all durations in days):")
+        _ic, _pr, _la, _se = (
+            f"Incubation ({INCUBATION['min']}–{INCUBATION['max']} d)",
+            f"Primary chancre ({PRIMARY['min']}–{PRIMARY['max']} d)",
+            f"Latency ({LATENCY['min']}–{LATENCY['max']} d)",
+            f"Secondary ({SECONDARY['min']}–{SECONDARY['max']} d)",
+        )
         st.dataframe(
             pd.DataFrame([
                 {
                     "Tier": "Optimistic",
-                    "Constants used": "minimum",
                     "Rationale": "Fastest possible progression",
-                    f"Incubation ({INCUBATION['min']}–{INCUBATION['max']} d)": INCUBATION["min"],
-                    f"Primary chancre ({PRIMARY['min']}–{PRIMARY['max']} d)": PRIMARY["min"],
-                    f"Latency ({LATENCY['min']}–{LATENCY['max']} d)": LATENCY["min"],
-                    f"Secondary ({SECONDARY['min']}–{SECONDARY['max']} d)": SECONDARY["min"],
+                    _ic: INCUBATION["min"], _pr: PRIMARY["min"],
+                    _la: LATENCY["min"], _se: SECONDARY["min"],
                 },
                 {
                     "Tier": "Expected",
-                    "Constants used": "average",
-                    "Rationale": "Average progression (used in Criteria tab above)",
-                    f"Incubation ({INCUBATION['min']}–{INCUBATION['max']} d)": INCUBATION["avg"],
-                    f"Primary chancre ({PRIMARY['min']}–{PRIMARY['max']} d)": PRIMARY["avg"],
-                    f"Latency ({LATENCY['min']}–{LATENCY['max']} d)": LATENCY["avg"],
-                    f"Secondary ({SECONDARY['min']}–{SECONDARY['max']} d)": SECONDARY["avg"],
+                    "Rationale": "Average progression (used in Criteria tab)",
+                    _ic: INCUBATION["avg"], _pr: PRIMARY["avg"],
+                    _la: LATENCY["avg"], _se: SECONDARY["avg"],
                 },
                 {
                     "Tier": "Conservative",
-                    "Constants used": "maximum",
                     "Rationale": "Slowest possible progression",
-                    f"Incubation ({INCUBATION['min']}–{INCUBATION['max']} d)": INCUBATION["max"],
-                    f"Primary chancre ({PRIMARY['min']}–{PRIMARY['max']} d)": PRIMARY["max"],
-                    f"Latency ({LATENCY['min']}–{LATENCY['max']} d)": LATENCY["max"],
-                    f"Secondary ({SECONDARY['min']}–{SECONDARY['max']} d)": SECONDARY["max"],
+                    _ic: INCUBATION["max"], _pr: PRIMARY["max"],
+                    _la: LATENCY["max"], _se: SECONDARY["max"],
+                },
+                {
+                    "Tier": "Fast infection, slow disease",
+                    "Rationale": "Infected quickly; long-lasting chancre and late secondary",
+                    _ic: INCUBATION["min"], _pr: PRIMARY["max"],
+                    _la: LATENCY["max"], _se: SECONDARY["max"],
+                },
+                {
+                    "Tier": "Slow infection, fast disease",
+                    "Rationale": "Long incubation; rapid progression to secondary",
+                    _ic: INCUBATION["max"], _pr: PRIMARY["min"],
+                    _la: LATENCY["min"], _se: SECONDARY["min"],
                 },
             ]),
             use_container_width=True,
             hide_index=True,
         )
-        st.caption("Source: NCSDDC VCA Training (2022), slide 10.")
+        st.caption("Source: NCSDDC VCA Training (2022), slide 10. Cross-scenarios cover independent stage variation.")
 
 # Important Dates — subsection of Source / Spread Analysis
 if p1_symptom:

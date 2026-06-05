@@ -299,8 +299,8 @@ class ScenarioResult:
     range_lesions: dict[
         str, GhostedLesion
     ]  # Maps 'aggressive'|'expected'|'conservative' -> GhostedLesion
-    confidence: str  # "Robust", "Likely", "Possible", "Unrelated"
-    pass_count: int  # Number of ranges that passed (0-3)
+    confidence: str  # "Robust", "Likely", "Possible", "Weak", "Unlikely", "Unrelated"
+    pass_count: int  # Number of tiers that passed (0-5)
 
 
 @dataclass
@@ -406,17 +406,28 @@ select_p1 = select_case1
 # ---------------------------------------------------------------------------
 
 
-def calc_date1(symptom: Symptom, constant_key: str = "avg") -> date:
+def _stage_key(stage_keys: dict | None, stage: str, fallback: str) -> str:
+    """Return the constant tier key ('min'/'avg'/'max') for a specific stage.
+
+    When stage_keys is provided (cross-scenario analysis), each natural-history
+    stage may use a different tier. Falls back to the global constant_key for
+    callers that still use the single-key API.
+    """
+    return stage_keys.get(stage, fallback) if stage_keys else fallback
+
+
+def calc_date1(symptom: Symptom, constant_key: str = "avg", stage_keys: dict | None = None) -> date:
     """
     Work backwards from Case1's symptom onset to estimate when Case1
     was inoculated (Date1).
     """
+    inc_k = _stage_key(stage_keys, "incubation", constant_key)
+    pri_k = _stage_key(stage_keys, "primary", constant_key)
+    lat_k = _stage_key(stage_keys, "latency", constant_key)
     if symptom.type in ("Primary Chancre", "Historical Primary", "Ghosted Primary"):
-        return symptom.onset - timedelta(days=INCUBATION[constant_key])
+        return symptom.onset - timedelta(days=INCUBATION[inc_k])
     elif symptom.type == "Secondary Rash/Lesions":
-        days_back = (
-            INCUBATION[constant_key] + PRIMARY[constant_key] + LATENCY[constant_key]
-        )
+        days_back = INCUBATION[inc_k] + PRIMARY[pri_k] + LATENCY[lat_k]
         return symptom.onset - timedelta(days=days_back)
     else:
         raise ValueError(f"Cannot calculate Date1 for symptom type: {symptom.type}")
@@ -434,13 +445,14 @@ def avg_inoculation_date(symptom: Symptom) -> date:
 
 
 def calc_ghosted_source(
-    date1: date, assigned_to: str, derived_from: str, constant_key: str = "avg"
+    date1: date, assigned_to: str, derived_from: str, constant_key: str = "avg",
+    stage_keys: dict | None = None,
 ) -> GhostedLesion:
     """
     Date1 is the likely inoculation date of Case1.
     The ghosted source chancre for Case2 is centred on Date1.
     """
-    half_primary = PRIMARY[constant_key] // 2
+    half_primary = PRIMARY[_stage_key(stage_keys, "primary", constant_key)] // 2
     return GhostedLesion(
         lesion_type="ghosted_source",
         onset=date1 - timedelta(days=half_primary),
@@ -455,23 +467,19 @@ def calc_ghosted_source(
 # ---------------------------------------------------------------------------
 
 
-def calc_date2(symptom: Symptom, constant_key: str = "avg") -> date:
+def calc_date2(symptom: Symptom, constant_key: str = "avg", stage_keys: dict | None = None) -> date:
     """
     Date2 = midpoint of Case1's primary chancre — the point of peak
     infectiousness for Case1.
     """
+    pri_k = _stage_key(stage_keys, "primary", constant_key)
+    lat_k = _stage_key(stage_keys, "latency", constant_key)
     if symptom.type in ("Primary Chancre", "Historical Primary", "Ghosted Primary"):
-        dur = (
-            symptom.duration_days
-            if symptom.duration_days > 0
-            else PRIMARY[constant_key]
-        )
+        dur = symptom.duration_days if symptom.duration_days > 0 else PRIMARY[pri_k]
         return symptom.onset + timedelta(days=dur // 2)
     elif symptom.type == "Secondary Rash/Lesions":
-        half_primary = PRIMARY[constant_key] / 2
-        return symptom.onset - timedelta(
-            days=round(LATENCY[constant_key] + half_primary)
-        )
+        half_primary = PRIMARY[pri_k] / 2
+        return symptom.onset - timedelta(days=round(LATENCY[lat_k] + half_primary))
     else:
         raise ValueError(f"Cannot calculate Date2 for symptom type: {symptom.type}")
 
@@ -481,14 +489,15 @@ calc_d2 = calc_date2
 
 
 def calc_ghosted_spread(
-    date2: date, assigned_to: str, derived_from: str, constant_key: str = "avg"
+    date2: date, assigned_to: str, derived_from: str, constant_key: str = "avg",
+    stage_keys: dict | None = None,
 ) -> GhostedLesion:
     """
     Ghosted spread lesion for Case2, starting one incubation duration
     after Date2 (Case1's infectious midpoint).
     """
-    onset = date2 + timedelta(days=INCUBATION[constant_key])
-    end = onset + timedelta(days=PRIMARY[constant_key])
+    onset = date2 + timedelta(days=INCUBATION[_stage_key(stage_keys, "incubation", constant_key)])
+    end = onset + timedelta(days=PRIMARY[_stage_key(stage_keys, "primary", constant_key)])
     return GhostedLesion(
         lesion_type="ghosted_spread",
         onset=onset,
@@ -829,6 +838,7 @@ def evaluate_criteria(
     case1_treatment_date: Optional[date] = None,
     constant_key: str = "avg",
     case2_body_parts: Optional[list[str]] = None,
+    stage_keys: dict | None = None,
 ) -> dict:
     """
     Run all four criteria checks for one scenario.
@@ -854,15 +864,16 @@ def evaluate_criteria(
         # from Case1's PRIMARY chancre. When Case1's anchor is a secondary
         # symptom that chancre is ghosted (centred on Date2); otherwise it is the
         # reported primary chancre window.
+        pri_k = _stage_key(stage_keys, "primary", constant_key)
         if case1_symptom.type == "Secondary Rash/Lesions" and date2 is not None:
-            half_primary = PRIMARY[constant_key] // 2
+            half_primary = PRIMARY[pri_k] // 2
             infectious_start = date2 - timedelta(days=half_primary)
             infectious_end = date2 + timedelta(days=half_primary)
         else:
             dur = (
                 case1_symptom.duration_days
                 if case1_symptom.duration_days > 0
-                else PRIMARY[constant_key]
+                else PRIMARY[pri_k]
             )
             infectious_start = case1_symptom.onset
             infectious_end = case1_symptom.onset + timedelta(days=dur)
@@ -930,9 +941,9 @@ def determine_verdict(
     """
     Build the final verdict string based on confidence levels.
 
-    Confidence levels: Robust > Likely > Possible > Unrelated
+    Confidence levels: Robust > Likely > Possible > Weak > Unlikely > Unrelated
     """
-    conf_rank = {"Robust": 3, "Likely": 2, "Possible": 1, "Unrelated": 0}
+    conf_rank = {"Robust": 5, "Likely": 4, "Possible": 3, "Weak": 2, "Unlikely": 1, "Unrelated": 0}
 
     s_rank = conf_rank.get(source_confidence, 0)
     sp_rank = conf_rank.get(spread_confidence, 0)
@@ -1010,7 +1021,13 @@ def run_ghosting_analysis(
     log: list[str] = ["=== VCA Range-Based Ghosting Analysis ===", ""]
 
     # Range mapping
-    SCENARIOS = {"aggressive": "min", "expected": "avg", "conservative": "max"}
+    SCENARIOS: dict[str, dict[str, str]] = {
+        "aggressive":                {"incubation": "min", "primary": "min", "latency": "min", "secondary": "min"},
+        "expected":                  {"incubation": "avg", "primary": "avg", "latency": "avg", "secondary": "avg"},
+        "conservative":              {"incubation": "max", "primary": "max", "latency": "max", "secondary": "max"},
+        "fast_infection_slow_disease": {"incubation": "min", "primary": "max", "latency": "max", "secondary": "max"},
+        "slow_infection_fast_disease": {"incubation": "max", "primary": "min", "latency": "min", "secondary": "min"},
+    }
 
     # --- Step 1: Identify Case1 ---
     case1_role, case1_symptom, case2_role, case2_symptoms = select_case1(
@@ -1041,30 +1058,32 @@ def run_ghosting_analysis(
     spread_range_lesions = {}
 
     # --- Steps 2-6: Range Loop ---
-    for scenario_name, key in SCENARIOS.items():
+    for scenario_name, stage_keys in SCENARIOS.items():
         range_label = {
-            "aggressive": "Optimistic range — minimum constants (fastest possible progression)",
-            "expected": "Expected range — average constants",
-            "conservative": "Conservative range — maximum constants (slowest possible progression)",
+            "aggressive":                "Optimistic range — minimum constants (fastest possible progression)",
+            "expected":                  "Expected range — average constants",
+            "conservative":              "Conservative range — maximum constants (slowest possible progression)",
+            "fast_infection_slow_disease": "Fast-infection range — min incubation, max primary/latency/secondary",
+            "slow_infection_fast_disease": "Slow-infection range — max incubation, min primary/latency/secondary",
         }.get(scenario_name, scenario_name)
         log.append(f"\n--- {range_label} ---")
 
         # Date calculations
-        d1 = calc_date1(case1_symptom, constant_key=key)
-        d2 = calc_date2(case1_symptom, constant_key=key)
+        d1 = calc_date1(case1_symptom, stage_keys=stage_keys)
+        d2 = calc_date2(case1_symptom, stage_keys=stage_keys)
 
         # Lesion generation
         source_lesion = calc_ghosted_source(
             d1,
             assigned_to=case2_role,
             derived_from=case1_symptom.type,
-            constant_key=key,
+            stage_keys=stage_keys,
         )
         spread_lesion = calc_ghosted_spread(
             d2,
             assigned_to=case2_role,
             derived_from=case1_symptom.type,
-            constant_key=key,
+            stage_keys=stage_keys,
         )
 
         # Evaluate
@@ -1080,7 +1099,7 @@ def run_ghosting_analysis(
             case1_body_parts=case1_body_parts,
             case2_name=case2_name,
             case1_treatment_date=case1_treatment,
-            constant_key=key,
+            stage_keys=stage_keys,
             case2_body_parts=case2_body_parts,
         )
         spread_crit = evaluate_criteria(
@@ -1095,7 +1114,7 @@ def run_ghosting_analysis(
             case1_body_parts=case1_body_parts,
             case2_name=case2_name,
             case1_treatment_date=case1_treatment,
-            constant_key=key,
+            stage_keys=stage_keys,
             case2_body_parts=case2_body_parts,
         )
 
@@ -1125,15 +1144,16 @@ def run_ghosting_analysis(
     # --- Step 7: Confidence and Verdict ---
     def derive_confidence(data: dict[str, dict]) -> tuple[str, int]:
         passes = sum(1 for crit in data.values() if _scenario_passes(crit))
-        levels = {3: "Robust", 2: "Likely", 1: "Possible", 0: "Unrelated"}
-        return levels[passes], passes
+        levels = {5: "Robust", 4: "Likely", 3: "Possible", 2: "Weak", 1: "Unlikely", 0: "Unrelated"}
+        return levels.get(passes, "Possible"), passes
 
     source_conf, source_pass_count = derive_confidence(source_range_data)
     spread_conf, spread_pass_count = derive_confidence(spread_range_data)
 
     log.append("\nConfidence summary:")
-    log.append(f"  Did {case2_name} infect {case1_name}? {source_conf} ({source_pass_count}/3 ranges agree)")
-    log.append(f"  Did {case1_name} infect {case2_name}? {spread_conf} ({spread_pass_count}/3 ranges agree)")
+    _n_tiers = len(SCENARIOS)
+    log.append(f"  Did {case2_name} infect {case1_name}? {source_conf} ({source_pass_count}/{_n_tiers} tiers pass)")
+    log.append(f"  Did {case1_name} infect {case2_name}? {spread_conf} ({spread_pass_count}/{_n_tiers} tiers pass)")
 
     source_scenarios = ScenarioResult(
         range_data=source_range_data,
