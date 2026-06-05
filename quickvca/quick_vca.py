@@ -478,19 +478,22 @@ def _build_pdf(result, inp: dict, mode: str) -> bytes:
                     criteria=result.criteria[scenario],
                     x_range=x_range,
                 )
-                # Move legend below chart for PDF so it doesn't overlap the title.
-                # This only affects the exported PNG — Streamlit display is unchanged.
+                # PDF-specific layout: larger fonts, enough left margin for person
+                # name labels, legend below chart. Only affects the exported PNG.
                 fig.update_layout(
+                    title=dict(font=dict(size=16)),
+                    yaxis=dict(tickfont=dict(size=14)),
+                    xaxis=dict(tickfont=dict(size=12)),
                     legend=dict(
                         orientation="h",
-                        y=-0.28,
+                        y=-0.26,
                         x=0,
-                        font=dict(size=9),
+                        font=dict(size=11),
                         bgcolor="rgba(255,255,255,0.8)",
                     ),
-                    margin=dict(l=10, r=10, t=45, b=90),
+                    margin=dict(l=120, r=20, t=50, b=110),
                 )
-                png_bytes = fig.to_image(format="png", width=1500, height=360)
+                png_bytes = fig.to_image(format="png", width=1600, height=480)
                 pdf.image(io.BytesIO(png_bytes), w=pdf.epw)
             except Exception:
                 pdf.set_font("Helvetica", "I", 9)
