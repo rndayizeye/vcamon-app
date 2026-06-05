@@ -130,3 +130,48 @@ export function verdictEdgeColor(verdict: string | undefined): string {
   if (up.includes('UNRELATED')) return VERDICT_COLORS.UNRELATED
   return '#cccccc'
 }
+
+// ---------------------------------------------------------------------------
+// Natural-history constants (days) — mirrors app/utils/clinical.py
+// ---------------------------------------------------------------------------
+
+export const NH_CONSTANTS = {
+  INCUBATION: { min: 10, avg: 21, max: 90 },
+  PRIMARY:    { min: 7,  avg: 21, max: 35 },
+  LATENCY:    { min: 0,  avg: 28, max: 70 },
+  SECONDARY:  { min: 14, avg: 28, max: 42 },
+  INTERVIEW_PRIMARY:   125,
+  INTERVIEW_SECONDARY: 237,
+} as const
+
+export const SCENARIO_LABELS: Record<string, string> = {
+  aggressive:                   'Optimistic (min constants)',
+  expected:                     'Expected (avg constants)',
+  conservative:                 'Conservative (max constants)',
+  fast_infection_slow_disease:  'Fast infection, slow disease',
+  slow_infection_fast_disease:  'Slow infection, fast disease',
+}
+
+export const CRITERIA_META: Record<string, { label: string; description: string }> = {
+  exposure: {
+    label: 'Exposure overlap',
+    description:
+      "The alleged source's infectious period must overlap the reported contact window. No overlap means transmission was physically impossible on this timeline.",
+  },
+  exposure_modality: {
+    label: 'Anatomical compatibility',
+    description:
+      "Each party's primary chancre site must match a body part they reported using during sexual contact.",
+  },
+  latency: {
+    label: 'Latency to secondary',
+    description:
+      "Enough time must separate the end of the ghosted primary lesion from the recipient's earliest secondary symptom (0–70 days of latency).",
+  },
+  natural_order: {
+    label: 'Natural progression order',
+    description:
+      "The recipient's symptoms must follow the expected syphilis sequence: primary before secondary.",
+  },
+}
+

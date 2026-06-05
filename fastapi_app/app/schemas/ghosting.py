@@ -103,23 +103,13 @@ class GhostedLesionRead(BaseModel):
     assigned_to: str
 
 
-class GhostingScenarioRangesRead(BaseModel):
-    aggressive: GhostingScenarioCriteriaRead
-    expected: GhostingScenarioCriteriaRead
-    conservative: GhostingScenarioCriteriaRead
-
-
-class GhostingScenarioLesionsRead(BaseModel):
-    aggressive: GhostedLesionRead
-    expected: GhostedLesionRead
-    conservative: GhostedLesionRead
-
-
 class GhostingScenarioRead(BaseModel):
-    range_data: GhostingScenarioRangesRead
-    range_lesions: GhostingScenarioLesionsRead
-    confidence: str
-    pass_count: int
+    # Keys are scenario names: aggressive, expected, conservative,
+    # fast_infection_slow_disease, slow_infection_fast_disease
+    range_data: dict[str, GhostingScenarioCriteriaRead]
+    range_lesions: dict[str, GhostedLesionRead]
+    confidence: str  # Robust | Likely | Possible | Weak | Unlikely | Unrelated
+    pass_count: int  # 0–5
 
 
 class SuggestedGhostingRecordRead(BaseModel):

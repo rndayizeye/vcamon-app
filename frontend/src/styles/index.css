@@ -574,3 +574,14 @@ textarea {
     margin-top: 0.1rem;
     margin-left: 0;
 }
+
+/* ---------------------------------------------------------------------------
+   Print / PDF export
+   --------------------------------------------------------------------------- */
+
+.print-only { display: none; }
+
+@media print {
+    .no-print { display: none !important; }
+    .print-only { display: block !important; }
+}

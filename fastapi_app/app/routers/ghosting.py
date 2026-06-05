@@ -49,8 +49,6 @@ from fastapi_app.app.schemas import (
     GhostingExposureInput,
     GhostingRead,
     GhostingScenarioCriteriaRead,
-    GhostingScenarioLesionsRead,
-    GhostingScenarioRangesRead,
     GhostingScenarioRead,
     GhostingSymptomInput,
     GhostingUpdate,
@@ -255,16 +253,8 @@ def _serialize_lesion(lesion: GhostedLesion) -> GhostedLesionRead:
 
 def _serialize_scenario(result: ScenarioResult) -> GhostingScenarioRead:
     return GhostingScenarioRead(
-        range_data=GhostingScenarioRangesRead(
-            aggressive=_serialize_range_criteria(result.range_data["aggressive"]),
-            expected=_serialize_range_criteria(result.range_data["expected"]),
-            conservative=_serialize_range_criteria(result.range_data["conservative"]),
-        ),
-        range_lesions=GhostingScenarioLesionsRead(
-            aggressive=_serialize_lesion(result.range_lesions["aggressive"]),
-            expected=_serialize_lesion(result.range_lesions["expected"]),
-            conservative=_serialize_lesion(result.range_lesions["conservative"]),
-        ),
+        range_data={k: _serialize_range_criteria(v) for k, v in result.range_data.items()},
+        range_lesions={k: _serialize_lesion(v) for k, v in result.range_lesions.items()},
         confidence=result.confidence,
         pass_count=result.pass_count,
     )

@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import type { PairResult } from '../types-local'
-import { EnhancedCriteriaTable } from './EnhancedCriteriaTable'
+import { CriteriaCards } from './CriteriaCards'
 import { VerdictBanner, VerdictContext } from './VerdictDisplay'
+import { NH_CONSTANTS } from '../types-local'
 
 function isoAddDays(iso: string, days: number): string {
   const d = new Date(iso)
@@ -16,22 +17,57 @@ function computeInoculationAvg(onset: string): string {
 export function PairResultDetail({ pair }: { pair: PairResult }) {
   const [logOpen, setLogOpen] = useState(false)
   const [scenarioTab, setScenarioTab] = useState<'source' | 'spread'>('source')
+  const [mode, setMode] = useState<'traditional' | 'comprehensive'>('traditional')
   const { result } = pair
+
+  const importantDates = useMemo(() => {
+    if (!result) return null
+    const sym = result.case1_symptom
+    const isPrimary = sym.type === 'Primary Chancre' || sym.type === 'Historical Primary' || sym.type === 'Ghosted Primary'
+    const d1Offset = isPrimary
+      ? NH_CONSTANTS.INCUBATION.avg
+      : NH_CONSTANTS.INCUBATION.avg + NH_CONSTANTS.PRIMARY.avg + NH_CONSTANTS.LATENCY.avg
+    const ipDays = isPrimary ? NH_CONSTANTS.INTERVIEW_PRIMARY : NH_CONSTANTS.INTERVIEW_SECONDARY
+    const d1 = isoAddDays(sym.onset, -d1Offset)
+    const elicit = isoAddDays(sym.onset, -ipDays)
+    return { d1, elicitBack: elicit, sourceOnset: result.ghosted_source.onset, sourceEnd: result.ghosted_source.end }
+  }, [result])
 
   if (!result) {
     return <p className="error-text">{pair.error}</p>
   }
 
-  const srcLesion = result.source_scenarios.range_lesions.expected
-  const sprLesion = result.spread_scenarios.range_lesions.expected
+  const srcLesion = result.source_scenarios.range_lesions['expected']
+  const sprLesion = result.spread_scenarios.range_lesions['expected']
   const activeScenario = scenarioTab === 'source' ? result.source_scenarios : result.spread_scenarios
   const activeGhostedLesion =
     scenarioTab === 'source' ? result.ghosted_source : result.ghosted_spread
 
   return (
     <div className="stack-lg">
+      {/* Mode toggle */}
+      <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid #d0d0d0', alignSelf: 'flex-start' }} className="no-print">
+        {(['traditional', 'comprehensive'] as const).map(m => (
+          <button key={m} type="button" onClick={() => setMode(m)} style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem', fontWeight: mode === m ? 700 : 400, background: mode === m ? '#1d9e75' : '#fff', color: mode === m ? '#fff' : '#444', border: 'none', cursor: 'pointer' }}>
+            {m === 'traditional' ? 'Traditional VCA' : 'Comprehensive'}
+          </button>
+        ))}
+      </div>
+
       <VerdictBanner verdict={result.verdict} />
       <VerdictContext result={result} />
+
+      {/* Important Dates */}
+      {importantDates && (
+        <div className="panel stack-xs" style={{ fontSize: '0.875rem' }}>
+          <p className="eyebrow">Important Dates</p>
+          <ul style={{ margin: 0, paddingLeft: '1.25rem', lineHeight: 1.8 }}>
+            <li><strong>{result.case1_name} was likely infected on:</strong> {importantDates.d1}</li>
+            <li><strong>Elicit contacts back to:</strong> {importantDates.elicitBack}</li>
+            <li><strong>The likely source was infectious between:</strong> {importantDates.sourceOnset} and {importantDates.sourceEnd}</li>
+          </ul>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
         {[
@@ -96,15 +132,11 @@ export function PairResultDetail({ pair }: { pair: PairResult }) {
         </div>
         <div style={{ fontSize: '0.82rem', color: '#555' }}>
           Confidence: <strong>{activeScenario.confidence}</strong>
-          &nbsp;·&nbsp;Criteria passed: {activeScenario.pass_count} / 4
+          &nbsp;·&nbsp;Tiers passed: {activeScenario.pass_count} / 5
         </div>
-        <EnhancedCriteriaTable
-          aggressive={activeScenario.range_data.aggressive}
-          expected={activeScenario.range_data.expected}
-          conservative={activeScenario.range_data.conservative}
-          case1Symptom={result.case1_symptom}
-          ghostedLesion={activeGhostedLesion}
-          case1Name={result.case1_name}
+        <CriteriaCards
+          rangeData={activeScenario.range_data}
+          scenario={scenarioTab}
         />
       </div>
 

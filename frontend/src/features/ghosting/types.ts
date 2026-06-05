@@ -31,23 +31,15 @@ export type GhostedLesion = {
   assigned_to: string
 }
 
-export type GhostingScenarioLesions = {
-  aggressive: GhostedLesion
-  expected: GhostedLesion
-  conservative: GhostedLesion
-}
-
-export type GhostingScenarioRanges = {
-  aggressive: GhostingScenarioCriteria
-  expected: GhostingScenarioCriteria
-  conservative: GhostingScenarioCriteria
-}
+// Keys: aggressive | expected | conservative | fast_infection_slow_disease | slow_infection_fast_disease
+export type GhostingScenarioLesions = Record<string, GhostedLesion>
+export type GhostingScenarioRanges = Record<string, GhostingScenarioCriteria>
 
 export type GhostingScenario = {
   range_data: GhostingScenarioRanges
   range_lesions: GhostingScenarioLesions
-  confidence: string
-  pass_count: number
+  confidence: string  // Robust | Likely | Possible | Weak | Unlikely | Unrelated
+  pass_count: number  // 0–5
 }
 
 export type SuggestedGhostingRecord = {

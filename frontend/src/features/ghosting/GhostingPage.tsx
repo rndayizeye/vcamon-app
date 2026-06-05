@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 
 import { ErrorState } from '../../components/feedback/ErrorState'
@@ -7,6 +7,8 @@ import { GlossaryPanel } from '../../components/GlossaryPanel'
 import { useCase } from '../cases/hooks'
 import { getPartnersForCase } from '../partners/api'
 import { useQuery } from '@tanstack/react-query'
+import { CriteriaCards } from './components/CriteriaCards'
+import { NH_CONSTANTS } from './types-local'
 import type {
   GhostingAnalysisResult,
   GhostingScenarioCriteria,
@@ -76,108 +78,6 @@ function StatusBadge({ check }: { check: GhostingCriteriaCheck }) {
   )
 }
 
-/**
- * Criteria table with:
- * - Latency shown in 3 rows (optimistic / expected / conservative range)
- * - All other criteria shown once (expected range only)
- * - Sub-row under exposure showing whether the likely inoculation date falls
- *   within the ghosted lesion window
- */
-function EnhancedCriteriaTable({
-  aggressive,
-  expected,
-  conservative,
-  case1Symptom,
-  ghostedLesion,
-  case1Name,
-}: {
-  aggressive: GhostingScenarioCriteria
-  expected: GhostingScenarioCriteria
-  conservative: GhostingScenarioCriteria
-  case1Symptom: GhostingSymptomInput
-  ghostedLesion: GhostedLesion
-  case1Name: string
-}) {
-  const inocAvg = computeInoculationAvg(case1Symptom)
-  const inocInWindow = dateInRange(inocAvg, ghostedLesion.onset, ghostedLesion.end)
-  const tdMuted: React.CSSProperties = { fontSize: '0.875rem', color: 'var(--color-text-muted, #666)' }
-
-  return (
-    <table className="data-table" style={{ width: '100%' }}>
-      <thead>
-        <tr>
-          <th>Criterion</th>
-          <th>Range</th>
-          <th>Result</th>
-          <th>Detail</th>
-        </tr>
-      </thead>
-      <tbody>
-        {/* Exposure — expected range + inoculation sub-row */}
-        <tr>
-          <td rowSpan={2} style={{ fontWeight: 500, verticalAlign: 'middle' }}>
-            Exposure
-          </td>
-          <td style={{ ...tdMuted, fontSize: '0.8rem' }}>Expected</td>
-          <td><StatusBadge check={expected.exposure} /></td>
-          <td style={tdMuted}>{expected.exposure.detail}</td>
-        </tr>
-        <tr style={{ background: 'rgba(0,0,0,0.02)' }}>
-          <td style={{ fontSize: '0.78rem', color: '#888', paddingLeft: '1rem' }}>
-            ↳ Inoculation date
-          </td>
-          <td>
-            <span className={inocInWindow ? 'badge badge-pass' : 'badge badge-fail'}>
-              {inocInWindow ? '✓ In window' : '✗ Outside'}
-            </span>
-          </td>
-          <td style={{ fontSize: '0.78rem', color: '#666' }}>
-            {case1Name}'s avg inoculation date ({inocAvg}) —{' '}
-            {inocInWindow
-              ? `falls within ghosted lesion (${ghostedLesion.onset} → ${ghostedLesion.end})`
-              : `does not fall within ghosted lesion (${ghostedLesion.onset} → ${ghostedLesion.end})`}
-          </td>
-        </tr>
-
-        {/* Exposure modality — expected only */}
-        <tr>
-          <td style={{ fontWeight: 500 }}>Exposure modality</td>
-          <td style={{ ...tdMuted, fontSize: '0.8rem' }}>Expected</td>
-          <td><StatusBadge check={expected.exposure_modality} /></td>
-          <td style={tdMuted}>{expected.exposure_modality.detail}</td>
-        </tr>
-
-        {/* Latency — 3 rows (optimistic / expected / conservative) */}
-        <tr>
-          <td rowSpan={3} style={{ fontWeight: 500, verticalAlign: 'middle' }}>
-            Latency
-          </td>
-          <td style={{ fontSize: '0.8rem', color: '#888' }}>Optimistic (min)</td>
-          <td><StatusBadge check={aggressive.latency} /></td>
-          <td style={tdMuted}>{aggressive.latency.detail}</td>
-        </tr>
-        <tr style={{ background: 'rgba(0,0,0,0.02)' }}>
-          <td style={{ fontSize: '0.8rem', fontWeight: 600 }}>Expected (avg)</td>
-          <td><StatusBadge check={expected.latency} /></td>
-          <td style={tdMuted}>{expected.latency.detail}</td>
-        </tr>
-        <tr>
-          <td style={{ fontSize: '0.8rem', color: '#888' }}>Conservative (max)</td>
-          <td><StatusBadge check={conservative.latency} /></td>
-          <td style={tdMuted}>{conservative.latency.detail}</td>
-        </tr>
-
-        {/* Natural order — expected only */}
-        <tr>
-          <td style={{ fontWeight: 500 }}>Natural order</td>
-          <td style={{ ...tdMuted, fontSize: '0.8rem' }}>Expected</td>
-          <td><StatusBadge check={expected.natural_order} /></td>
-          <td style={tdMuted}>{expected.natural_order.detail}</td>
-        </tr>
-      </tbody>
-    </table>
-  )
-}
 
 function VerdictBanner({ verdict }: { verdict: string }) {
   const upper = verdict.toUpperCase()
@@ -426,12 +326,32 @@ export function GhostingPage() {
   const [selectedPartnerId, setSelectedPartnerId] = useState<number | null>(null)
   const [result, setResult] = useState<GhostingAnalysisResult | null>(null)
   const [activeTab, setActiveTab] = useState<'source' | 'spread'>('source')
+  const [mode, setMode] = useState<'traditional' | 'comprehensive'>('traditional')
   const [saveSource, setSaveSource] = useState(true)
   const [saveSpread, setSaveSpread] = useState(true)
   const [showLog, setShowLog] = useState(false)
   const [showRef, setShowRef] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [savedOk, setSavedOk] = useState(false)
+
+  const importantDates = useMemo(() => {
+    if (!result) return null
+    const sym = result.case1_symptom
+    const isPrimary = sym.type === 'Primary Chancre' || sym.type === 'Historical Primary' || sym.type === 'Ghosted Primary'
+    const d1Offset = isPrimary
+      ? NH_CONSTANTS.INCUBATION.avg
+      : NH_CONSTANTS.INCUBATION.avg + NH_CONSTANTS.PRIMARY.avg + NH_CONSTANTS.LATENCY.avg
+    const ipDays = isPrimary ? NH_CONSTANTS.INTERVIEW_PRIMARY : NH_CONSTANTS.INTERVIEW_SECONDARY
+    const d = new Date(sym.onset)
+    const d1 = new Date(d); d1.setDate(d1.getDate() - d1Offset)
+    const elicit = new Date(d); elicit.setDate(elicit.getDate() - ipDays)
+    return {
+      d1: d1.toISOString().slice(0, 10),
+      elicitBack: elicit.toISOString().slice(0, 10),
+      sourceOnset: result.ghosted_source.onset,
+      sourceEnd: result.ghosted_source.end,
+    }
+  }, [result])
 
   useEffect(() => {
     const partners = partnersQuery.data
@@ -630,8 +550,60 @@ export function GhostingPage() {
       {/* Results */}
       {result && (
         <>
+          {/* Mode toggle + print */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }} className="no-print">
+            <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid #d0d0d0' }}>
+              {(['traditional', 'comprehensive'] as const).map(m => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMode(m)}
+                  style={{
+                    padding: '0.35rem 0.85rem',
+                    fontSize: '0.82rem',
+                    fontWeight: mode === m ? 700 : 400,
+                    background: mode === m ? '#1d9e75' : '#fff',
+                    color: mode === m ? '#fff' : '#444',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {m === 'traditional' ? 'Traditional VCA' : 'Comprehensive'}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="button"
+              style={{ fontSize: '0.82rem' }}
+              onClick={() => window.print()}
+            >
+              ⬇ Print / Save PDF
+            </button>
+          </div>
+
+          {/* Print-only summary */}
+          <div className="print-only" style={{ marginBottom: '1rem' }}>
+            <h3 style={{ margin: 0 }}>VCA Ghosting Analysis Report</h3>
+            <p style={{ fontSize: '0.85rem', margin: '0.25rem 0' }}>
+              Mode: <strong>{mode === 'traditional' ? 'Traditional VCA (average constants only)' : 'Comprehensive (5 tiers)'}</strong>
+            </p>
+          </div>
+
           <VerdictBanner verdict={result.verdict} />
           <VerdictContext result={result} />
+
+          {/* Important Dates */}
+          {importantDates && (
+            <div className="panel stack-xs" style={{ fontSize: '0.875rem' }}>
+              <p className="eyebrow">Important Dates</p>
+              <ul style={{ margin: 0, paddingLeft: '1.25rem', lineHeight: 1.8 }}>
+                <li><strong>{result.case1_name} was likely infected on:</strong> {importantDates.d1}</li>
+                <li><strong>Elicit contacts back to:</strong> {importantDates.elicitBack}</li>
+                <li><strong>The likely source was infectious between:</strong> {importantDates.sourceOnset} and {importantDates.sourceEnd}</li>
+              </ul>
+            </div>
+          )}
 
           {/* Anchor symptom used */}
           <div className="panel stack-xs" style={{ fontSize: '0.875rem' }}>
@@ -720,21 +692,15 @@ export function GhostingPage() {
                     <p style={{ fontWeight: 600 }}>{activeScenario.confidence}</p>
                   </div>
                   <div>
-                    <p className="eyebrow">Criteria passed</p>
-                    <p style={{ fontWeight: 600 }}>{activeScenario.pass_count} / 4</p>
+                    <p className="eyebrow">Tiers passed</p>
+                    <p style={{ fontWeight: 600 }}>{activeScenario.pass_count} / 5</p>
                   </div>
                 </div>
 
-                <p className="eyebrow">
-                  Criteria — latency shown across all 3 ranges (optimistic / expected / conservative)
-                </p>
-                <EnhancedCriteriaTable
-                  aggressive={activeScenario.range_data.aggressive}
-                  expected={activeScenario.range_data.expected}
-                  conservative={activeScenario.range_data.conservative}
-                  case1Symptom={result.case1_symptom}
-                  ghostedLesion={activeGhostedLesion}
-                  case1Name={result.case1_name}
+                <p className="eyebrow">Criteria (average tier — fail/warn cards expand automatically)</p>
+                <CriteriaCards
+                  rangeData={activeScenario.range_data}
+                  scenario={activeTab}
                 />
               </div>
             )}
