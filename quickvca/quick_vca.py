@@ -154,7 +154,11 @@ def _reset_partner(n: int) -> None:
 
 def _load_preset(name: str) -> None:
     preset = PRESETS.get(name)
-    if not preset:  # blank
+    for _n in range(1, 6):
+        _reset_partner(_n)
+
+    if not preset:  # blank form
+        st.session_state["qv_investigation_mode"] = "Single Pair"
         for side in ("a", "b"):
             st.session_state[f"qv_{side}_name"] = _DEFAULTS[f"qv_{side}_name"]
             st.session_state[f"qv_{side}_df"] = _empty_sym_df()
@@ -162,7 +166,29 @@ def _load_preset(name: str) -> None:
             st.session_state[f"qv_{side}_el"] = None
             st.session_state[f"qv_{side}_sex"] = []
             st.session_state[f"qv_{side}_tx"] = None
-    else:
+
+    elif preset.get("mode") == "multi":  # multi-partner preset
+        st.session_state["qv_investigation_mode"] = "Multi-Partner (OP + up to 5 contacts)"
+        op = preset["op"]
+        st.session_state["qv_a_name"] = op["name"]
+        st.session_state["qv_a_df"] = _sym_df_from_rows(op["symptoms"])
+        st.session_state["qv_a_tx"] = op["treat"]
+        st.session_state["qv_a_ef"] = None
+        st.session_state["qv_a_el"] = None
+        st.session_state["qv_a_sex"] = []
+        for _i, _c in enumerate(preset["contacts"][:5], 1):
+            st.session_state[f"qv_p{_i}_name"] = _c["name"]
+            st.session_state[f"qv_p{_i}_df"]   = _sym_df_from_rows(_c["symptoms"])
+            st.session_state[f"qv_p{_i}_ef"]   = _c["exp_first"]
+            st.session_state[f"qv_p{_i}_el"]   = _c["exp_last"]
+            st.session_state[f"qv_p{_i}_sex"]  = _c["sex"]
+            st.session_state[f"qv_p{_i}_tx"]   = _c["treat"]
+            st.session_state[f"qv_p{_i}_op_ef"]  = _c["op_exp_first"]
+            st.session_state[f"qv_p{_i}_op_el"]  = _c["op_exp_last"]
+            st.session_state[f"qv_p{_i}_op_sex"] = _c["op_sex"]
+
+    else:  # single-pair preset
+        st.session_state["qv_investigation_mode"] = "Single Pair"
         for side in ("a", "b"):
             person = preset[side]
             st.session_state[f"qv_{side}_name"] = person["name"]
@@ -171,8 +197,7 @@ def _load_preset(name: str) -> None:
             st.session_state[f"qv_{side}_el"] = person["exp_last"]
             st.session_state[f"qv_{side}_sex"] = person["sex"]
             st.session_state[f"qv_{side}_tx"] = person["treat"]
-    for _n in range(1, 6):
-        _reset_partner(_n)
+
     st.session_state["qv_ver"] += 1
     st.session_state.pop("qv_result", None)
     st.session_state.pop("qv_inputs", None)
@@ -1046,11 +1071,25 @@ def _partner_infects_op_scenario(result, op_name: str):
     return result.spread_scenarios       # spread = case1 (partner) infected case2 (OP)
 
 
+def _partner_verdict_direction(result, op_name: str) -> int:
+    """Return 1 if partner is clearly the source, -1 if OP is the source, 0 otherwise."""
+    partner_sc = _partner_infects_op_scenario(result, op_name)
+    op_sc = result.spread_scenarios if result.case1_name == op_name else result.source_scenarios
+    p_rank = _CONF_RANK.get(partner_sc.confidence, 0)
+    o_rank = _CONF_RANK.get(op_sc.confidence, 0)
+    if p_rank > o_rank and p_rank >= 2:
+        return 1
+    if o_rank > p_rank and o_rank >= 2:
+        return -1
+    return 0
+
+
 def _source_sort_key(item: dict, op_name: str, mode: str) -> tuple:
     sc = _partner_infects_op_scenario(item["result"], op_name)
+    vdir = _partner_verdict_direction(item["result"], op_name)
     if mode == "Traditional VCA":
-        return (1 if _passes_expected(sc) else 0, 0)
-    return (_CONF_RANK.get(sc.confidence, 0), sc.pass_count)
+        return (vdir, 1 if _passes_expected(sc) else 0, 0)
+    return (vdir, _CONF_RANK.get(sc.confidence, 0), sc.pass_count)
 
 
 # ---------------------------------------------------------------------------
@@ -1077,6 +1116,8 @@ def _show_multi_results() -> None:
         "Sorted by plausibility as source (highest first)"
     )
 
+    _VDIR_LABEL = {1: "⬆ Contact → OP", -1: "⬇ OP → Contact", 0: "↔ Ambiguous / Unrelated"}
+
     table_rows = []
     for item in ranked:
         r = item["result"]
@@ -1084,43 +1125,40 @@ def _show_multi_results() -> None:
         sp = r.spread_scenarios
         partner_sc = _partner_infects_op_scenario(r, op_name)
         contact_name = r.case2_name if r.case1_name == op_name else r.case1_name
+        vdir = _partner_verdict_direction(r, op_name)
 
         if mode == "Traditional VCA":
             src_label = "✓ Pass" if _passes_expected(partner_sc) else "✗ Fail"
             tiers_label = "—"
-            spread_sc = sp if r.case1_name == op_name else sc
-            spr_label = "✓ Pass" if _passes_expected(spread_sc) else "✗ Fail"
-            verdict_label = _trad_verdict_strings(sc, sp, r.case1_name, r.case2_name)[2]
         else:
             src_label = partner_sc.confidence
             tiers_label = f"{partner_sc.pass_count}/5"
-            spread_sc = sp if r.case1_name == op_name else sc
-            spr_label = spread_sc.confidence
-            verdict_label = r.verdict
 
         table_rows.append({
             "Contact": contact_name,
-            f"Source (infected {op_name}?)": src_label,
+            "Direction": _VDIR_LABEL[vdir],
+            f"Contact → {op_name}": src_label,
             "Tiers": tiers_label,
-            f"Spread ({op_name} infected contact?)": spr_label,
-            "Verdict": verdict_label,
+            "Verdict": _trad_verdict_strings(sc, sp, r.case1_name, r.case2_name)[2]
+                       if mode == "Traditional VCA" else r.verdict,
         })
 
     st.dataframe(pd.DataFrame(table_rows), use_container_width=True, hide_index=True)
 
     # Best candidate banner
     best = ranked[0]
-    best_sc = _partner_infects_op_scenario(best["result"], op_name)
     best_name = best["result"].case2_name if best["result"].case1_name == op_name else best["result"].case1_name
-    _qualifies = (
-        (mode == "Traditional VCA" and _passes_expected(best_sc))
-        or (mode != "Traditional VCA" and _CONF_RANK.get(best_sc.confidence, 0) >= 2)
-    )
-    if _qualifies:
+    best_vdir = _partner_verdict_direction(best["result"], op_name)
+    if best_vdir == 1:
         st.success(f"**Most plausible source: {best_name}**")
+    elif best_vdir == -1:
+        st.warning(
+            f"No contact is a plausible source. The engine favors **{op_name}** spreading "
+            f"to {best_name}. Manual review required."
+        )
     else:
         st.warning(
-            f"No contact meets the threshold for a directional source conclusion. "
+            f"No contact meets the threshold for a directional conclusion. "
             f"Closest match: **{best_name}** — manual review required."
         )
 
