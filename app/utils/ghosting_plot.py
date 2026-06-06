@@ -33,13 +33,15 @@ from app.utils.clinical import (
     Symptom,
 )
 
-# Shared colour palette — matches 08_vca_chart.py
+# Shared colour palette — matches 08_vca_chart.py and React VcaChartPage
 _C = {
     "p1_symptom": "#378ADD",  # blue  — P1 anchor symptom
     "p1_inoc": "#1D9E75",  # green — inoculation / D1 / D2
     "ghosted": "#EF9F27",  # amber — ghosted lesion window
     "p2_symptom": "#E24B4A",  # red   — P2 symptoms
-    "exposure": "#7F77DD",  # purple — exposure window
+    "exposure": "#7F77DD",  # purple — partner exposure window
+    "p1_exposure": "#D85A30",  # burnt-orange — index patient exposure (distinct from ghosted amber)
+    "treatment": "#2C2C2A",  # dark   — treatment date line (matches React treatment)
     "pass_band": "rgba(29,158,117,0.08)",
     "fail_band": "rgba(226,75,74,0.08)",
     "warn_band": "rgba(239,159,39,0.10)",
@@ -49,6 +51,7 @@ _C = {
 _Y_P1 = 1.0
 _Y_P2 = 0.0
 _Y_GHOST = 0.0  # ghosted lesion is on P2's row
+_Y_EXP_OFFSET = 0.20  # exposure windows float above their row to avoid overlap
 _BAR_W = 8
 _MARK_S = 12
 
@@ -84,7 +87,7 @@ def _base_layout(title: str, x_range: tuple, p1_label: str, p2_label: str) -> di
         yaxis=dict(
             tickvals=[_Y_P2, _Y_P1],
             ticktext=[p2_label, p1_label],
-            range=[-0.6, 1.6],
+            range=[-0.6, 1.7],
             showgrid=False,
             tickfont=dict(size=11),
         ),
@@ -151,6 +154,9 @@ def build_scenario_figure(
     p2_exposure: Exposure | None,
     criteria: dict,
     x_range: tuple[date, date] | None = None,  # optional fixed window
+    p1_treatment_date: date | None = None,
+    p2_treatment_date: date | None = None,
+    p1_exposure: Exposure | None = None,
 ) -> go.Figure:
     """
     Build a Plotly timeline figure for one ghosting scenario.
@@ -180,6 +186,12 @@ def build_scenario_figure(
         collected_dates = [p1_symptom.onset, lesion.onset, lesion.end]
         if p2_exposure:
             collected_dates += [p2_exposure.first, p2_exposure.last]
+        if p1_exposure:
+            collected_dates += [p1_exposure.first, p1_exposure.last]
+        if p1_treatment_date:
+            collected_dates.append(p1_treatment_date)
+        if p2_treatment_date:
+            collected_dates.append(p2_treatment_date)
         for s in p2_symptoms:
             collected_dates.append(s.onset)
         x0, x1 = _date_range(collected_dates)
@@ -187,6 +199,60 @@ def build_scenario_figure(
     fig = go.Figure()
     fig.update_layout(_base_layout(title, (x0, x1), p1_name, p2_name))
     _grid_lines(fig, x0, x1)
+
+    # --- Treatment date lines (vertical, dark, with "Rx" label) ---
+    for tx_date, y_row, tx_name in [
+        (p1_treatment_date, _Y_P1, p1_name),
+        (p2_treatment_date, _Y_P2, p2_name),
+    ]:
+        if tx_date:
+            # Shape spans only this person's row band so it doesn't bisect the other row
+            fig.add_shape(
+                type="line",
+                x0=tx_date, x1=tx_date,
+                y0=y_row - 0.45, y1=y_row + 0.45,
+                line=dict(color=_C["treatment"], width=2),
+                layer="above",
+            )
+            fig.add_annotation(
+                x=tx_date,
+                y=y_row + 0.28,
+                text="Rx",
+                showarrow=False,
+                font=dict(size=8, color=_C["treatment"]),
+                bgcolor="rgba(255,255,255,0.65)",
+                xanchor="left",
+                borderpad=2,
+            )
+            # Legend-only trace: mode="none" adds the legend swatch without painting
+            # a visible glyph or hover point (the shape + annotation handle display)
+            fig.add_trace(
+                go.Scatter(
+                    x=[None],
+                    y=[None],
+                    mode="none",
+                    line=dict(color=_C["treatment"], width=2),
+                    name=f"{tx_name} — Treatment",
+                    showlegend=True,
+                )
+            )
+
+    # --- P1 exposure window (index patient's reported exposure — orange dotted) ---
+    if p1_exposure and p1_exposure.first and p1_exposure.last:
+        _y_p1_exp = _Y_P1 + _Y_EXP_OFFSET
+        fig.add_trace(
+            go.Scatter(
+                x=[p1_exposure.first, p1_exposure.last],
+                y=[_y_p1_exp, _y_p1_exp],
+                mode="lines",
+                line=dict(color=_C["p1_exposure"], width=4, dash="dot"),
+                name=f"{p1_name} — Exposure window",
+                hovertemplate=(
+                    f"{p1_name} exposure: {p1_exposure.first} → {p1_exposure.last}"
+                    "<extra></extra>"
+                ),
+            )
+        )
 
     # --- Criterion bands ---
     exp_status = criteria.get("exposure", {}).get("status", "na")
@@ -200,10 +266,11 @@ def build_scenario_figure(
 
     # --- P2 exposure window ---
     if p2_exposure and p2_exposure.first and p2_exposure.last:
+        _y_p2_exp = _Y_P2 + _Y_EXP_OFFSET
         fig.add_trace(
             go.Scatter(
                 x=[p2_exposure.first, p2_exposure.last],
-                y=[_Y_P2, _Y_P2],
+                y=[_y_p2_exp, _y_p2_exp],
                 mode="lines",
                 line=dict(color=_C["exposure"], width=5, dash="dash"),
                 name="Exposure window",

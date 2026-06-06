@@ -232,9 +232,11 @@ with st.sidebar:
     st.divider()
     st.subheader("Load a scenario")
     preset_name = st.selectbox("Preset", list(PRESETS.keys()), key="qv_preset")
-    if st.button("Load preset", use_container_width=True):
-        _load_preset(preset_name)
-        st.rerun()
+    st.button(
+        "Load preset",
+        use_container_width=True,
+        on_click=lambda: _load_preset(st.session_state["qv_preset"]),
+    )
     if PRESETS.get(preset_name):
         st.caption(f"_Expected:_ {PRESETS[preset_name]['expected']}")
 
@@ -568,7 +570,7 @@ def _trad_verdict_strings(sc, sp, case1_name: str, case2_name: str) -> tuple:
     return src_ok, spr_ok, text, summary
 
 
-def _build_pdf(result, inp: dict, mode: str, p1_symptom, p2_syms, p2_exp, x_range) -> bytes:
+def _build_pdf(result, inp: dict, mode: str, p1_symptom, p2_syms, p2_exp, x_range, p1_tx=None, p2_tx=None, p1_exp=None) -> bytes:
     from fpdf import FPDF
 
     sc, sp = result.source_scenarios, result.spread_scenarios
@@ -652,14 +654,15 @@ def _build_pdf(result, inp: dict, mode: str, p1_symptom, p2_syms, p2_exp, x_rang
     )
     pdf.ln(4)
 
-    # --- Scenario diagrams ---
+    # --- VCA Chart ---
+    _scenario_labels = [
+        ("source", f"Source: If {result.case2_name} infected {result.case1_name}"),
+        ("spread", f"Spread: If {result.case1_name} infected {result.case2_name}"),
+    ]
     if p1_symptom:
-        for scenario, diagram_label in [
-            ("source", f"Source: If {result.case2_name} infected {result.case1_name}"),
-            ("spread", f"Spread: If {result.case1_name} infected {result.case2_name}"),
-        ]:
+        for scenario, diagram_label in _scenario_labels:
             pdf.set_font("Helvetica", "B", 11)
-            pdf.cell(0, 7, _pdf_safe(f"Scenario Diagram - {diagram_label}"), new_x="LMARGIN", new_y="NEXT")
+            pdf.cell(0, 7, _pdf_safe(f"VCA Chart - {diagram_label}"), new_x="LMARGIN", new_y="NEXT")
             try:
                 fig = build_scenario_figure(
                     result=result,
@@ -671,6 +674,9 @@ def _build_pdf(result, inp: dict, mode: str, p1_symptom, p2_syms, p2_exp, x_rang
                     p2_exposure=p2_exp,
                     criteria=result.criteria[scenario],
                     x_range=x_range,
+                    p1_treatment_date=p1_tx,
+                    p2_treatment_date=p2_tx,
+                    p1_exposure=p1_exp,
                 )
                 fig.update_layout(
                     title=dict(font=dict(size=16)),
@@ -815,7 +821,10 @@ def _show_pair_result(result, inp: dict, show_feedback: bool = True) -> None:
     p1_symptom = result.case1_symptom
     p2_syms = inp["b_syms"] if p1_is_a else inp["a_syms"]
     p2_exp = inp["b_exp"] if p1_is_a else inp["a_exp"]
-    anchor = inp["a_tx"] or inp["b_tx"] or (p1_symptom.onset if p1_symptom else date.today())
+    p1_exp = inp["a_exp"] if p1_is_a else inp["b_exp"]
+    p1_tx = inp["a_tx"] if p1_is_a else inp["b_tx"]
+    p2_tx = inp["b_tx"] if p1_is_a else inp["a_tx"]
+    anchor = p1_tx or p2_tx or (p1_symptom.onset if p1_symptom else date.today())
     x_range = (anchor - timedelta(days=274), anchor + timedelta(days=91))
 
     sc, sp = result.source_scenarios, result.spread_scenarios
@@ -824,7 +833,8 @@ def _show_pair_result(result, inp: dict, show_feedback: bool = True) -> None:
     _pdf_cache_key = (id(result), mode)
     if st.session_state.get("_qv_pdf_cache_key") != _pdf_cache_key:
         st.session_state["_qv_pdf_bytes"] = _build_pdf(
-            result, inp, mode, p1_symptom, p2_syms, p2_exp, x_range
+            result, inp, mode, p1_symptom, p2_syms, p2_exp, x_range,
+            p1_tx=p1_tx, p2_tx=p2_tx, p1_exp=p1_exp,
         )
         st.session_state["_qv_pdf_cache_key"] = _pdf_cache_key
     st.download_button(
@@ -832,6 +842,7 @@ def _show_pair_result(result, inp: dict, show_feedback: bool = True) -> None:
         data=st.session_state["_qv_pdf_bytes"],
         file_name=f"quickvca_{date.today()}.pdf",
         mime="application/pdf",
+        key=f"_qv_dl_{id(result)}",
     )
 
     # Verdict
@@ -974,9 +985,9 @@ def _show_pair_result(result, inp: dict, show_feedback: bool = True) -> None:
     m3.metric("Spread lesion onset", str(result.ghosted_spread.onset))
     m4.metric("Spread lesion end", str(result.ghosted_spread.end))
 
-    # Scenario diagrams
+    # VCA Chart
     st.divider()
-    st.subheader("Scenario diagrams")
+    st.subheader("VCA Chart")
 
     if p1_symptom:
         d_src, d_spr = st.columns(2)
@@ -998,12 +1009,15 @@ def _show_pair_result(result, inp: dict, show_feedback: bool = True) -> None:
                         p2_exposure=p2_exp,
                         criteria=result.criteria[scenario],
                         x_range=x_range,
+                        p1_treatment_date=p1_tx,
+                        p2_treatment_date=p2_tx,
+                        p1_exposure=p1_exp,
                     )
                     st.plotly_chart(fig, use_container_width=True)
                 except Exception as exc:
                     st.warning(f"Could not render {scenario} diagram: {exc}")
     else:
-        st.info("No anchor symptom — diagrams cannot be rendered.")
+        st.info("No anchor symptom — VCA Chart cannot be rendered.")
 
     # Criteria
     st.divider()
@@ -1045,8 +1059,8 @@ def _show_pair_result(result, inp: dict, show_feedback: bool = True) -> None:
 
         if st.session_state["qv_feedback"]:
             fb_df = pd.DataFrame(st.session_state["qv_feedback"])
-            buf = io.StringIO()
-            fb_df.to_csv(buf, index=False)
+            buf = io.BytesIO()
+            fb_df.to_csv(buf, index=False, encoding="utf-8-sig")
             st.download_button(
                 f"⬇ Download feedback ({len(fb_df)} row(s)) as CSV",
                 buf.getvalue(),
@@ -1162,9 +1176,20 @@ def _show_multi_results() -> None:
             f"Closest match: **{best_name}** — manual review required."
         )
 
-    # CSV summary download
-    buf = io.StringIO()
-    pd.DataFrame(table_rows).to_csv(buf, index=False)
+    # CSV summary download — sanitize headers/values for Excel compatibility
+    _csv_clean = {
+        "⬆ Contact → OP": "Contact -> OP",
+        "⬇ OP → Contact": "OP -> Contact",
+        "↔ Ambiguous / Unrelated": "Ambiguous / Unrelated",
+        "✓ Pass": "Pass",
+        "✗ Fail": "Fail",
+        "—": "-",
+    }
+    csv_df = pd.DataFrame(table_rows).rename(
+        columns={f"Contact → {op_name}": f"Contact > {op_name}"}
+    ).replace(_csv_clean)
+    buf = io.BytesIO()
+    csv_df.to_csv(buf, index=False, encoding="utf-8-sig")
     st.download_button(
         "⬇ Download summary as CSV",
         buf.getvalue(),
@@ -1211,8 +1236,8 @@ def _show_multi_results() -> None:
 
     if st.session_state["qv_feedback"]:
         fb_df = pd.DataFrame(st.session_state["qv_feedback"])
-        buf2 = io.StringIO()
-        fb_df.to_csv(buf2, index=False)
+        buf2 = io.BytesIO()
+        fb_df.to_csv(buf2, index=False, encoding="utf-8-sig")
         st.download_button(
             f"⬇ Download feedback ({len(fb_df)} row(s)) as CSV",
             buf2.getvalue(),

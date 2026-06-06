@@ -432,6 +432,7 @@ if run_btn:
         st.session_state["ghosting_partner_symptoms"] = partner_symptoms
         st.session_state["ghosting_op_exposure"] = op_exposure
         st.session_state["ghosting_partner_exposure"] = partner_exposure
+        st.session_state["ghosting_op_treatment"] = op_treatment
         st.session_state["ghosting_p_treatment"] = p_treatment
         st.session_state["ghosting_pname"] = pname
     except ValueError as e:
@@ -451,6 +452,7 @@ op_syms = st.session_state.get("ghosting_op_symptoms", [])
 p_syms = st.session_state.get("ghosting_partner_symptoms", [])
 op_exp = st.session_state.get("ghosting_op_exposure")
 p_exp = st.session_state.get("ghosting_partner_exposure")
+op_treat = st.session_state.get("ghosting_op_treatment")
 p_treat = st.session_state.get("ghosting_p_treatment")
 cached_pname = st.session_state.get("ghosting_pname", pname)
 
@@ -480,12 +482,12 @@ m4.metric("Ghosted spread end", str(result.ghosted_spread.end))
 # ---------------------------------------------------------------------------
 
 st.divider()
-st.subheader("Scenario visualisations")
+st.subheader("VCA Chart")
 st.caption(
     "Each diagram shows P1's anchor symptom (blue), the calculated date marker "
     "(green diamond), the ghosted lesion window for P2 (amber), and P2's own "
-    "symptoms (red). Shading indicates whether the exposure criterion passes "
-    "(green) or fails (red) for that window."
+    "symptoms (red). Treatment dates (Rx) and exposure windows are shown when entered. "
+    "Shading indicates whether the exposure criterion passes (green) or fails (red)."
 )
 
 # Determine which symptom list belongs to P1 vs P2
@@ -494,6 +496,8 @@ p1_syms = op_syms if p1_is_op else p_syms
 p2_syms = p_syms if p1_is_op else op_syms
 p1_exp = op_exp if p1_is_op else p_exp
 p2_exp = p_exp if p1_is_op else op_exp
+p1_treat = op_treat if p1_is_op else p_treat
+p2_treat = p_treat if p1_is_op else op_treat
 
 p1_symptom = result.p1_symptom  # anchor chosen by select_case1
 
@@ -517,6 +521,9 @@ if p1_symptom:
                 p2_symptoms=p2_syms,
                 p2_exposure=p2_exp,
                 criteria=result.criteria["source"],
+                p1_treatment_date=p1_treat,
+                p2_treatment_date=p2_treat,
+                p1_exposure=p1_exp,
             )
             st.plotly_chart(fig_src, use_container_width=True)
         except Exception as e:
@@ -539,12 +546,15 @@ if p1_symptom:
                 p2_symptoms=p2_syms,
                 p2_exposure=p2_exp,
                 criteria=result.criteria["spread"],
+                p1_treatment_date=p1_treat,
+                p2_treatment_date=p2_treat,
+                p1_exposure=p1_exp,
             )
             st.plotly_chart(fig_spr, use_container_width=True)
         except Exception as e:
             st.warning(f"Could not render spread diagram: {e}")
 else:
-    st.info("No P1 symptom data available — scenario diagrams cannot be rendered.")
+    st.info("No P1 symptom data available — VCA Chart cannot be rendered.")
 
 # ---------------------------------------------------------------------------
 # Criteria tables

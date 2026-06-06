@@ -379,6 +379,9 @@ p1_is_a = result.p1_name == (inp["a_name"].strip() or "Person A")
 p1_syms = inp["a_symptoms"] if p1_is_a else inp["b_symptoms"]
 p2_syms = inp["b_symptoms"] if p1_is_a else inp["a_symptoms"]
 p2_exp = inp["b_exposure"] if p1_is_a else inp["a_exposure"]
+p1_exp = inp["a_exposure"] if p1_is_a else inp["b_exposure"]
+p1_treat = inp["a_treatment"] if p1_is_a else inp["b_treatment"]
+p2_treat = inp["b_treatment"] if p1_is_a else inp["a_treatment"]
 
 p1_symptom = (
     result.p1_symptom
@@ -415,6 +418,9 @@ if p1_symptom:
                 p2_exposure=p2_exp,
                 criteria=result.criteria["source"],
                 x_range=_graph_range,
+                p1_treatment_date=p1_treat,
+                p2_treatment_date=p2_treat,
+                p1_exposure=p1_exp,
             )
             st.plotly_chart(fig_src, use_container_width=True)
         except Exception as e:
@@ -437,6 +443,9 @@ if p1_symptom:
                 p2_exposure=p2_exp,
                 criteria=result.criteria["spread"],
                 x_range=_graph_range,
+                p1_treatment_date=p1_treat,
+                p2_treatment_date=p2_treat,
+                p1_exposure=p1_exp,
             )
             st.plotly_chart(fig_spr, use_container_width=True)
         except Exception as e:
