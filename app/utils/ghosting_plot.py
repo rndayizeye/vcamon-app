@@ -224,13 +224,13 @@ def build_scenario_figure(
                 xanchor="left",
                 borderpad=2,
             )
-            # Legend-only trace: mode="none" adds the legend swatch without painting
-            # a visible glyph or hover point (the shape + annotation handle display)
+            # Legend-only trace: x=[None]/y=[None] produces no visible data point;
+            # mode="lines" is required for the line color swatch to appear in the legend.
             fig.add_trace(
                 go.Scatter(
                     x=[None],
                     y=[None],
-                    mode="none",
+                    mode="lines",
                     line=dict(color=_C["treatment"], width=2),
                     name=f"{tx_name} — Treatment",
                     showlegend=True,

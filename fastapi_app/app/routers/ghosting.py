@@ -24,6 +24,7 @@ from app.db.queries import (
     update_ghosting,
 )
 from app.utils.clinical import (
+    CONFIDENCE_RANK as _CONFIDENCE_RANK,
     Exposure,
     GhostedLesion,
     ScenarioResult,
@@ -506,16 +507,6 @@ def update_ghosting_endpoint(
             detail=f"Ghosting record {ghosting_id} not found",
         )
     return updated
-
-
-_CONFIDENCE_RANK: dict[str, int] = {
-    "Robust": 5,
-    "Likely": 4,
-    "Possible": 3,
-    "Weak": 2,
-    "Unlikely": 1,
-    "Unrelated": 0,
-}
 
 
 def _person_node_id(person_id: int | None, fallback_prefix: str, entity_id: int) -> str:

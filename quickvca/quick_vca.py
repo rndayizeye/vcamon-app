@@ -38,6 +38,7 @@ import pandas as pd
 import streamlit as st
 
 from app.utils.clinical import (
+    CONFIDENCE_RANK as _CONF_RANK,
     INCUBATION,
     INTERVIEW_PERIOD_PRIMARY_DAYS,
     INTERVIEW_PERIOD_SECONDARY_DAYS,
@@ -482,9 +483,11 @@ if run_btn:
         warnings_out = []
         for _ci, _cp in enumerate(_contacts_input, 1):
             _cp_name = _cp["name"].strip() or f"Contact {_ci}"
+            if _cp["df"].empty:
+                continue  # silently skip contacts with no symptom rows
             _cp_syms = _rows_to_symptoms(_translate_location_col(_cp["df"]))
             if not _cp_syms:
-                continue  # silently skip contacts with no symptoms
+                continue
             # Per-pair OP fields (exposure window and sex type differ per contact)
             _a_exp_val = Exposure(first=_cp["op_ef"], last=_cp["op_el"]) if _cp["op_ef"] and _cp["op_el"] else None
             _a_vals = _sex_values(_cp["op_sex"])
@@ -660,9 +663,9 @@ def _build_pdf(result, inp: dict, mode: str, p1_symptom, p2_syms, p2_exp, x_rang
         ("spread", f"Spread: If {result.case1_name} infected {result.case2_name}"),
     ]
     if p1_symptom:
-        for scenario, diagram_label in _scenario_labels:
-            pdf.set_font("Helvetica", "B", 11)
-            pdf.cell(0, 7, _pdf_safe(f"VCA Chart - {diagram_label}"), new_x="LMARGIN", new_y="NEXT")
+        from concurrent.futures import ThreadPoolExecutor
+
+        def _render_png(scenario: str) -> bytes | Exception:
             try:
                 fig = build_scenario_figure(
                     result=result,
@@ -691,14 +694,25 @@ def _build_pdf(result, inp: dict, mode: str, p1_symptom, p2_syms, p2_exp, x_rang
                     ),
                     margin=dict(l=120, r=20, t=50, b=110),
                 )
-                png_bytes = fig.to_image(format="png", width=1600, height=480)
-                pdf.image(io.BytesIO(png_bytes), w=pdf.epw)
-            except Exception as _exc:
+                return fig.to_image(format="png", width=1600, height=480)
+            except Exception as exc:
+                return exc
+
+        scenarios = [s for s, _ in _scenario_labels]
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            png_results = list(pool.map(_render_png, scenarios))
+
+        for (scenario, diagram_label), png_or_exc in zip(_scenario_labels, png_results):
+            pdf.set_font("Helvetica", "B", 11)
+            pdf.cell(0, 7, _pdf_safe(f"VCA Chart - {diagram_label}"), new_x="LMARGIN", new_y="NEXT")
+            if isinstance(png_or_exc, Exception):
                 pdf.set_font("Helvetica", "I", 9)
                 pdf.cell(
-                    0, 6, _pdf_safe(f"(Diagram unavailable: {_exc})"),
+                    0, 6, _pdf_safe(f"(Diagram unavailable: {png_or_exc})"),
                     new_x="LMARGIN", new_y="NEXT",
                 )
+            else:
+                pdf.image(io.BytesIO(png_or_exc), w=pdf.epw)
             pdf.ln(4)
 
     # --- Criteria ---
@@ -1073,11 +1087,6 @@ def _show_pair_result(result, inp: dict, show_feedback: bool = True) -> None:
 # Multi-partner confidence ranking helpers
 # ---------------------------------------------------------------------------
 
-_CONF_RANK: dict[str, int] = {
-    "Robust": 5, "Likely": 4, "Possible": 3, "Weak": 2, "Unlikely": 1, "Unrelated": 0
-}
-
-
 def _partner_infects_op_scenario(result, op_name: str):
     """Return the scenario result that evaluates 'did the partner infect the OP?'."""
     if result.case1_name == op_name:
@@ -1098,14 +1107,6 @@ def _partner_verdict_direction(result, op_name: str) -> int:
     return 0
 
 
-def _source_sort_key(item: dict, op_name: str, mode: str) -> tuple:
-    sc = _partner_infects_op_scenario(item["result"], op_name)
-    vdir = _partner_verdict_direction(item["result"], op_name)
-    if mode == "Traditional VCA":
-        return (vdir, 1 if _passes_expected(sc) else 0, 0)
-    return (vdir, _CONF_RANK.get(sc.confidence, 0), sc.pass_count)
-
-
 # ---------------------------------------------------------------------------
 # Multi-partner results renderer
 # ---------------------------------------------------------------------------
@@ -1115,11 +1116,21 @@ def _show_multi_results() -> None:
     op_name = st.session_state.get("qv_multi_op_name", "OP")
     mode = st.session_state.get("qv_mode", "Traditional VCA")
 
-    ranked = sorted(
-        multi_results,
-        key=lambda item: _source_sort_key(item, op_name, mode),
-        reverse=True,
-    )
+    # Pre-compute per-item derived values once; reused for sort key, table, and banner.
+    def _enrich(item: dict) -> dict:
+        r = item["result"]
+        partner_sc = _partner_infects_op_scenario(r, op_name)
+        vdir = _partner_verdict_direction(r, op_name)
+        contact_name = r.case2_name if r.case1_name == op_name else r.case1_name
+        if mode == "Traditional VCA":
+            sort_key = (vdir, 1 if _passes_expected(partner_sc) else 0, 0)
+        else:
+            sort_key = (vdir, _CONF_RANK.get(partner_sc.confidence, 0), partner_sc.pass_count)
+        return {**item, "_partner_sc": partner_sc, "_vdir": vdir,
+                "_contact_name": contact_name, "_sort_key": sort_key}
+
+    enriched = [_enrich(item) for item in multi_results]
+    ranked = sorted(enriched, key=lambda e: e["_sort_key"], reverse=True)
 
     # Summary table
     st.divider()
@@ -1137,9 +1148,9 @@ def _show_multi_results() -> None:
         r = item["result"]
         sc = r.source_scenarios
         sp = r.spread_scenarios
-        partner_sc = _partner_infects_op_scenario(r, op_name)
-        contact_name = r.case2_name if r.case1_name == op_name else r.case1_name
-        vdir = _partner_verdict_direction(r, op_name)
+        partner_sc = item["_partner_sc"]
+        contact_name = item["_contact_name"]
+        vdir = item["_vdir"]
 
         if mode == "Traditional VCA":
             src_label = "✓ Pass" if _passes_expected(partner_sc) else "✗ Fail"
@@ -1159,10 +1170,10 @@ def _show_multi_results() -> None:
 
     st.dataframe(pd.DataFrame(table_rows), use_container_width=True, hide_index=True)
 
-    # Best candidate banner
+    # Best candidate banner — use pre-computed values
     best = ranked[0]
-    best_name = best["result"].case2_name if best["result"].case1_name == op_name else best["result"].case1_name
-    best_vdir = _partner_verdict_direction(best["result"], op_name)
+    best_name = best["_contact_name"]
+    best_vdir = best["_vdir"]
     if best_vdir == 1:
         st.success(f"**Most plausible source: {best_name}**")
     elif best_vdir == -1:
@@ -1202,9 +1213,8 @@ def _show_multi_results() -> None:
     st.subheader("Pair Detail")
     st.caption("Each pair includes a full analysis and individual PDF download.")
     for i, item in enumerate(ranked):
-        r = item["result"]
-        contact_name = r.case2_name if r.case1_name == op_name else r.case1_name
-        partner_sc = _partner_infects_op_scenario(r, op_name)
+        partner_sc = item["_partner_sc"]
+        contact_name = item["_contact_name"]
         if mode == "Traditional VCA":
             badge = "✓ Pass" if _passes_expected(partner_sc) else "✗ Fail"
         else:
@@ -1221,9 +1231,7 @@ def _show_multi_results() -> None:
     with st.form("qv_multi_feedback_form", clear_on_submit=True):
         fb_contact = st.selectbox(
             "Which pair are you rating?",
-            [
-                (r["result"].case2_name if r["result"].case1_name == op_name else r["result"].case1_name)
-                for r in ranked
+            [item["_contact_name"] for item in ranked
             ],
         )
         rating = st.radio("Your assessment", ["Reasonable", "Unsure", "Wrong"], horizontal=True)
