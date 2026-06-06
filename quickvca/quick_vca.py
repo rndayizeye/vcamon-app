@@ -1225,22 +1225,46 @@ def _show_multi_results() -> None:
         ):
             _show_pair_result(item["result"], item["inp"], show_feedback=False)
 
-    # Shared feedback at the bottom
+    # Shared feedback at the bottom — one row per contact, single submit
     st.divider()
     st.subheader("Feedback")
     with st.form("qv_multi_feedback_form", clear_on_submit=True):
-        fb_contact = st.selectbox(
-            "Which pair are you rating?",
-            [item["_contact_name"] for item in ranked
-            ],
-        )
-        rating = st.radio("Your assessment", ["Reasonable", "Unsure", "Wrong"], horizontal=True)
-        note = st.text_input("Notes (optional)")
-        if st.form_submit_button("Record feedback"):
-            st.session_state["qv_feedback"].append(
-                {"op": op_name, "contact": fb_contact, "rating": rating, "note": note}
+        st.caption("Rate each contact pair. Leave a row blank to skip it.")
+        h_contact, h_rating, h_notes = st.columns([2, 4, 4])
+        h_contact.markdown("**Contact**")
+        h_rating.markdown("**Assessment**")
+        h_notes.markdown("**Notes**")
+
+        row_data: list[tuple[str, str | None, str]] = []
+        for i, item in enumerate(ranked):
+            c_name, c_rating, c_notes = st.columns([2, 4, 4])
+            c_name.write(item["_contact_name"])
+            rating = c_rating.radio(
+                "Assessment",
+                ["Reasonable", "Unsure", "Wrong"],
+                index=None,
+                horizontal=True,
+                key=f"fb_rating_{i}",
+                label_visibility="collapsed",
             )
-            st.success("Recorded.")
+            note = c_notes.text_input(
+                "Notes",
+                key=f"fb_note_{i}",
+                placeholder="Optional…",
+                label_visibility="collapsed",
+            )
+            row_data.append((item["_contact_name"], rating, note))
+
+        if st.form_submit_button("Record feedback", use_container_width=True):
+            new_entries = [
+                {"op": op_name, "contact": name, "rating": r, "note": n}
+                for name, r, n in row_data if r is not None
+            ]
+            if new_entries:
+                st.session_state["qv_feedback"].extend(new_entries)
+                st.success(f"Recorded {len(new_entries)} rating(s).")
+            else:
+                st.warning("No ratings selected — nothing recorded.")
 
     if st.session_state["qv_feedback"]:
         fb_df = pd.DataFrame(st.session_state["qv_feedback"])
