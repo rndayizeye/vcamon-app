@@ -24,9 +24,6 @@ const DashboardPage = lazy(() =>
 const CaseOverviewPage = lazy(() =>
   import("../features/cases/CaseOverviewPage").then(m => ({ default: m.CaseOverviewPage }))
 );
-const CaseMapPage = lazy(() =>
-  import("../features/map/CaseMapPage").then(m => ({ default: m.CaseMapPage }))
-);
 const PartnerListPage = lazy(() =>
   import("../features/partners/PartnerListPage").then(m => ({ default: m.PartnerListPage }))
 );
@@ -47,9 +44,6 @@ const VcaChartPage = lazy(() =>
 );
 const NetworkGraphPage = lazy(() =>
   import("../features/network/NetworkGraphPage").then(m => ({ default: m.NetworkGraphPage }))
-);
-const TimelinePage = lazy(() =>
-  import("../features/timeline/TimelinePage").then(m => ({ default: m.TimelinePage }))
 );
 const TransmissionChainPage = lazy(() =>
   import("../features/transmission/TransmissionChainPage").then(m => ({
@@ -159,26 +153,10 @@ export const router = createBrowserRouter([
             ),
           },
           {
-            path: "map",
-            element: (
-              <RouteSuspense>
-                <CaseMapPage />
-              </RouteSuspense>
-            ),
-          },
-          {
             path: "network",
             element: (
               <RouteSuspense>
                 <NetworkGraphPage />
-              </RouteSuspense>
-            ),
-          },
-          {
-            path: "timeline",
-            element: (
-              <RouteSuspense>
-                <TimelinePage />
               </RouteSuspense>
             ),
           },
