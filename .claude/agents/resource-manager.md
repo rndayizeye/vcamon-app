@@ -102,6 +102,8 @@ When the coder reports back that a task is done and reviews have cleared:
    ● Next: [what the resource-manager recommends tackling next session]
    ```
 
+4. **Prompt the user to clear context.** Memory is persisted, code is committed, and nothing in the conversation needs to survive. Tell the user: "Run `/clear` to free the context window for the next session." This is the last step — do not do anything after it.
+
 ## Output format
 
 At session start, produce a plan as a numbered list:
