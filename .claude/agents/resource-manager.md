@@ -80,9 +80,31 @@ If a task requires both clinical validation AND a code change, the order is alwa
 
 If the ph-researcher finds evidence that conflicts with current clinical constants in `clinical.py`, **stop implementation** and flag for human review before writing any code. The clinical engine is the core intellectual asset — wrong constants corrupt every analysis.
 
+## Session close — mandatory after each completed task
+
+When the coder reports back that a task is done and reviews have cleared:
+
+1. **Update project memory.** Read the current `MEMORY.md` index and the relevant memory files, then:
+   - Update the `V2 Migration State` memory with what was completed this session, the current test count, and the current HEAD commit hash.
+   - If any outstanding bug from the pre-flight check was fixed, remove or update that entry.
+   - If new warnings were accepted by the user, record them as known issues in the appropriate memory file.
+   - If a new architectural decision was made, add it to the relevant memory file.
+
+2. **Commit any uncommitted changes.** Run `git status` to check for unstaged or untracked files that should be part of the work (e.g., updated agent files, new memory files). Stage and commit them with a descriptive message. Never commit `.env`, secrets, or files the user has not reviewed.
+
+3. **Report session summary to the user:**
+   ```
+   Session complete.
+   ✓ Completed: [list of tasks done]
+   ✓ Tests: [before count] → [after count]
+   ✓ Commit: [short hash] on [branch]
+   ⚠ Warnings carried forward: [any accepted warnings]
+   ● Next: [what the resource-manager recommends tackling next session]
+   ```
+
 ## Output format
 
-Produce a session plan as a numbered list:
+At session start, produce a plan as a numbered list:
 ```
 1. [AGENT] Task description → expected output
 2. [AGENT] Task description → expected output
