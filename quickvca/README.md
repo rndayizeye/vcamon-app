@@ -1,5 +1,7 @@
 # Quick VCA
 
+**Live:** https://quickghost.streamlit.app
+
 A standalone, single-page tool for **testing the VCA syphilis ghosting
 methodology with users**. No database, no login, no case management — you enter
 two people's symptoms and exposure history and see who the method points to as
@@ -24,12 +26,13 @@ Opens at http://localhost:8501.
 
 ## Deploy (Streamlit Community Cloud)
 
-Point the app at this repo with:
+Live at **https://quickghost.streamlit.app** — deployed from `main`, branch tracked automatically.
+
+To redeploy from scratch:
 
 - **Main file path:** `quickvca/quick_vca.py`
-- **Requirements:** `quickvca/requirements.txt`
-
-No secrets are required (unlike the full v1 app, there is no password gate).
+- **Requirements:** `quickvca/requirements.txt` (auto-discovered)
+- **Secrets required:** `SUPABASE_URL` and `SUPABASE_ANON_KEY` (for persistent feedback logging)
 
 > ⚠ **NOT HIPAA COMPLIANT.** On first load, users must acknowledge this before
 > the form renders. Do not enter real patient data. Use fabricated or fully
