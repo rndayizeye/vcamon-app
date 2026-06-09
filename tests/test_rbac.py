@@ -175,57 +175,6 @@ def test_supervisor_can_delete_partner(auth_client: TestClient):
     assert auth_client.get(f"/api/cases/partners/{partner['id']}", headers=WORKER).status_code == 404
 
 
-# ─── MAP ──────────────────────────────────────────────────────────────────────
-
-
-def test_case_worker_cannot_clear_case_map(auth_client: TestClient):
-    case = auth_client.post("/api/cases/", json={"patient_name": "MAP Case"}, headers=WORKER).json()
-    assert auth_client.delete(f"/api/cases/{case['id']}/map", headers=WORKER).status_code == 403
-
-
-def test_supervisor_can_clear_case_map(auth_client: TestClient):
-    case = auth_client.post("/api/cases/", json={"patient_name": "MAP Case"}, headers=WORKER).json()
-    auth_client.put(
-        f"/api/cases/{case['id']}/map",
-        json={"items": [{"item_number": 1, "p_value": True}]},
-        headers=WORKER,
-    )
-    assert auth_client.delete(f"/api/cases/{case['id']}/map", headers=SUPERVISOR).status_code == 204
-    sheet = auth_client.get(f"/api/cases/{case['id']}/map", headers=WORKER).json()
-    assert sheet["summary"]["checked_p"] == 0
-
-
-def test_case_worker_cannot_clear_partner_map(auth_client: TestClient):
-    case = auth_client.post("/api/cases/", json={"patient_name": "MAP Case"}, headers=WORKER).json()
-    partner = auth_client.post(
-        f"/api/cases/{case['id']}/partners", json={"name": "P1"}, headers=WORKER
-    ).json()
-    resp = auth_client.delete(
-        f"/api/cases/{case['id']}/partners/{partner['id']}/map", headers=WORKER
-    )
-    assert resp.status_code == 403
-
-
-def test_supervisor_can_clear_partner_map(auth_client: TestClient):
-    case = auth_client.post("/api/cases/", json={"patient_name": "MAP Case"}, headers=WORKER).json()
-    partner = auth_client.post(
-        f"/api/cases/{case['id']}/partners", json={"name": "P1"}, headers=WORKER
-    ).json()
-    auth_client.put(
-        f"/api/cases/{case['id']}/partners/{partner['id']}/map",
-        json={"items": [{"item_number": 21, "p_value": True}]},
-        headers=WORKER,
-    )
-    resp = auth_client.delete(
-        f"/api/cases/{case['id']}/partners/{partner['id']}/map", headers=SUPERVISOR
-    )
-    assert resp.status_code == 204
-    sheet = auth_client.get(
-        f"/api/cases/{case['id']}/partners/{partner['id']}/map", headers=WORKER
-    ).json()
-    assert sheet["summary"]["checked_p"] == 0
-
-
 # ─── Labs ─────────────────────────────────────────────────────────────────────
 
 
@@ -272,30 +221,6 @@ def test_supervisor_can_delete_symptom(auth_client: TestClient):
     ).json()
     assert auth_client.delete(f"/api/cases/symptoms/{sx['id']}", headers=SUPERVISOR).status_code == 204
     assert auth_client.get(f"/api/cases/symptoms/{sx['id']}", headers=WORKER).status_code == 404
-
-
-# ─── Timeline ─────────────────────────────────────────────────────────────────
-
-
-def test_case_worker_cannot_delete_timeline_event(auth_client: TestClient):
-    case = auth_client.post("/api/cases/", json={"patient_name": "TL Index"}, headers=WORKER).json()
-    event = auth_client.post(
-        f"/api/cases/{case['id']}/timeline",
-        json={"event_date": "2024-01-01", "event_type": "Treatment"},
-        headers=WORKER,
-    ).json()
-    assert auth_client.delete(f"/api/cases/timeline/{event['id']}", headers=WORKER).status_code == 403
-
-
-def test_supervisor_can_delete_timeline_event(auth_client: TestClient):
-    case = auth_client.post("/api/cases/", json={"patient_name": "TL Index"}, headers=WORKER).json()
-    event = auth_client.post(
-        f"/api/cases/{case['id']}/timeline",
-        json={"event_date": "2024-01-01", "event_type": "Treatment"},
-        headers=WORKER,
-    ).json()
-    assert auth_client.delete(f"/api/cases/timeline/{event['id']}", headers=SUPERVISOR).status_code == 204
-    assert auth_client.get(f"/api/cases/timeline/{event['id']}", headers=WORKER).status_code == 404
 
 
 # ─── Ghostings ────────────────────────────────────────────────────────────────

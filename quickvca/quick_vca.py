@@ -38,6 +38,7 @@ import pandas as pd
 import streamlit as st
 
 from app.utils.clinical import (
+    CONFIDENCE_RANK as _CONF_RANK,
     INCUBATION,
     INTERVIEW_PERIOD_PRIMARY_DAYS,
     INTERVIEW_PERIOD_SECONDARY_DAYS,
@@ -59,6 +60,21 @@ from app.utils.quick_inputs import (
     sex_display_to_values as _sex_values,
 )
 from presets import PRESETS
+
+import json
+import threading
+
+_FEEDBACK_LOG_PATH = os.path.join(_HERE, "feedback_log.jsonl")
+_feedback_lock = threading.Lock()
+
+
+def _log_feedback(entry: dict) -> None:
+    """Persist one feedback record to the shared log (thread-safe across sessions)."""
+    record = {"timestamp": datetime.now().isoformat(timespec="seconds"), **entry}
+    with _feedback_lock:
+        with open(_FEEDBACK_LOG_PATH, "a", encoding="utf-8") as _fh:
+            _fh.write(json.dumps(record) + "\n")
+
 
 st.set_page_config(page_title="Quick VCA", page_icon="🔎", layout="wide")
 
@@ -138,6 +154,8 @@ _DEFAULTS: dict = {
     "qv_ver": 0,
     "qv_feedback": [],
     "qv_mode": "Traditional VCA",
+    "qv_hipaa_ack": False,
+    "qv_tester_id": "",
 }
 for _n in range(1, 6):
     _DEFAULTS.update(_partner_defaults(_n))
@@ -214,6 +232,12 @@ with st.sidebar:
         "Test the VCA syphilis ghosting methodology. "
         "Nothing is saved; this is a sandbox for evaluating the logic."
     )
+    st.text_input(
+        "Your name or tester ID",
+        key="qv_tester_id",
+        placeholder="e.g. Dr. Smith",
+        help="Shown in the shared feedback log — optional but recommended for beta.",
+    )
     st.divider()
 
     st.subheader("Investigation mode")
@@ -256,6 +280,48 @@ with st.sidebar:
         f"Interview periods — primary {INTERVIEW_PERIOD_PRIMARY_DAYS} d, "
         f"secondary {INTERVIEW_PERIOD_SECONDARY_DAYS} d."
     )
+
+    st.divider()
+    with st.expander("⚙ Admin / Beta export", expanded=False):
+        if os.path.exists(_FEEDBACK_LOG_PATH):
+            try:
+                with open(_FEEDBACK_LOG_PATH, "r", encoding="utf-8") as _fh_adm:
+                    _admin_rows = [json.loads(_l) for _l in _fh_adm if _l.strip()]
+            except Exception:
+                _admin_rows = []
+            if _admin_rows:
+                _admin_df = pd.DataFrame(_admin_rows)
+                _admin_buf = io.BytesIO()
+                _admin_df.to_csv(_admin_buf, index=False, encoding="utf-8-sig")
+                st.download_button(
+                    f"⬇ All feedback ({len(_admin_rows)} entries)",
+                    _admin_buf.getvalue(),
+                    file_name=f"quickvca_all_feedback_{date.today()}.csv",
+                    mime="text/csv",
+                    key="_qv_admin_dl",
+                )
+            else:
+                st.caption("No feedback entries yet.")
+        else:
+            st.caption("No feedback entries yet.")
+
+# ---------------------------------------------------------------------------
+# HIPAA / data disclaimer gate — must be acknowledged before the UI renders
+# ---------------------------------------------------------------------------
+
+st.error(
+    "🚫 **NOT HIPAA COMPLIANT — DO NOT ENTER REAL PATIENT DATA**  \n"
+    "This tool is for **training and testing with fabricated data only**. "
+    "It has not been assessed for HIPAA technical safeguard requirements and must "
+    "not be used to process Protected Health Information (PHI) or personally "
+    "identifiable patient records of any kind.",
+)
+if not st.session_state.get("qv_hipaa_ack"):
+    st.checkbox(
+        "I understand — I will only enter fabricated or anonymized data in this tool",
+        key="qv_hipaa_ack",
+    )
+    st.stop()
 
 # ---------------------------------------------------------------------------
 # Header
@@ -482,9 +548,11 @@ if run_btn:
         warnings_out = []
         for _ci, _cp in enumerate(_contacts_input, 1):
             _cp_name = _cp["name"].strip() or f"Contact {_ci}"
+            if _cp["df"].empty:
+                continue  # silently skip contacts with no symptom rows
             _cp_syms = _rows_to_symptoms(_translate_location_col(_cp["df"]))
             if not _cp_syms:
-                continue  # silently skip contacts with no symptoms
+                continue
             # Per-pair OP fields (exposure window and sex type differ per contact)
             _a_exp_val = Exposure(first=_cp["op_ef"], last=_cp["op_el"]) if _cp["op_ef"] and _cp["op_el"] else None
             _a_vals = _sex_values(_cp["op_sex"])
@@ -660,9 +728,9 @@ def _build_pdf(result, inp: dict, mode: str, p1_symptom, p2_syms, p2_exp, x_rang
         ("spread", f"Spread: If {result.case1_name} infected {result.case2_name}"),
     ]
     if p1_symptom:
-        for scenario, diagram_label in _scenario_labels:
-            pdf.set_font("Helvetica", "B", 11)
-            pdf.cell(0, 7, _pdf_safe(f"VCA Chart - {diagram_label}"), new_x="LMARGIN", new_y="NEXT")
+        from concurrent.futures import ThreadPoolExecutor
+
+        def _render_png(scenario: str) -> bytes | Exception:
             try:
                 fig = build_scenario_figure(
                     result=result,
@@ -691,14 +759,25 @@ def _build_pdf(result, inp: dict, mode: str, p1_symptom, p2_syms, p2_exp, x_rang
                     ),
                     margin=dict(l=120, r=20, t=50, b=110),
                 )
-                png_bytes = fig.to_image(format="png", width=1600, height=480)
-                pdf.image(io.BytesIO(png_bytes), w=pdf.epw)
-            except Exception as _exc:
+                return fig.to_image(format="png", width=1600, height=480)
+            except Exception as exc:
+                return exc
+
+        scenarios = [s for s, _ in _scenario_labels]
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            png_results = list(pool.map(_render_png, scenarios))
+
+        for (scenario, diagram_label), png_or_exc in zip(_scenario_labels, png_results):
+            pdf.set_font("Helvetica", "B", 11)
+            pdf.cell(0, 7, _pdf_safe(f"VCA Chart - {diagram_label}"), new_x="LMARGIN", new_y="NEXT")
+            if isinstance(png_or_exc, Exception):
                 pdf.set_font("Helvetica", "I", 9)
                 pdf.cell(
-                    0, 6, _pdf_safe(f"(Diagram unavailable: {_exc})"),
+                    0, 6, _pdf_safe(f"(Diagram unavailable: {png_or_exc})"),
                     new_x="LMARGIN", new_y="NEXT",
                 )
+            else:
+                pdf.image(io.BytesIO(png_or_exc), w=pdf.epw)
             pdf.ln(4)
 
     # --- Criteria ---
@@ -1046,15 +1125,18 @@ def _show_pair_result(result, inp: dict, show_feedback: bool = True) -> None:
             )
             note = st.text_input("Notes (optional)")
             if st.form_submit_button("Record feedback"):
-                st.session_state["qv_feedback"].append(
-                    {
-                        "case1": result.case1_name,
-                        "case2": result.case2_name,
-                        "verdict": result.verdict,
-                        "rating": rating,
-                        "note": note,
-                    }
-                )
+                _entry = {
+                    "tester_id": st.session_state.get("qv_tester_id", ""),
+                    "investigation": "Single Pair",
+                    "mode": mode,
+                    "case1": result.case1_name,
+                    "case2": result.case2_name,
+                    "verdict": result.verdict,
+                    "rating": rating,
+                    "note": note,
+                }
+                st.session_state["qv_feedback"].append(_entry)
+                _log_feedback(_entry)
                 st.success("Recorded. Download all feedback below.")
 
         if st.session_state["qv_feedback"]:
@@ -1072,11 +1154,6 @@ def _show_pair_result(result, inp: dict, show_feedback: bool = True) -> None:
 # ---------------------------------------------------------------------------
 # Multi-partner confidence ranking helpers
 # ---------------------------------------------------------------------------
-
-_CONF_RANK: dict[str, int] = {
-    "Robust": 5, "Likely": 4, "Possible": 3, "Weak": 2, "Unlikely": 1, "Unrelated": 0
-}
-
 
 def _partner_infects_op_scenario(result, op_name: str):
     """Return the scenario result that evaluates 'did the partner infect the OP?'."""
@@ -1098,14 +1175,6 @@ def _partner_verdict_direction(result, op_name: str) -> int:
     return 0
 
 
-def _source_sort_key(item: dict, op_name: str, mode: str) -> tuple:
-    sc = _partner_infects_op_scenario(item["result"], op_name)
-    vdir = _partner_verdict_direction(item["result"], op_name)
-    if mode == "Traditional VCA":
-        return (vdir, 1 if _passes_expected(sc) else 0, 0)
-    return (vdir, _CONF_RANK.get(sc.confidence, 0), sc.pass_count)
-
-
 # ---------------------------------------------------------------------------
 # Multi-partner results renderer
 # ---------------------------------------------------------------------------
@@ -1115,11 +1184,21 @@ def _show_multi_results() -> None:
     op_name = st.session_state.get("qv_multi_op_name", "OP")
     mode = st.session_state.get("qv_mode", "Traditional VCA")
 
-    ranked = sorted(
-        multi_results,
-        key=lambda item: _source_sort_key(item, op_name, mode),
-        reverse=True,
-    )
+    # Pre-compute per-item derived values once; reused for sort key, table, and banner.
+    def _enrich(item: dict) -> dict:
+        r = item["result"]
+        partner_sc = _partner_infects_op_scenario(r, op_name)
+        vdir = _partner_verdict_direction(r, op_name)
+        contact_name = r.case2_name if r.case1_name == op_name else r.case1_name
+        if mode == "Traditional VCA":
+            sort_key = (vdir, 1 if _passes_expected(partner_sc) else 0, 0)
+        else:
+            sort_key = (vdir, _CONF_RANK.get(partner_sc.confidence, 0), partner_sc.pass_count)
+        return {**item, "_partner_sc": partner_sc, "_vdir": vdir,
+                "_contact_name": contact_name, "_sort_key": sort_key}
+
+    enriched = [_enrich(item) for item in multi_results]
+    ranked = sorted(enriched, key=lambda e: e["_sort_key"], reverse=True)
 
     # Summary table
     st.divider()
@@ -1137,9 +1216,9 @@ def _show_multi_results() -> None:
         r = item["result"]
         sc = r.source_scenarios
         sp = r.spread_scenarios
-        partner_sc = _partner_infects_op_scenario(r, op_name)
-        contact_name = r.case2_name if r.case1_name == op_name else r.case1_name
-        vdir = _partner_verdict_direction(r, op_name)
+        partner_sc = item["_partner_sc"]
+        contact_name = item["_contact_name"]
+        vdir = item["_vdir"]
 
         if mode == "Traditional VCA":
             src_label = "✓ Pass" if _passes_expected(partner_sc) else "✗ Fail"
@@ -1159,10 +1238,10 @@ def _show_multi_results() -> None:
 
     st.dataframe(pd.DataFrame(table_rows), use_container_width=True, hide_index=True)
 
-    # Best candidate banner
+    # Best candidate banner — use pre-computed values
     best = ranked[0]
-    best_name = best["result"].case2_name if best["result"].case1_name == op_name else best["result"].case1_name
-    best_vdir = _partner_verdict_direction(best["result"], op_name)
+    best_name = best["_contact_name"]
+    best_vdir = best["_vdir"]
     if best_vdir == 1:
         st.success(f"**Most plausible source: {best_name}**")
     elif best_vdir == -1:
@@ -1202,9 +1281,8 @@ def _show_multi_results() -> None:
     st.subheader("Pair Detail")
     st.caption("Each pair includes a full analysis and individual PDF download.")
     for i, item in enumerate(ranked):
-        r = item["result"]
-        contact_name = r.case2_name if r.case1_name == op_name else r.case1_name
-        partner_sc = _partner_infects_op_scenario(r, op_name)
+        partner_sc = item["_partner_sc"]
+        contact_name = item["_contact_name"]
         if mode == "Traditional VCA":
             badge = "✓ Pass" if _passes_expected(partner_sc) else "✗ Fail"
         else:
@@ -1215,24 +1293,56 @@ def _show_multi_results() -> None:
         ):
             _show_pair_result(item["result"], item["inp"], show_feedback=False)
 
-    # Shared feedback at the bottom
+    # Shared feedback at the bottom — one row per contact, single submit
     st.divider()
     st.subheader("Feedback")
     with st.form("qv_multi_feedback_form", clear_on_submit=True):
-        fb_contact = st.selectbox(
-            "Which pair are you rating?",
-            [
-                (r["result"].case2_name if r["result"].case1_name == op_name else r["result"].case1_name)
-                for r in ranked
-            ],
-        )
-        rating = st.radio("Your assessment", ["Reasonable", "Unsure", "Wrong"], horizontal=True)
-        note = st.text_input("Notes (optional)")
-        if st.form_submit_button("Record feedback"):
-            st.session_state["qv_feedback"].append(
-                {"op": op_name, "contact": fb_contact, "rating": rating, "note": note}
+        st.caption("Rate each contact pair. Leave a row blank to skip it.")
+        h_contact, h_rating, h_notes = st.columns([2, 4, 4])
+        h_contact.markdown("**Contact**")
+        h_rating.markdown("**Assessment**")
+        h_notes.markdown("**Notes**")
+
+        row_data: list[tuple[str, str | None, str]] = []
+        for i, item in enumerate(ranked):
+            c_name, c_rating, c_notes = st.columns([2, 4, 4])
+            c_name.write(item["_contact_name"])
+            rating = c_rating.radio(
+                "Assessment",
+                ["Reasonable", "Unsure", "Wrong"],
+                index=None,
+                horizontal=True,
+                key=f"fb_rating_{i}",
+                label_visibility="collapsed",
             )
-            st.success("Recorded.")
+            note = c_notes.text_input(
+                "Notes",
+                key=f"fb_note_{i}",
+                placeholder="Optional…",
+                label_visibility="collapsed",
+            )
+            row_data.append((item["_contact_name"], rating, note))
+
+        if st.form_submit_button("Record feedback", use_container_width=True):
+            new_entries = [
+                {
+                    "tester_id": st.session_state.get("qv_tester_id", ""),
+                    "investigation": "Multi-Partner",
+                    "mode": mode,
+                    "op": op_name,
+                    "contact": name,
+                    "rating": r,
+                    "note": n,
+                }
+                for name, r, n in row_data if r is not None
+            ]
+            if new_entries:
+                st.session_state["qv_feedback"].extend(new_entries)
+                for _fe in new_entries:
+                    _log_feedback(_fe)
+                st.success(f"Recorded {len(new_entries)} rating(s).")
+            else:
+                st.warning("No ratings selected — nothing recorded.")
 
     if st.session_state["qv_feedback"]:
         fb_df = pd.DataFrame(st.session_state["qv_feedback"])

@@ -26,3 +26,6 @@ playwright-report/
 
 # Temp / lock files
 documents/~$*
+
+# Beta feedback log — contains tester ratings, never commit
+quickvca/feedback_log.jsonl

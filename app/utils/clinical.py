@@ -51,6 +51,12 @@ PRIMARY = {"min": 7, "avg": 21, "max": 35}
 LATENCY = {"min": 0, "avg": 28, "max": 70}
 SECONDARY = {"min": 14, "avg": 28, "max": 42}
 
+# Ordered confidence labels → integer rank (higher = stronger evidence).
+# Shared by determine_verdict, run_ghosting_analysis, and all callers.
+CONFIDENCE_RANK: dict[str, int] = {
+    "Robust": 5, "Likely": 4, "Possible": 3, "Weak": 2, "Unlikely": 1, "Unrelated": 0,
+}
+
 INTERVIEW_PERIOD_PRIMARY_DAYS = INCUBATION["max"] + PRIMARY["max"]  # 125
 INTERVIEW_PERIOD_SECONDARY_DAYS = (
     INCUBATION["max"] + PRIMARY["max"] + LATENCY["max"] + SECONDARY["max"]  # 237
@@ -943,10 +949,8 @@ def determine_verdict(
 
     Confidence levels: Robust > Likely > Possible > Weak > Unlikely > Unrelated
     """
-    conf_rank = {"Robust": 5, "Likely": 4, "Possible": 3, "Weak": 2, "Unlikely": 1, "Unrelated": 0}
-
-    s_rank = conf_rank.get(source_confidence, 0)
-    sp_rank = conf_rank.get(spread_confidence, 0)
+    s_rank = CONFIDENCE_RANK.get(source_confidence, 0)
+    sp_rank = CONFIDENCE_RANK.get(spread_confidence, 0)
 
     # Display labels with role prefix. Case2's role is the complement of Case1's.
     case2_role = "partner" if case1_role == "OP" else "OP"
@@ -1028,6 +1032,23 @@ def run_ghosting_analysis(
         "fast_infection_slow_disease": {"incubation": "min", "primary": "max", "latency": "max", "secondary": "max"},
         "slow_infection_fast_disease": {"incubation": "max", "primary": "min", "latency": "min", "secondary": "min"},
     }
+    # Hoisted out of the loop — these are constant across all 5 scenario iterations.
+    _RANGE_LABELS: dict[str, str] = {
+        "aggressive":                "Optimistic range — minimum constants (fastest possible progression)",
+        "expected":                  "Expected range — average constants",
+        "conservative":              "Conservative range — maximum constants (slowest possible progression)",
+        "fast_infection_slow_disease": "Fast-infection range — min incubation, max primary/latency/secondary",
+        "slow_infection_fast_disease": "Slow-infection range — max incubation, min primary/latency/secondary",
+    }
+    _LOG_ICON: dict[str, str] = {
+        "pass": "[PASS]", "fail": "[FAIL]", "warn": "[WARN]", "na": "[N/A ]",
+    }
+    _CRIT_LABEL: dict[str, str] = {
+        "exposure": "Exposure overlap",
+        "exposure_modality": "Anatomical compatibility",
+        "latency": "Latency to secondary",
+        "natural_order": "Natural progression order",
+    }
 
     # --- Step 1: Identify Case1 ---
     case1_role, case1_symptom, case2_role, case2_symptoms = select_case1(
@@ -1059,14 +1080,7 @@ def run_ghosting_analysis(
 
     # --- Steps 2-6: Range Loop ---
     for scenario_name, stage_keys in SCENARIOS.items():
-        range_label = {
-            "aggressive":                "Optimistic range — minimum constants (fastest possible progression)",
-            "expected":                  "Expected range — average constants",
-            "conservative":              "Conservative range — maximum constants (slowest possible progression)",
-            "fast_infection_slow_disease": "Fast-infection range — min incubation, max primary/latency/secondary",
-            "slow_infection_fast_disease": "Slow-infection range — max incubation, min primary/latency/secondary",
-        }.get(scenario_name, scenario_name)
-        log.append(f"\n--- {range_label} ---")
+        log.append(f"\n--- {_RANGE_LABELS.get(scenario_name, scenario_name)} ---")
 
         # Date calculations
         d1 = calc_date1(case1_symptom, stage_keys=stage_keys)
@@ -1127,19 +1141,10 @@ def run_ghosting_analysis(
         for sname, crit in [("SOURCE", source_crit), ("SPREAD", spread_crit)]:
             log.append(f"  {sname} scenario:")
             for k, v in crit.items():
-                icon = {
-                    "pass": "[PASS]",
-                    "fail": "[FAIL]",
-                    "warn": "[WARN]",
-                    "na": "[N/A ]",
-                }.get(v["status"], "[?]")
-                key_label = {
-                    "exposure": "Exposure overlap",
-                    "exposure_modality": "Anatomical compatibility",
-                    "latency": "Latency to secondary",
-                    "natural_order": "Natural progression order",
-                }.get(k, k)
-                log.append(f"    {icon} {key_label}: {v['detail']}")
+                log.append(
+                    f"    {_LOG_ICON.get(v['status'], '[?]')} "
+                    f"{_CRIT_LABEL.get(k, k)}: {v['detail']}"
+                )
 
     # --- Step 7: Confidence and Verdict ---
     def derive_confidence(data: dict[str, dict]) -> tuple[str, int]:

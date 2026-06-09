@@ -8,8 +8,6 @@ import { useCase } from "../../features/cases/hooks";
 const TAB_LINKS: { to: string; label: string; title?: string }[] = [
   { to: "overview",  label: "Overview" },
   { to: "partners",  label: "Partners" },
-  { to: "timeline",  label: "Timeline" },
-  { to: "map",       label: "MAP",       title: "Major Analytical Points — 46-item systematic checklist" },
   { to: "ghosting",  label: "Ghosting",  title: "Ghosting Analysis — determine transmission likelihood between two patients" },
   { to: "vca-chart", label: "VCA Chart", title: "VCA Timeline — visual case analysis chart" },
   { to: "network",   label: "Network",   title: "Transmission Network — map of all contacts and links" },

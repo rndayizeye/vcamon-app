@@ -702,7 +702,7 @@ export function GhostingPage() {
                 <p className="eyebrow">Criteria (average tier — fail/warn cards expand automatically)</p>
                 <CriteriaCards
                   rangeData={activeScenario.range_data}
-                  scenario={activeTab}
+                  mode={mode}
                 />
               </div>
             )}
