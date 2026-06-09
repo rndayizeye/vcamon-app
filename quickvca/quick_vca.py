@@ -64,8 +64,14 @@ from presets import PRESETS
 import json
 import threading
 
-_FEEDBACK_LOG_PATH = os.path.join(_HERE, "feedback_log.jsonl")
+# Streamlit Community Cloud mounts the repo read-only; fall back to /tmp/ there.
+_FEEDBACK_LOG_PATH = (
+    os.path.join(_HERE, "feedback_log.jsonl")
+    if os.access(_HERE, os.W_OK)
+    else "/tmp/quickvca_feedback.jsonl"
+)
 _feedback_lock = threading.Lock()
+_ON_CLOUD = not os.access(_HERE, os.W_OK)
 
 
 def _log_feedback(entry: dict) -> None:
@@ -283,6 +289,11 @@ with st.sidebar:
 
     st.divider()
     with st.expander("⚙ Admin / Beta export", expanded=False):
+        if _ON_CLOUD:
+            st.caption(
+                "⚠ Running on Streamlit Community Cloud — feedback is stored in `/tmp/` "
+                "and will be lost if the app restarts. Download the CSV regularly."
+            )
         if os.path.exists(_FEEDBACK_LOG_PATH):
             try:
                 with open(_FEEDBACK_LOG_PATH, "r", encoding="utf-8") as _fh_adm:
