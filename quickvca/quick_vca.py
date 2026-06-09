@@ -63,6 +63,7 @@ from presets import PRESETS
 
 import json
 import threading
+import urllib.request as _urllib_request
 
 # Streamlit Community Cloud mounts the repo read-only; fall back to /tmp/ there.
 _FEEDBACK_LOG_PATH = (
@@ -74,12 +75,45 @@ _feedback_lock = threading.Lock()
 _ON_CLOUD = not os.access(_HERE, os.W_OK)
 
 
+def _supabase_post(endpoint: str, key: str, record: dict) -> None:
+    """Fire-and-forget POST to Supabase REST API; silently swallows all errors."""
+    data = json.dumps(record).encode("utf-8")
+    req = _urllib_request.Request(
+        endpoint,
+        data=data,
+        headers={
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal",
+        },
+        method="POST",
+    )
+    try:
+        with _urllib_request.urlopen(req, timeout=5):
+            pass
+    except Exception:
+        pass
+
+
 def _log_feedback(entry: dict) -> None:
-    """Persist one feedback record to the shared log (thread-safe across sessions)."""
+    """Write to local file (thread-safe) and POST to Supabase in the background."""
     record = {"timestamp": datetime.now().isoformat(timespec="seconds"), **entry}
+    # Local file backup
     with _feedback_lock:
         with open(_FEEDBACK_LOG_PATH, "a", encoding="utf-8") as _fh:
             _fh.write(json.dumps(record) + "\n")
+    # Supabase insert — read creds in main thread, dispatch HTTP in background
+    try:
+        _sb_url = st.secrets.get("SUPABASE_URL") or os.environ.get("SUPABASE_URL", "")
+        _sb_key = st.secrets.get("SUPABASE_ANON_KEY") or os.environ.get("SUPABASE_ANON_KEY", "")
+    except Exception:
+        _sb_url, _sb_key = "", ""
+    if _sb_url and _sb_key:
+        _ep = f"{_sb_url.rstrip('/')}/rest/v1/quickvca_feedback"
+        threading.Thread(
+            target=_supabase_post, args=(_ep, _sb_key, record), daemon=True
+        ).start()
 
 
 st.set_page_config(page_title="Quick VCA", page_icon="🔎", layout="wide")
@@ -289,10 +323,18 @@ with st.sidebar:
 
     st.divider()
     with st.expander("⚙ Admin / Beta export", expanded=False):
-        if _ON_CLOUD:
+        try:
+            _has_sb = bool(
+                st.secrets.get("SUPABASE_URL") or os.environ.get("SUPABASE_URL")
+            )
+        except Exception:
+            _has_sb = False
+        if _has_sb:
+            st.caption("✅ Supabase connected — feedback is persisted remotely. View in your Supabase dashboard → Table Editor → `quickvca_feedback`.")
+        elif _ON_CLOUD:
             st.caption(
-                "⚠ Running on Streamlit Community Cloud — feedback is stored in `/tmp/` "
-                "and will be lost if the app restarts. Download the CSV regularly."
+                "⚠ No Supabase credentials found. Feedback is in `/tmp/` and will be "
+                "lost on restart. Add SUPABASE_URL + SUPABASE_ANON_KEY to Streamlit secrets."
             )
         if os.path.exists(_FEEDBACK_LOG_PATH):
             try:
