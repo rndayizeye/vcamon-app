@@ -61,6 +61,21 @@ from app.utils.quick_inputs import (
 )
 from presets import PRESETS
 
+import json
+import threading
+
+_FEEDBACK_LOG_PATH = os.path.join(_HERE, "feedback_log.jsonl")
+_feedback_lock = threading.Lock()
+
+
+def _log_feedback(entry: dict) -> None:
+    """Persist one feedback record to the shared log (thread-safe across sessions)."""
+    record = {"timestamp": datetime.now().isoformat(timespec="seconds"), **entry}
+    with _feedback_lock:
+        with open(_FEEDBACK_LOG_PATH, "a", encoding="utf-8") as _fh:
+            _fh.write(json.dumps(record) + "\n")
+
+
 st.set_page_config(page_title="Quick VCA", page_icon="🔎", layout="wide")
 
 # ---------------------------------------------------------------------------
@@ -139,6 +154,8 @@ _DEFAULTS: dict = {
     "qv_ver": 0,
     "qv_feedback": [],
     "qv_mode": "Traditional VCA",
+    "qv_hipaa_ack": False,
+    "qv_tester_id": "",
 }
 for _n in range(1, 6):
     _DEFAULTS.update(_partner_defaults(_n))
@@ -215,6 +232,12 @@ with st.sidebar:
         "Test the VCA syphilis ghosting methodology. "
         "Nothing is saved; this is a sandbox for evaluating the logic."
     )
+    st.text_input(
+        "Your name or tester ID",
+        key="qv_tester_id",
+        placeholder="e.g. Dr. Smith",
+        help="Shown in the shared feedback log — optional but recommended for beta.",
+    )
     st.divider()
 
     st.subheader("Investigation mode")
@@ -257,6 +280,48 @@ with st.sidebar:
         f"Interview periods — primary {INTERVIEW_PERIOD_PRIMARY_DAYS} d, "
         f"secondary {INTERVIEW_PERIOD_SECONDARY_DAYS} d."
     )
+
+    st.divider()
+    with st.expander("⚙ Admin / Beta export", expanded=False):
+        if os.path.exists(_FEEDBACK_LOG_PATH):
+            try:
+                with open(_FEEDBACK_LOG_PATH, "r", encoding="utf-8") as _fh_adm:
+                    _admin_rows = [json.loads(_l) for _l in _fh_adm if _l.strip()]
+            except Exception:
+                _admin_rows = []
+            if _admin_rows:
+                _admin_df = pd.DataFrame(_admin_rows)
+                _admin_buf = io.BytesIO()
+                _admin_df.to_csv(_admin_buf, index=False, encoding="utf-8-sig")
+                st.download_button(
+                    f"⬇ All feedback ({len(_admin_rows)} entries)",
+                    _admin_buf.getvalue(),
+                    file_name=f"quickvca_all_feedback_{date.today()}.csv",
+                    mime="text/csv",
+                    key="_qv_admin_dl",
+                )
+            else:
+                st.caption("No feedback entries yet.")
+        else:
+            st.caption("No feedback entries yet.")
+
+# ---------------------------------------------------------------------------
+# HIPAA / data disclaimer gate — must be acknowledged before the UI renders
+# ---------------------------------------------------------------------------
+
+st.error(
+    "🚫 **NOT HIPAA COMPLIANT — DO NOT ENTER REAL PATIENT DATA**  \n"
+    "This tool is for **training and testing with fabricated data only**. "
+    "It has not been assessed for HIPAA technical safeguard requirements and must "
+    "not be used to process Protected Health Information (PHI) or personally "
+    "identifiable patient records of any kind.",
+)
+if not st.session_state.get("qv_hipaa_ack"):
+    st.checkbox(
+        "I understand — I will only enter fabricated or anonymized data in this tool",
+        key="qv_hipaa_ack",
+    )
+    st.stop()
 
 # ---------------------------------------------------------------------------
 # Header
@@ -1060,15 +1125,18 @@ def _show_pair_result(result, inp: dict, show_feedback: bool = True) -> None:
             )
             note = st.text_input("Notes (optional)")
             if st.form_submit_button("Record feedback"):
-                st.session_state["qv_feedback"].append(
-                    {
-                        "case1": result.case1_name,
-                        "case2": result.case2_name,
-                        "verdict": result.verdict,
-                        "rating": rating,
-                        "note": note,
-                    }
-                )
+                _entry = {
+                    "tester_id": st.session_state.get("qv_tester_id", ""),
+                    "investigation": "Single Pair",
+                    "mode": mode,
+                    "case1": result.case1_name,
+                    "case2": result.case2_name,
+                    "verdict": result.verdict,
+                    "rating": rating,
+                    "note": note,
+                }
+                st.session_state["qv_feedback"].append(_entry)
+                _log_feedback(_entry)
                 st.success("Recorded. Download all feedback below.")
 
         if st.session_state["qv_feedback"]:
@@ -1257,11 +1325,21 @@ def _show_multi_results() -> None:
 
         if st.form_submit_button("Record feedback", use_container_width=True):
             new_entries = [
-                {"op": op_name, "contact": name, "rating": r, "note": n}
+                {
+                    "tester_id": st.session_state.get("qv_tester_id", ""),
+                    "investigation": "Multi-Partner",
+                    "mode": mode,
+                    "op": op_name,
+                    "contact": name,
+                    "rating": r,
+                    "note": n,
+                }
                 for name, r, n in row_data if r is not None
             ]
             if new_entries:
                 st.session_state["qv_feedback"].extend(new_entries)
+                for _fe in new_entries:
+                    _log_feedback(_fe)
                 st.success(f"Recorded {len(new_entries)} rating(s).")
             else:
                 st.warning("No ratings selected — nothing recorded.")

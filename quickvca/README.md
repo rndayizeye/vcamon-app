@@ -31,23 +31,39 @@ Point the app at this repo with:
 
 No secrets are required (unlike the full v1 app, there is no password gate).
 
+> ⚠ **NOT HIPAA COMPLIANT.** On first load, users must acknowledge this before
+> the form renders. Do not enter real patient data. Use fabricated or fully
+> anonymized scenarios only.
+
 ## What it does
 
 - **Presets** (sidebar) load known-answer scenarios, including the NCSDDC
   training's Carmela/Johannes example, an ambiguous asymptomatic-partner case,
   and an unrelated case. Each preset states the expected outcome so you can spot
   when a code change shifts a known answer.
-- **Run** evaluates both directions across minimum/average/maximum
-  natural-history constants and reports a verdict plus per-criterion results,
-  scenario diagrams, the step-by-step log, and the interview period.
+- **Single Pair** mode — evaluate two people head-to-head.
+- **Multi-Partner** mode — enter an index patient once and up to 5 contacts;
+  results are ranked by plausibility as source.
+- **Analysis modes** — *Traditional VCA* (average constants, NCSDDC methodology)
+  and *Comprehensive* (5 natural-history tiers with confidence score).
 - **Feedback** — testers rate each verdict (Reasonable / Unsure / Wrong) with an
-  optional note; download the accumulated session feedback as CSV.
+  optional note. Feedback is written to `quickvca/feedback_log.jsonl` on the
+  server and persists across sessions. Download all entries as CSV from the
+  **Admin / Beta export** expander in the sidebar.
+
+## Beta testing
+
+1. Each tester enters their name/ID in the sidebar before running scenarios.
+2. Use only the provided presets or invented data — no real patient information.
+3. Rate each verdict after reviewing it.
+4. The session operator downloads all feedback from **Admin / Beta export** at the
+   end of the session. `feedback_log.jsonl` is git-ignored and never committed.
 
 ## Reading the result honestly
 
-- The "tiers" count (`n/3`) is how many natural-history settings keep a scenario
-  plausible — a **plausibility** signal, not a probability or statistical
-  confidence.
+- The "tiers" count (`n/5`) is how many of five natural-history constant sets keep
+  a scenario plausible — a **plausibility** signal, not a probability or
+  statistical confidence.
 - ⚠ **Warnings** do not fail a scenario but weaken the story; always read them.
 - **Known limitation:** when *both* people have a confirmed primary chancre, the
   engine does not yet cross-check a ghosted source chancre against the other
