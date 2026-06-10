@@ -52,6 +52,7 @@ export type NetworkPerson = {
   name: string
   symptoms: SymptomRow[]
   treatment_date: string
+  last_negative_test: string
 }
 
 // A connection between two patients — holds all encounter-specific data so the
@@ -92,6 +93,7 @@ export function makePersonDefaults(n: number): NetworkPerson {
     name: `Patient ${n}`,
     symptoms: [],
     treatment_date: '',
+    last_negative_test: '',
   }
 }
 

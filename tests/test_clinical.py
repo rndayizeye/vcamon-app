@@ -907,3 +907,50 @@ class TestScenarioPasses:
             "natural_order": {"status": "pass", "detail": ""},
         }
         assert _scenario_passes(criteria) is False
+
+
+# ---------------------------------------------------------------------------
+# Negative-test floor — run_ghosting_analysis
+# ---------------------------------------------------------------------------
+
+
+class TestNegativeTestFloor:
+    """Slide-17 scenario: Samuel (partner) is Case1.
+    partner_last_neg_test constrains Samuel's Date1 floor to last_neg − 90 days.
+    Expected-scenario d1 = 2020-01-18 (2020-02-08 − 21d avg incubation).
+    """
+
+    def _run(self, **kwargs):
+        return run_ghosting_analysis(
+            op_name="Johnny",
+            op_symptoms=[Symptom("Primary Chancre", date(2020, 3, 5), 0)],
+            op_exposure=Exposure(date(2019, 9, 3), date(2020, 2, 25)),
+            op_treatment_date=date(2020, 3, 10),
+            partner_name="Samuel",
+            partner_symptoms=[Symptom("Primary Chancre", date(2020, 2, 8), 7)],
+            partner_exposure=Exposure(date(2019, 9, 1), date(2020, 2, 15)),
+            partner_treatment_date=date(2020, 2, 17),
+            **kwargs,
+        )
+
+    def test_floor_binds_when_last_neg_is_recent(self):
+        # floor = 2020-05-01 − 90d = 2020-02-01 > d1 (2020-01-18) → binds.
+        no_floor = self._run()
+        with_floor = self._run(partner_last_neg_test=date(2020, 5, 1))
+        assert with_floor.ghosted_source.onset > no_floor.ghosted_source.onset
+        assert "[FLOOR]" in "\n".join(with_floor.log)
+
+    def test_floor_does_not_bind_when_last_neg_is_old(self):
+        # floor = 2018-01-01 − 90d = 2017-10-03, well before d1 → no change.
+        no_floor = self._run()
+        with_old_floor = self._run(partner_last_neg_test=date(2018, 1, 1))
+        assert with_old_floor.ghosted_source.onset == no_floor.ghosted_source.onset
+        assert "[FLOOR]" not in "\n".join(with_old_floor.log)
+
+    def test_floor_log_entry_names_case1_and_floor_date(self):
+        # Log must identify Case1 (Samuel) and the derived floor date (2020-02-01).
+        result = self._run(partner_last_neg_test=date(2020, 5, 1))
+        full_log = "\n".join(result.log)
+        assert "[FLOOR]" in full_log
+        assert "Samuel" in full_log
+        assert "2020-02-01" in full_log

@@ -226,6 +226,13 @@ with col_a:
     a_treatment = st.date_input(
         "Treatment date", value=None, key="a_treat", format="MM/DD/YYYY"
     )
+    a_last_neg_test = st.date_input(
+        "Last negative test",
+        value=None,
+        key="a_last_neg_test",
+        format="MM/DD/YYYY",
+        help="Optional — constrains the earliest possible inoculation date.",
+    )
 
 with col_b:
     st.subheader("Person B (Partner)")
@@ -267,6 +274,13 @@ with col_b:
     b_sex = _sex_display_to_values(b_sex_display)
     b_treatment = st.date_input(
         "Treatment date", value=None, key="b_treat", format="MM/DD/YYYY"
+    )
+    b_last_neg_test = st.date_input(
+        "Last negative test",
+        value=None,
+        key="b_last_neg_test",
+        format="MM/DD/YYYY",
+        help="Optional — constrains the earliest possible inoculation date.",
     )
 
 # ---------------------------------------------------------------------------
@@ -320,6 +334,8 @@ if run_btn:
             partner_treatment_date=b_treatment,
             op_body_parts=a_body_parts,
             partner_body_parts=b_body_parts,
+            op_last_neg_test=a_last_neg_test or None,
+            partner_last_neg_test=b_last_neg_test or None,
         )
         st.session_state["qg_result"] = result
         st.session_state["qg_inputs"] = {

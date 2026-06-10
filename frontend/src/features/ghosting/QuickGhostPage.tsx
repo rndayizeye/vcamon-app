@@ -45,11 +45,13 @@ function buildPayload(
     op_exposure: exposure,
     op_treatment_date: a.treatment_date || null,
     op_body_parts: edge.a_body_parts,
+    op_last_negative_test: a.last_negative_test || null,
     partner_name: b.name.trim() || 'Patient B',
     partner_symptoms: toSymptomInputs(b.symptoms),
     partner_exposure: exposure,
     partner_treatment_date: b.treatment_date || null,
     partner_body_parts: edge.b_body_parts,
+    partner_last_negative_test: b.last_negative_test || null,
   }
 }
 

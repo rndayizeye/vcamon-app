@@ -67,20 +67,24 @@ class GhostingAnalysisRequest(BaseModel):
     op_exposure: GhostingExposureInput | None = None
     op_treatment_date: date | None = None
     op_body_parts: list[str] = Field(default_factory=list)
+    op_last_negative_test: date | None = None
     partner_name: str = Field(min_length=1)
     partner_symptoms: list[GhostingSymptomInput] = Field(default_factory=list)
     partner_exposure: GhostingExposureInput | None = None
     partner_treatment_date: date | None = None
     partner_body_parts: list[str] = Field(default_factory=list)
+    partner_last_negative_test: date | None = None
 
 
 class GhostingCaseAnalysisRequest(BaseModel):
     op_symptoms: list[GhostingSymptomInput] | None = None
     op_exposure: GhostingExposureInput | None = None
     op_treatment_date: date | None = None
+    op_last_negative_test: date | None = None
     partner_symptoms: list[GhostingSymptomInput] | None = None
     partner_exposure: GhostingExposureInput | None = None
     partner_treatment_date: date | None = None
+    partner_last_negative_test: date | None = None
 
 
 class GhostingCriteriaCheckRead(BaseModel):

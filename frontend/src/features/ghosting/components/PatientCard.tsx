@@ -19,6 +19,10 @@ function PatientClinicalFields({
         <span>Treatment date</span>
         <input type="date" {...register(`${prefix}.treatment_date`)} />
       </label>
+      <label className="field">
+        <span>Last negative test <span style={{ color: '#aaa', fontWeight: 400 }}>(optional)</span></span>
+        <input type="date" {...register(`${prefix}.last_negative_test`)} />
+      </label>
     </>
   )
 }
