@@ -522,7 +522,6 @@ def _check_exposure(
     infectious_start: date,
     infectious_end: date,
     exposure: Optional[Exposure],
-    scenario: str,
     inoculation_date: Optional[date] = None,
 ) -> tuple[str, str]:
     """
@@ -550,13 +549,21 @@ def _check_exposure(
                 f"({exposure.first} → {exposure.last}); infectious period overlaps "
                 f"by {overlap_days} day(s)."
             )
-        # Overlap-only: infectious period overlaps but inoculation date is outside
-        return "warn", (
-            f"Infectious period ({infectious_start} → {infectious_end}) "
-            f"overlaps exposure ({exposure.first} → {exposure.last}) "
-            f"by {overlap_days} day(s), but inoculation date "
-            f"({inoculation_date}) falls outside the window — borderline timing."
-        )
+        # Overlap-only warn
+        if inoculation_date:
+            detail = (
+                f"Infectious period ({infectious_start} → {infectious_end}) "
+                f"overlaps exposure ({exposure.first} → {exposure.last}) "
+                f"by {overlap_days} day(s), but inoculation date "
+                f"({inoculation_date}) falls outside the window — borderline timing."
+            )
+        else:
+            detail = (
+                f"Infectious period ({infectious_start} → {infectious_end}) "
+                f"overlaps exposure ({exposure.first} → {exposure.last}) "
+                f"by {overlap_days} day(s) — overlap only, inoculation date not available."
+            )
+        return "warn", detail
 
     # No overlap — calculate gap
     if infectious_end < exposure.first:
@@ -909,7 +916,7 @@ def evaluate_criteria(
     # Spread: inoculation_date = date2 (when Case1 infected Case2).
     inoculation_date = date1 if scenario == "source" else date2
     exp_status, exp_detail = _check_exposure(
-        infectious_start, infectious_end, exposure, scenario,
+        infectious_start, infectious_end, exposure,
         inoculation_date=inoculation_date,
     )
 
@@ -1192,7 +1199,7 @@ def run_ghosting_analysis(
         # criterion is a clean pass (inoculation date inside the window).
         passes = sum(
             1 for crit in data.values()
-            if _scenario_passes(crit) and crit.get("exposure", {}).get("status") == "pass"
+            if _scenario_passes(crit) and crit["exposure"]["status"] == "pass"
         )
         levels = {5: "Robust", 4: "Likely", 3: "Possible", 2: "Weak", 1: "Unlikely", 0: "Unrelated"}
         assert passes in levels, f"Unexpected pass_count {passes}"

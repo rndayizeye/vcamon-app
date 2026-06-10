@@ -179,11 +179,27 @@ def build_scenario_figure(
         else f"Spread scenario — if {p1_name} infected {p2_name}"
     )
 
+    # For duration_days=0 primaries the entered date is the observation date
+    # (last day), not the onset. Back-calculate to match the "expected" tier
+    # that the plot displays (ghosted_source/spread come from the expected tier).
+    if p1_symptom.duration_days == 0 and p1_symptom.type in (
+        "Primary Chancre", "Historical Primary", "Ghosted Primary"
+    ):
+        _eff_dur = PRIMARY["avg"]
+        plot_p1_symptom = Symptom(
+            type=p1_symptom.type,
+            onset=p1_symptom.onset - timedelta(days=_eff_dur),
+            duration_days=_eff_dur,
+            anatomical_site=p1_symptom.anatomical_site,
+        )
+    else:
+        plot_p1_symptom = p1_symptom
+
     # --- Determine x axis range ---
     if x_range is not None:
         x0, x1 = x_range
     else:
-        collected_dates = [p1_symptom.onset, lesion.onset, lesion.end]
+        collected_dates = [plot_p1_symptom.onset, lesion.onset, lesion.end]
         if p2_exposure:
             collected_dates += [p2_exposure.first, p2_exposure.last]
         if p1_exposure:
@@ -306,26 +322,24 @@ def build_scenario_figure(
     )
 
     # --- P1 anchor symptom bar ---
-    p1_dur = (
-        p1_symptom.duration_days if p1_symptom.duration_days > 0 else PRIMARY["avg"]
-    )
-    p1_end = p1_symptom.onset + timedelta(days=p1_dur)
+    p1_dur = plot_p1_symptom.duration_days
+    p1_end = plot_p1_symptom.onset + timedelta(days=p1_dur)
     fig.add_trace(
         go.Scatter(
-            x=[p1_symptom.onset, p1_end],
+            x=[plot_p1_symptom.onset, p1_end],
             y=[_Y_P1, _Y_P1],
             mode="lines",
             line=dict(color=_C["p1_symptom"], width=_BAR_W, dash="solid"),
-            name=f"{p1_name} — {p1_symptom.type}",
+            name=f"{p1_name} — {plot_p1_symptom.type}",
             hovertemplate=(
-                f"{p1_name}<br>{p1_symptom.type}<br>"
-                f"{p1_symptom.onset} → {p1_end}<extra></extra>"
+                f"{p1_name}<br>{plot_p1_symptom.type}<br>"
+                f"{plot_p1_symptom.onset} → {p1_end}<extra></extra>"
             ),
         )
     )
     fig.add_trace(
         go.Scatter(
-            x=[p1_symptom.onset],
+            x=[plot_p1_symptom.onset],
             y=[_Y_P1],
             mode="markers",
             marker=dict(color=_C["p1_symptom"], symbol="triangle-up", size=_MARK_S),
@@ -339,10 +353,10 @@ def build_scenario_figure(
 
     try:
         if scenario == "source":
-            d_point = avg_inoculation_date(p1_symptom)
+            d_point = avg_inoculation_date(plot_p1_symptom)
             d_label = "D1 (avg inoculation)"
         else:
-            d_point = calc_d2(p1_symptom)
+            d_point = calc_d2(plot_p1_symptom)
             d_label = "D2 (primary midpoint)"
 
         fig.add_trace(
