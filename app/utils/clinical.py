@@ -56,6 +56,14 @@ SECONDARY = {"min": 14, "avg": 28, "max": 42}
 CONFIDENCE_RANK: dict[str, int] = {
     "Robust": 5, "Likely": 4, "Possible": 3, "Weak": 2, "Unlikely": 1, "Unrelated": 0,
 }
+_CONFIDENCE_LEVELS: dict[int, str] = {v: k for k, v in CONFIDENCE_RANK.items()}
+
+_ZERO_DUR_PRIMARY_TYPES = frozenset(
+    {"Primary Chancre", "Historical Primary", "Ghosted Primary"}
+)
+_ZERO_DUR_SECONDARY_TYPES = frozenset(
+    {"Secondary Rash/Lesions", "Historical Secondary", "Ghosted Secondary"}
+)
 
 INTERVIEW_PERIOD_PRIMARY_DAYS = INCUBATION["max"] + PRIMARY["max"]  # 125
 INTERVIEW_PERIOD_SECONDARY_DAYS = (
@@ -76,6 +84,29 @@ PRIMARY_CONSISTENCY_TOLERANCE_DAYS = INCUBATION["avg"]  # 21
 # ---------------------------------------------------------------------------
 # Interview period — calculate earliest relevant date for case investigation based on symptoms and previous negative tests
 # ---------------------------------------------------------------------------
+
+
+def resolve_zero_duration_symptom(symptom: "Symptom") -> "Symptom":
+    """
+    When duration_days==0, the entered date is the observation date (last day
+    of the longest possible duration). Back-calculate onset using the max
+    duration for the symptom's stage. Returns symptom unchanged if duration
+    is known or the type is unrecognised.
+    """
+    if symptom.duration_days != 0:
+        return symptom
+    if symptom.type in _ZERO_DUR_PRIMARY_TYPES:
+        dur = PRIMARY["max"]
+    elif symptom.type in _ZERO_DUR_SECONDARY_TYPES:
+        dur = SECONDARY["max"]
+    else:
+        return symptom
+    return Symptom(
+        type=symptom.type,
+        onset=symptom.onset - timedelta(days=dur),
+        duration_days=dur,
+        anatomical_site=symptom.anatomical_site,
+    )
 
 
 def calc_interview_period_start(
@@ -542,28 +573,26 @@ def _check_exposure(
         overlap_days = (
             min(infectious_end, exposure.last) - max(infectious_start, exposure.first)
         ).days + 1
+        if inoculation_date is None:
+            raise ValueError(
+                "_check_exposure: inoculation_date must be provided when the infectious "
+                "period overlaps the exposure window — pass date1 (source scenario) or "
+                "date2 (spread scenario) via evaluate_criteria"
+            )
         # Clean pass: inoculation date is within the exposure window
-        if inoculation_date and exposure.first <= inoculation_date <= exposure.last:
+        if exposure.first <= inoculation_date <= exposure.last:
             return "pass", (
                 f"Inoculation date ({inoculation_date}) is within exposure window "
                 f"({exposure.first} → {exposure.last}); infectious period overlaps "
                 f"by {overlap_days} day(s)."
             )
-        # Overlap-only warn
-        if inoculation_date:
-            detail = (
-                f"Infectious period ({infectious_start} → {infectious_end}) "
-                f"overlaps exposure ({exposure.first} → {exposure.last}) "
-                f"by {overlap_days} day(s), but inoculation date "
-                f"({inoculation_date}) falls outside the window — borderline timing."
-            )
-        else:
-            detail = (
-                f"Infectious period ({infectious_start} → {infectious_end}) "
-                f"overlaps exposure ({exposure.first} → {exposure.last}) "
-                f"by {overlap_days} day(s) — overlap only, inoculation date not available."
-            )
-        return "warn", detail
+        # Overlap-only warn: inoculation date outside the exposure window
+        return "warn", (
+            f"Infectious period ({infectious_start} → {infectious_end}) "
+            f"overlaps exposure ({exposure.first} → {exposure.last}) "
+            f"by {overlap_days} day(s), but inoculation date "
+            f"({inoculation_date}) falls outside the window — borderline timing."
+        )
 
     # No overlap — calculate gap
     if infectious_end < exposure.first:
@@ -1109,23 +1138,7 @@ def run_ghosting_analysis(
     for scenario_name, stage_keys in SCENARIOS.items():
         log.append(f"\n--- {_RANGE_LABELS.get(scenario_name, scenario_name)} ---")
 
-        # VCA rule: when duration_days == 0 for a primary symptom, the entered date
-        # is the *observation* date (last day of the longest possible duration), not
-        # the onset. Back-calculate the effective onset for this tier's constants so
-        # that d1/d2 and the spread infectious window are computed correctly.
-        pri_k = _stage_key(stage_keys, "primary", "avg")
-        if case1_symptom.duration_days == 0 and case1_symptom.type in (
-            "Primary Chancre", "Historical Primary", "Ghosted Primary"
-        ):
-            _eff_dur = PRIMARY[pri_k]
-            effective_symptom = Symptom(
-                type=case1_symptom.type,
-                onset=case1_symptom.onset - timedelta(days=_eff_dur),
-                duration_days=_eff_dur,
-                anatomical_site=case1_symptom.anatomical_site,
-            )
-        else:
-            effective_symptom = case1_symptom
+        effective_symptom = resolve_zero_duration_symptom(case1_symptom)
 
         # Date calculations
         d1 = calc_date1(effective_symptom, stage_keys=stage_keys)
@@ -1201,9 +1214,8 @@ def run_ghosting_analysis(
             1 for crit in data.values()
             if _scenario_passes(crit) and crit["exposure"]["status"] == "pass"
         )
-        levels = {5: "Robust", 4: "Likely", 3: "Possible", 2: "Weak", 1: "Unlikely", 0: "Unrelated"}
-        assert passes in levels, f"Unexpected pass_count {passes}"
-        return levels[passes], passes
+        assert passes in _CONFIDENCE_LEVELS, f"Unexpected pass_count {passes}"
+        return _CONFIDENCE_LEVELS[passes], passes
 
     source_conf, source_pass_count = derive_confidence(source_range_data)
     spread_conf, spread_pass_count = derive_confidence(spread_range_data)
