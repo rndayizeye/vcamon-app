@@ -419,13 +419,9 @@ def select_case1(
     op_rank = symptom_rank(op_best.type)
     partner_rank = symptom_rank(partner_best.type)
 
-    # If ranks are equal, use onset date as tiebreaker
+    # If ranks are equal, OP always anchors — the investigation is OP-centered
     if op_rank == partner_rank:
-        # Earlier onset wins (higher priority)
-        if partner_best.onset < op_best.onset:
-            return "partner", partner_best, "OP", op_symptoms
-        else:
-            return "OP", op_best, "partner", partner_symptoms
+        return "OP", op_best, "partner", partner_symptoms
 
     # Different ranks - lower rank number wins
     if op_rank < partner_rank:

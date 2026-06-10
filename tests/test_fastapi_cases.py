@@ -638,16 +638,15 @@ def test_ghosting_analysis_endpoint(client: TestClient):
     assert response.status_code == 200
 
     payload = response.json()
-    assert payload["case1_name"] == "Samuel"
-    assert payload["case2_name"] == "Johnny Smith"
+    assert payload["case1_name"] == "Johnny Smith"
+    assert payload["case2_name"] == "Samuel"
     assert payload["case1_symptom"]["type"] == "Primary Chancre"
     assert payload["ghosted_source"]["lesion_type"] == "ghosted_source"
-    # Samuel's chancre (2/8) precedes Johnny's (3/5), so the supported direction is
-    # Samuel -> Johnny (the spread scenario). A ghosted source onto Johnny in
-    # January contradicts his actual March chancre, so the source scenario fails.
+    # OP priority on equal rank: Johnny is Case1. Samuel's earlier chancre (2/8)
+    # makes him the source; "Samuel → Johnny" is now the SOURCE scenario (Case2→Case1).
     assert (
-        payload["spread_scenarios"]["pass_count"]
-        >= payload["source_scenarios"]["pass_count"]
+        payload["source_scenarios"]["pass_count"]
+        >= payload["spread_scenarios"]["pass_count"]
     )
     assert "Samuel) is the SOURCE" in payload["verdict"]
     assert payload["suggested_records"] == []
@@ -709,18 +708,18 @@ def test_case_partner_ghosting_analysis_uses_saved_data(client: TestClient):
     assert response.status_code == 200
 
     payload = response.json()
-    assert payload["case1_name"] == "Samuel"
-    assert payload["case1_ref"] == "1"
-    assert payload["case2_ref"] == "OP"
-    assert payload["case1_symptom"]["onset"] == "2020-02-08"
+    assert payload["case1_name"] == "Johnny Smith"
+    assert payload["case1_ref"] == "OP"
+    assert payload["case2_ref"] == "1"
+    assert payload["case1_symptom"]["onset"] == "2020-03-05"
     assert "SOURCE" in payload["verdict"]
     assert len(payload["suggested_records"]) == 2
     assert {record["ghosting_type"] for record in payload["suggested_records"]} == {
         "Ghosting a Source",
         "Ghosting a Spread",
     }
-    assert payload["suggested_records"][0]["from_ref"] == "1"
-    assert payload["suggested_records"][0]["to_ref"] == "OP"
+    assert payload["suggested_records"][0]["from_ref"] == "OP"
+    assert payload["suggested_records"][0]["to_ref"] == "1"
 
 
 def test_case_ghostings_crud(client: TestClient):

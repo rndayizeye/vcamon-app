@@ -184,8 +184,9 @@ class TestSelectCase1:
         assert sym.type == "Primary Chancre"
 
     def test_equal_rank_op_wins(self):
-        op_sym = Symptom("Primary Chancre", date(2020, 1, 1), 0)
-        p_sym = Symptom("Primary Chancre", date(2020, 2, 1), 0)
+        # OP has the LATER onset — verifies OP wins on ties regardless of onset date
+        op_sym = Symptom("Primary Chancre", date(2020, 2, 1), 0)
+        p_sym = Symptom("Primary Chancre", date(2020, 1, 1), 0)
         role, _, _, _ = select_case1([op_sym], [p_sym])
         assert role == "OP"
 
@@ -459,7 +460,7 @@ class TestFullPipeline:
     def test_samuel_is_case1_source(
         self, johnny_chancre, samuel_chancre, samuel_exposure, johnny_exposure
     ):
-        """Samuel has earlier/higher-rank chancre so becomes Case1."""
+        """OP (Johnny) anchors on equal rank; Samuel is still the SOURCE."""
         result = run_ghosting_analysis(
             op_name="Johnny",
             op_symptoms=[johnny_chancre],
@@ -470,7 +471,7 @@ class TestFullPipeline:
             partner_exposure=samuel_exposure,
             partner_treatment_date=date(2020, 2, 17),
         )
-        assert result.case1_name == "Samuel"
+        assert result.case1_name == "Johnny"
         assert "SOURCE" in result.verdict or "AMBIGUOUS" in result.verdict
 
     def test_log_uses_case1_case2_language(
@@ -819,7 +820,7 @@ class TestSlide17DirectionEndToEnd:
             op_body_parts=["penis", "anus"],
             partner_body_parts=["anus", "penis"],
         )
-        assert result.case1_name == "Samuel"
+        assert result.case1_name == "Johnny"
         assert "Samuel) is the SOURCE" in result.verdict
         assert "Johnny) is a SPREAD" in result.verdict
         # Neither has a secondary symptom, so no primary-secondary overlap note.
@@ -915,9 +916,9 @@ class TestScenarioPasses:
 
 
 class TestNegativeTestFloor:
-    """Slide-17 scenario: Samuel (partner) is Case1.
-    partner_last_neg_test constrains Samuel's Date1 floor to last_neg − 90 days.
-    Expected-scenario d1 = 2020-01-18 (2020-02-08 − 21d avg incubation).
+    """Slide-17 scenario: OP-priority tiebreaking makes Johnny (OP) Case1.
+    op_last_neg_test constrains Johnny's Date1 floor to last_neg − 90 days.
+    Expected-scenario d1 = 2020-02-12 (2020-03-05 − 21d avg incubation).
     """
 
     def _run(self, **kwargs):
@@ -934,23 +935,23 @@ class TestNegativeTestFloor:
         )
 
     def test_floor_binds_when_last_neg_is_recent(self):
-        # floor = 2020-05-01 − 90d = 2020-02-01 > d1 (2020-01-18) → binds.
+        # floor = 2020-06-01 − 90d = 2020-03-03 > d1 (2020-02-12) → binds.
         no_floor = self._run()
-        with_floor = self._run(partner_last_neg_test=date(2020, 5, 1))
+        with_floor = self._run(op_last_neg_test=date(2020, 6, 1))
         assert with_floor.ghosted_source.onset > no_floor.ghosted_source.onset
         assert "[FLOOR]" in "\n".join(with_floor.log)
 
     def test_floor_does_not_bind_when_last_neg_is_old(self):
         # floor = 2018-01-01 − 90d = 2017-10-03, well before d1 → no change.
         no_floor = self._run()
-        with_old_floor = self._run(partner_last_neg_test=date(2018, 1, 1))
+        with_old_floor = self._run(op_last_neg_test=date(2018, 1, 1))
         assert with_old_floor.ghosted_source.onset == no_floor.ghosted_source.onset
         assert "[FLOOR]" not in "\n".join(with_old_floor.log)
 
     def test_floor_log_entry_names_case1_and_floor_date(self):
-        # Log must identify Case1 (Samuel) and the derived floor date (2020-02-01).
-        result = self._run(partner_last_neg_test=date(2020, 5, 1))
+        # Log must identify Case1 (Johnny) and the derived floor date (2020-03-03).
+        result = self._run(op_last_neg_test=date(2020, 6, 1))
         full_log = "\n".join(result.log)
         assert "[FLOOR]" in full_log
-        assert "Samuel" in full_log
-        assert "2020-02-01" in full_log
+        assert "Johnny" in full_log
+        assert "2020-03-03" in full_log
