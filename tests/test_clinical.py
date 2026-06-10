@@ -285,7 +285,7 @@ class TestCalcGhostedSpread:
 # Exposure criterion — scenario-specific Date1 / Date2 checks
 # ---------------------------------------------------------------------------
 class TestExposureCriterion:
-    def _run_source_exposure(self, infectious_start, infectious_end, exposure):
+    def _run_source_exposure(self, infectious_start, infectious_end, exposure, date1=None):
         """Helper: run exposure criterion for source scenario with exact period."""
 
         symptom = Symptom("Primary Chancre", date(2020, 5, 1), 0)
@@ -306,10 +306,11 @@ class TestExposureCriterion:
             op_exposure=None,
             case2_treatment_date=None,
             date2=None,
+            date1=date1,
         )
         return result["exposure"]
 
-    def _run_spread_exposure(self, infectious_start, infectious_end, exposure):
+    def _run_spread_exposure(self, infectious_start, infectious_end, exposure, date2=None):
         """Helper: run exposure criterion for spread scenario with exact period."""
 
         # Create symptom with exact infectious period
@@ -333,15 +334,17 @@ class TestExposureCriterion:
             case2_exposure=exposure,
             op_exposure=None,
             case2_treatment_date=None,
-            date2=None,
+            date2=date2,
         )
         return result["exposure"]
 
     # Source scenario tests
     def test_source_pass_date1_inside_window(self):
         window = Exposure(first=date(2020, 1, 1), last=date(2020, 3, 1))
-        # Infectious period completely within window
-        result = self._run_source_exposure(date(2020, 2, 1), date(2020, 2, 10), window)
+        # Infectious period completely within window; date1 (inoculation) also inside
+        result = self._run_source_exposure(
+            date(2020, 2, 1), date(2020, 2, 10), window, date1=date(2020, 2, 5)
+        )
         assert result["status"] == "pass"
 
     def test_source_fail_date1_far_outside_window(self):
@@ -381,7 +384,10 @@ class TestExposureCriterion:
     # Spread scenario tests
     def test_spread_pass_date2_inside_window(self):
         window = Exposure(first=date(2020, 1, 1), last=date(2020, 3, 1))
-        result = self._run_spread_exposure(date(2020, 2, 1), date(2020, 2, 10), window)
+        # date2 (transmission midpoint) inside window → clean pass
+        result = self._run_spread_exposure(
+            date(2020, 2, 1), date(2020, 2, 10), window, date2=date(2020, 2, 5)
+        )
         assert result["status"] == "pass"
 
     def test_spread_fail_date2_far_outside_window(self):
@@ -407,8 +413,9 @@ class TestExposureCriterion:
             last=source_period.end + timedelta(days=3),
         )
 
+        # date1 is the inoculation date — falls within the source window → clean pass
         source_result = self._run_source_exposure(
-            source_period.onset, source_period.end, window
+            source_period.onset, source_period.end, window, date1=date1
         )
 
         # Spread uses samuel's actual chancre period (much later)
@@ -588,12 +595,15 @@ class TestSpreadInfectiousWindowTreatmentClip:
 
     def test_treatment_truncates_infectious_window_to_fail(self):
         # Primary chancre 2/1–2/22 (21d). Exposure 2/20–2/28 overlaps the
-        # untreated window, but treatment on 2/5 cuts infectiousness to 2/1–2/5.
+        # untreated window; date2=2/21 (within window) gives a clean pass.
+        # Treatment on 2/5 cuts infectiousness to 2/1–2/5, no overlap → fail.
         sym = Symptom("Primary Chancre", date(2020, 2, 1), 21)
         window = Exposure(first=date(2020, 2, 20), last=date(2020, 2, 28))
+        # date2 inside the window so untreated counts as a clean pass
+        d2 = date(2020, 2, 21)
 
-        untreated = self._spread_exposure(sym, window, treatment=None)
-        treated = self._spread_exposure(sym, window, treatment=date(2020, 2, 5))
+        untreated = self._spread_exposure(sym, window, treatment=None, date2=d2)
+        treated = self._spread_exposure(sym, window, treatment=date(2020, 2, 5), date2=d2)
 
         assert untreated["status"] == "pass"
         assert treated["status"] == "fail"

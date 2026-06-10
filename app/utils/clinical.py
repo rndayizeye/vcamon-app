@@ -523,27 +523,42 @@ def _check_exposure(
     infectious_end: date,
     exposure: Optional[Exposure],
     scenario: str,
+    inoculation_date: Optional[date] = None,
 ) -> tuple[str, str]:
     """
-    Check if infectious period overlaps with exposure window.
-    Any intersection = transmission possible.
+    Check exposure window against the infectious period.
+
+    Clean pass (VCA rule): the inoculation date falls *within* the reported
+    exposure window (and the infectious period overlaps it).
+    Overlap-only warn: the infectious period overlaps but the inoculation date
+    is outside the window — transmission is possible but timing is borderline.
+    Fail: no overlap at all (subject to the near-miss warn margin).
     """
     if exposure is None or exposure.first is None or exposure.last is None:
         return "warn", "Exposure dates not recorded — cannot verify overlap."
 
-    # Check period intersection
     overlaps = infectious_start <= exposure.last and exposure.first <= infectious_end
 
     if overlaps:
         overlap_days = (
             min(infectious_end, exposure.last) - max(infectious_start, exposure.first)
         ).days + 1
-        return "pass", (
+        # Clean pass: inoculation date is within the exposure window
+        if inoculation_date and exposure.first <= inoculation_date <= exposure.last:
+            return "pass", (
+                f"Inoculation date ({inoculation_date}) is within exposure window "
+                f"({exposure.first} → {exposure.last}); infectious period overlaps "
+                f"by {overlap_days} day(s)."
+            )
+        # Overlap-only: infectious period overlaps but inoculation date is outside
+        return "warn", (
             f"Infectious period ({infectious_start} → {infectious_end}) "
             f"overlaps exposure ({exposure.first} → {exposure.last}) "
-            f"by {overlap_days} day(s)."
+            f"by {overlap_days} day(s), but inoculation date "
+            f"({inoculation_date}) falls outside the window — borderline timing."
         )
-        # Calculate gap
+
+    # No overlap — calculate gap
     if infectious_end < exposure.first:
         gap = (exposure.first - infectious_end).days
         direction = "before"
@@ -845,6 +860,7 @@ def evaluate_criteria(
     constant_key: str = "avg",
     case2_body_parts: Optional[list[str]] = None,
     stage_keys: dict | None = None,
+    date1: Optional[date] = None,
 ) -> dict:
     """
     Run all four criteria checks for one scenario.
@@ -889,8 +905,12 @@ def evaluate_criteria(
         if case1_treatment_date and case1_treatment_date < infectious_end:
             infectious_end = max(infectious_start, case1_treatment_date)
 
+    # Source: inoculation_date = date1 (when Case2 infected Case1).
+    # Spread: inoculation_date = date2 (when Case1 infected Case2).
+    inoculation_date = date1 if scenario == "source" else date2
     exp_status, exp_detail = _check_exposure(
-        infectious_start, infectious_end, exposure, scenario
+        infectious_start, infectious_end, exposure, scenario,
+        inoculation_date=inoculation_date,
     )
 
     # Anatomical compatibility (VCA criterion 2) is direction-aware: validate the
@@ -1082,21 +1102,39 @@ def run_ghosting_analysis(
     for scenario_name, stage_keys in SCENARIOS.items():
         log.append(f"\n--- {_RANGE_LABELS.get(scenario_name, scenario_name)} ---")
 
+        # VCA rule: when duration_days == 0 for a primary symptom, the entered date
+        # is the *observation* date (last day of the longest possible duration), not
+        # the onset. Back-calculate the effective onset for this tier's constants so
+        # that d1/d2 and the spread infectious window are computed correctly.
+        pri_k = _stage_key(stage_keys, "primary", "avg")
+        if case1_symptom.duration_days == 0 and case1_symptom.type in (
+            "Primary Chancre", "Historical Primary", "Ghosted Primary"
+        ):
+            _eff_dur = PRIMARY[pri_k]
+            effective_symptom = Symptom(
+                type=case1_symptom.type,
+                onset=case1_symptom.onset - timedelta(days=_eff_dur),
+                duration_days=_eff_dur,
+                anatomical_site=case1_symptom.anatomical_site,
+            )
+        else:
+            effective_symptom = case1_symptom
+
         # Date calculations
-        d1 = calc_date1(case1_symptom, stage_keys=stage_keys)
-        d2 = calc_date2(case1_symptom, stage_keys=stage_keys)
+        d1 = calc_date1(effective_symptom, stage_keys=stage_keys)
+        d2 = calc_date2(effective_symptom, stage_keys=stage_keys)
 
         # Lesion generation
         source_lesion = calc_ghosted_source(
             d1,
             assigned_to=case2_role,
-            derived_from=case1_symptom.type,
+            derived_from=effective_symptom.type,
             stage_keys=stage_keys,
         )
         spread_lesion = calc_ghosted_spread(
             d2,
             assigned_to=case2_role,
-            derived_from=case1_symptom.type,
+            derived_from=effective_symptom.type,
             stage_keys=stage_keys,
         )
 
@@ -1104,12 +1142,13 @@ def run_ghosting_analysis(
         source_crit = evaluate_criteria(
             scenario="source",
             lesion=source_lesion,
-            case1_symptom=case1_symptom,
+            case1_symptom=effective_symptom,
             case2_symptoms=case2_symptoms,
             case2_exposure=case2_exposure,
             op_exposure=op_exposure,
             case2_treatment_date=case2_treatment,
             date2=d2,
+            date1=d1,
             case1_body_parts=case1_body_parts,
             case2_name=case2_name,
             case1_treatment_date=case1_treatment,
@@ -1119,12 +1158,13 @@ def run_ghosting_analysis(
         spread_crit = evaluate_criteria(
             scenario="spread",
             lesion=spread_lesion,
-            case1_symptom=case1_symptom,
+            case1_symptom=effective_symptom,
             case2_symptoms=case2_symptoms,
             case2_exposure=case2_exposure,
             op_exposure=op_exposure,
             case2_treatment_date=case2_treatment,
             date2=d2,
+            date1=d1,
             case1_body_parts=case1_body_parts,
             case2_name=case2_name,
             case1_treatment_date=case1_treatment,
@@ -1148,7 +1188,12 @@ def run_ghosting_analysis(
 
     # --- Step 7: Confidence and Verdict ---
     def derive_confidence(data: dict[str, dict]) -> tuple[str, int]:
-        passes = sum(1 for crit in data.values() if _scenario_passes(crit))
+        # A tier counts only when all criteria pass-or-warn AND the exposure
+        # criterion is a clean pass (inoculation date inside the window).
+        passes = sum(
+            1 for crit in data.values()
+            if _scenario_passes(crit) and crit.get("exposure", {}).get("status") == "pass"
+        )
         levels = {5: "Robust", 4: "Likely", 3: "Possible", 2: "Weak", 1: "Unlikely", 0: "Unrelated"}
         assert passes in levels, f"Unexpected pass_count {passes}"
         return levels[passes], passes

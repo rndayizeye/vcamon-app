@@ -69,9 +69,11 @@ PRESETS: dict[str, dict | None] = {
 
     "Asymptomatic partner (ambiguous)": {
         "expected": (
-            "AMBIGUOUS. Alex has a primary chancre; Blake is positive but has no "
-            "symptoms, and the exposure window is symmetric — so dates alone cannot "
-            "say who infected whom. A realistic 'needs more evidence' case."
+            "AMBIGUOUS (Possible 3/5 each). Alex has a primary chancre with unknown "
+            "duration (duration=0), so the entered date is treated as the observation "
+            "date and the onset is back-calculated. Both source and spread scenarios "
+            "get 3 clean passes (inoculation date within the Jan–Feb window for the "
+            "aggressive, expected, and fast-infection tiers). Manual review required."
         ),
         "a": {
             "name": "Alex",
@@ -147,16 +149,19 @@ PRESETS: dict[str, dict | None] = {
             "Comprehensive mode ranking (verdict direction first, then confidence):\n"
             "  1. Johannes — SOURCE, Likely (4/5). Secondary predates Carmela's primary by "
             "     4 days; long shared window; timing is decisive per the NCSDDC worked example.\n"
-            "  2. Nadia — SOURCE, Likely (4/5). Her June secondary is consistent with a "
-            "     March infection; wide natural-history ranges give 4/5 tiers exposure overlap. "
-            "     Ranking ties with Johannes — use the per-pair detail to compare criteria.\n"
-            "  3. Marcus — SOURCE, Possible (3/5). Primary ~7 weeks before Carmela's; "
-            "     plausible but fewer tiers align.\n"
+            "  2. Marcus — SOURCE, Possible (3/5). Spread passes 3/5 tiers; inoculation "
+            "     date (Date2=Mar 22) falls within the shared exposure window for the 3 "
+            "     faster tiers; conservative and slow-infection tiers fail natural order.\n"
+            "  3. Nadia — AMBIGUOUS (Possible 3/5 each). Source and spread both score 3/5: "
+            "     the conservative and slow-infection tiers fall outside the Jan–Mar window "
+            "     for source (d1=Dec), and reverse the timeline for spread (ghosted chancre "
+            "     starts after Nadia's June secondary). Manual review required.\n"
             "  4. Derek — UNRELATED (0/5). Exposure began after Carmela's treatment; "
             "     neither direction is supported in any tier.\n\n"
-            "Teaching point: Nadia's high source confidence despite a June secondary "
-            "illustrates why wide natural-history ranges can produce ambiguous rankings — "
-            "always read the per-pair criteria detail alongside the summary table."
+            "Teaching point: Nadia's demotion from Likely to AMBIGUOUS demonstrates the "
+            "clean-pass exposure rule — the inoculation date must fall *within* the "
+            "exposure window, not just the infectious period. Overlap-only counts as a "
+            "warn and does not increment the confidence score."
         ),
         "op": {
             "name": "Carmela",
