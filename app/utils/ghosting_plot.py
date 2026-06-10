@@ -73,7 +73,7 @@ def _date_range(items: list) -> tuple[date, date]:
 def _base_layout(title: str, x_range: tuple, p1_label: str, p2_label: str) -> dict:
     return dict(
         title=dict(text=title, font=dict(size=13)),
-        height=260,
+        height=300,
         xaxis=dict(
             type="date",
             range=[x_range[0].isoformat(), x_range[1].isoformat()],
@@ -93,7 +93,9 @@ def _base_layout(title: str, x_range: tuple, p1_label: str, p2_label: str) -> di
         ),
         legend=dict(
             orientation="h",
-            y=1.18,
+            yanchor="top",
+            y=-0.28,
+            xanchor="left",
             x=0,
             font=dict(size=10),
             bgcolor="rgba(255,255,255,0.7)",
@@ -102,7 +104,7 @@ def _base_layout(title: str, x_range: tuple, p1_label: str, p2_label: str) -> di
         hovermode="closest",
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
-        margin=dict(l=10, r=10, t=60, b=50),
+        margin=dict(l=10, r=10, t=50, b=100),
     )
 
 
