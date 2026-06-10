@@ -32,7 +32,7 @@ Add one row per symptom. The fields map directly to VCA chart inputs:
 |---|---|
 | **Symptom type** | The stage of the lesion observed or reported. "Historical Primary" = patient recalls a chancre but it has healed. "Ghosted Primary/Secondary" = derived, not observed — only the engine should generate these, not you. |
 | **Onset date** | The date the lesion *began*, per patient report. If the patient presented to the clinic and the chancre was observed that day (not self-reported), enter the exam date and set Duration to 0 — the engine will back-calculate a probable onset using the max primary duration. |
-| **Duration (days)** | How many days the lesion lasted. Enter **0** to tell the engine to use the average for that stage. Enter a known value (e.g. 7 days) if it's charted. |
+| **Duration (days)** | How many days the lesion lasted. Enter **0** when the exact duration is unknown — the engine treats the entered date as the observation date (last day of the lesion) and uses the maximum primary duration (35 days) to back-calculate probable onset. Enter a known value (e.g. 7 days) if it's charted. |
 | **Anatomical site** | Required only for the anatomical compatibility criterion. Select the site of a primary chancre. Leave blank for secondary symptoms. |
 
 ### Exposure window
