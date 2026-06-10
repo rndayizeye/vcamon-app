@@ -960,7 +960,7 @@ def _render_criteria(criteria: dict) -> None:
 # Single-pair results renderer
 # ---------------------------------------------------------------------------
 
-def _show_pair_result(result, inp: dict, show_feedback: bool = True) -> None:
+def _show_pair_result(result, inp: dict, show_feedback: bool = True, op_name: str | None = None) -> None:
     mode = st.session_state.get("qv_mode", "Traditional VCA")
 
     p1_is_a = result.case1_name == inp["a_name"]
@@ -974,6 +974,22 @@ def _show_pair_result(result, inp: dict, show_feedback: bool = True) -> None:
     x_range = (anchor - timedelta(days=274), anchor + timedelta(days=91))
 
     sc, sp = result.source_scenarios, result.spread_scenarios
+
+    # In multi-partner mode a contact may have an earlier/higher-ranked symptom and
+    # become Case1. The engine's "source"/"spread" are then relative to the contact,
+    # not the OP. Re-orient so SOURCE always means "contact infected OP" and SPREAD
+    # means "OP infected contact" — the perspective the DIS expects.
+    contact_is_case1 = op_name is not None and result.case1_name != op_name
+    if contact_is_case1:
+        _src_sc, _spr_sc = sp, sc          # engine spread = OP source; engine source = OP spread
+        _src_key, _spr_key = "spread", "source"
+        _src_who = result.case1_name       # contact is the source
+        _spr_who = result.case2_name       # OP is the spread target
+    else:
+        _src_sc, _spr_sc = sc, sp
+        _src_key, _spr_key = "source", "spread"
+        _src_who = result.case2_name
+        _spr_who = result.case1_name
 
     # PDF download
     _pdf_cache_key = (id(result), mode)
@@ -994,7 +1010,7 @@ def _show_pair_result(result, inp: dict, show_feedback: bool = True) -> None:
     # Verdict
     if mode == "Traditional VCA":
         src_ok, spr_ok, _verdict_text, _ = _trad_verdict_strings(
-            sc, sp, result.case1_name, result.case2_name
+            _src_sc, _spr_sc, _spr_who, _src_who
         )
         if src_ok and not spr_ok:
             st.success(f"**{_verdict_text}**")
@@ -1005,16 +1021,16 @@ def _show_pair_result(result, inp: dict, show_feedback: bool = True) -> None:
         else:
             st.error(f"**{_verdict_text}**")
 
-        _sc_warns, _sp_warns = _warn_count(sc), _warn_count(sp)
+        _sc_warns, _sp_warns = _warn_count(_src_sc), _warn_count(_spr_sc)
         c1, c2 = st.columns(2)
         c1.metric(
-            f"Source — did {result.case2_name} infect {result.case1_name}?",
+            f"Source — did {_src_who} infect {_spr_who}?",
             "✓ Pass" if src_ok else "✗ Fail",
             delta=f"{_sc_warns} warning(s)" if _sc_warns else None,
             delta_color="off",
         )
         c2.metric(
-            f"Spread — did {result.case1_name} infect {result.case2_name}?",
+            f"Spread — did {_spr_who} infect {_src_who}?",
             "✓ Pass" if spr_ok else "✗ Fail",
             delta=f"{_sp_warns} warning(s)" if _sp_warns else None,
             delta_color="off",
@@ -1033,17 +1049,17 @@ def _show_pair_result(result, inp: dict, show_feedback: bool = True) -> None:
         else:
             st.success(f"**{verdict}**")
 
-        _sc_warns, _sp_warns = _warn_count(sc), _warn_count(sp)
+        _sc_warns, _sp_warns = _warn_count(_src_sc), _warn_count(_spr_sc)
         c1, c2 = st.columns(2)
         c1.metric(
-            f"Source — did {result.case2_name} infect {result.case1_name}?",
-            f"{sc.confidence} · {sc.pass_count}/5 tiers",
+            f"Source — did {_src_who} infect {_spr_who}?",
+            f"{_src_sc.confidence} · {_src_sc.pass_count}/5 tiers",
             delta=f"{_sc_warns} warning(s)" if _sc_warns else None,
             delta_color="off",
         )
         c2.metric(
-            f"Spread — did {result.case1_name} infect {result.case2_name}?",
-            f"{sp.confidence} · {sp.pass_count}/5 tiers",
+            f"Spread — did {_spr_who} infect {_src_who}?",
+            f"{_spr_sc.confidence} · {_spr_sc.pass_count}/5 tiers",
             delta=f"{_sp_warns} warning(s)" if _sp_warns else None,
             delta_color="off",
         )
@@ -1136,10 +1152,12 @@ def _show_pair_result(result, inp: dict, show_feedback: bool = True) -> None:
     st.subheader("VCA Chart")
 
     if p1_symptom:
+        _ghosted_src = result.ghosted_spread if contact_is_case1 else result.ghosted_source
+        _ghosted_spr = result.ghosted_source if contact_is_case1 else result.ghosted_spread
         d_src, d_spr = st.columns(2)
         for column, scenario, label, lesion in [
-            (d_src, "source", f"If {result.case2_name} infected {result.case1_name}", result.ghosted_source),
-            (d_spr, "spread", f"If {result.case1_name} infected {result.case2_name}", result.ghosted_spread),
+            (d_src, _src_key, f"If {_src_who} infected {_spr_who}", _ghosted_src),
+            (d_spr, _spr_key, f"If {_spr_who} infected {_src_who}", _ghosted_spr),
         ]:
             with column:
                 st.markdown(f"**{label}**")
@@ -1175,9 +1193,9 @@ def _show_pair_result(result, inp: dict, show_feedback: bool = True) -> None:
     )
     tab_src, tab_spr = st.tabs(["Source scenario", "Spread scenario"])
     with tab_src:
-        _render_criteria(result.criteria["source"])
+        _render_criteria(result.criteria[_src_key])
     with tab_spr:
-        _render_criteria(result.criteria["spread"])
+        _render_criteria(result.criteria[_spr_key])
 
     with st.expander("Step-by-step log"):
         st.code("\n".join(result.log), language=None)
@@ -1294,13 +1312,21 @@ def _show_multi_results() -> None:
             src_label = partner_sc.confidence
             tiers_label = f"{partner_sc.pass_count}/5"
 
+        if mode == "Traditional VCA":
+            _c1_is_contact = r.case1_name != op_name
+            if _c1_is_contact:
+                _v_text = _trad_verdict_strings(sp, sc, r.case2_name, r.case1_name)[2]
+            else:
+                _v_text = _trad_verdict_strings(sc, sp, r.case1_name, r.case2_name)[2]
+        else:
+            _v_text = r.verdict
+
         table_rows.append({
             "Contact": contact_name,
             "Direction": _VDIR_LABEL[vdir],
             f"Contact → {op_name}": src_label,
             "Tiers": tiers_label,
-            "Verdict": _trad_verdict_strings(sc, sp, r.case1_name, r.case2_name)[2]
-                       if mode == "Traditional VCA" else r.verdict,
+            "Verdict": _v_text,
         })
 
     st.dataframe(pd.DataFrame(table_rows), use_container_width=True, hide_index=True)
@@ -1358,7 +1384,7 @@ def _show_multi_results() -> None:
             f"{'🥇' if i == 0 else f'#{i + 1}'} {contact_name} — {badge}",
             expanded=(i == 0),
         ):
-            _show_pair_result(item["result"], item["inp"], show_feedback=False)
+            _show_pair_result(item["result"], item["inp"], show_feedback=False, op_name=op_name)
 
     # Shared feedback at the bottom — one row per contact, single submit
     st.divider()
