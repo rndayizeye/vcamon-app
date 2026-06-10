@@ -301,21 +301,41 @@ performed manually.
 
 ---
 
-## 13. Near-term next actions
+## 13. Draft abstract (v1 — 2026-06-08)
+
+**Background:** Syphilis incidence in the United States increased approximately 80% between 2018 and 2022, intensifying demand for reproducible, scalable case investigation methods. Visual Case Analysis (VCA) is a seven-step source-spread reasoning methodology developed by the National Coalition of STD Directors that enables disease intervention specialists to determine transmission plausibility between index cases and partners through structured temporal analysis of lesion windows. In practice, VCA is performed manually, making it difficult to standardize across investigators or extend to high-caseload surveillance environments.
+
+**Objective:** To describe the design and implementation of a computational engine that operationalizes the VCA ghosting methodology as deterministic, explainable, framework-free software.
+
+**Methods:** The engine accepts case and partner clinical data — symptom onset, lesion type, exposure windows, and laboratory staging — and executes VCA's seven-step pipeline: inferring key clinical dates, constructing ghosted source and spread lesion windows from published syphilis natural history constants, evaluating four transmission criteria, and generating a structured plausibility verdict. The engine is implemented in pure Python with no framework dependencies, enabling deployment across interactive interfaces, web APIs, and batch analytics pipelines.
+
+**Results:** For each evaluated case-partner dyad, the engine produces deterministic, auditable outputs: source and spread plausibility tiers, a confidence score, and per-criterion rationale strings. All logic is unit-tested and decoupled from persistence and presentation layers.
+
+**Conclusions:** This engine translates expert VCA reasoning into a standardized, reproducible computational form, creating a foundation for consistent case management and future surveillance-scale source-spread analysis. Its output structure is designed to align with the `qualitativeRisk` element of the HL7 FHIR RiskAssessment resource to support integration with public health data exchange systems.
+
+_Confirmed: seven-step pipeline (matches 7 key entry points in code); four transmission criteria (exposure overlap, anatomical compatibility, latency to secondary, natural progression order) each evaluated across five range scenarios._
+
+---
+
+## 14. Near-term next actions
 
 - [ ] Draft a 150-250 word abstract for Paper 1
 - [x] Build the initial search strings in PubMed and Google Scholar — done 2026-05-31
 - [ ] Set up Zotero collections and tags — import from `PAPER1_ARTICLE_TRACKER.csv`
-- [x] Create a screening / abstraction spreadsheet — `PAPER1_ARTICLE_TRACKER.csv` populated 2026-05-31
-- [x] Identify 10-15 anchor papers for the first pass — 17 confirmed sources entered 2026-05-31
+- [x] Create a screening / abstraction spreadsheet — `PAPER1_ARTICLE_TRACKER.csv` populated 2026-05-31; 30 sources as of 2026-06-07
+- [x] Identify 10-15 anchor papers for the first pass — 24 confirmed sources entered 2026-05-31
 - [ ] Draft a background section skeleton from the literature buckets
-- [ ] Pass 2 gap fill: CDC STI Treatment Guidelines 2021 (natural history constants); temporal reasoning methods paper (Arden Syntax / GLARE / clinical guidelines); rule-based computable case identification (CARPEDIEM-style)
+- [x] Pass 2 gap fill — completed 2026-06-07:
+  - [x] CDC STI Treatment Guidelines 2021 (Workowski et al.) — `workowski_2021_sti_guidelines`; natural history constants confirmed (incubation 10–90 days; primary lesion 2–6 weeks; secondary onset 2–24 weeks after primary; early latent = within 1 year)
+  - [x] Temporal reasoning methods — `peleg_2003_comparing_cig_models` (JAMIA; canonical CIG model comparison) + `madkour_2016_temporal_data_clinical` (CMPB review; Allen's interval algebra)
+  - [x] Rule-based computable phenotyping — `banda_2018_electronic_phenotyping` (Annual Review BDS; primary) + `richesson_2013_ehr_phenotyping_collaboratory` (JAMIA; definitional anchor)
+  - [x] FHIR RiskAssessment resource — `hl7_2019_fhir_r4_riskassessment`; resource confirmed in R4; strong fit for VCA outputs; gap: probability[x] needs ordinal mapping or custom extension for tier scores
 - [ ] **CRITICAL ACTION: locate CDC 1992 VCA DIS training document** — contact CDC archives or NCSDDC/NACCHO directly
-- [ ] Full-text abstraction: complete "To abstract" High-priority papers in tracker (pavia_2019, keshavjee_2022, cope_2022, cdc_1992, rankin_2025)
-- [ ] Verify FHIR RiskAssessment resource as output representation candidate
+- [ ] Full-text abstraction: complete "To abstract" High-priority papers in tracker (pavia_2019, keshavjee_2022, cope_2022, cdc_1992, rankin_2025, workowski_2021, peleg_2003, banda_2018)
 - [ ] Run formal PubMed queries B1/B2/C1/C2/D1/D2 (exact strings in § 5 of PAPER1_LITERATURE_SEARCH.md) with filter logs before submission
 - [x] ~~Recent syphilis surveillance 2020–2026~~ — resolved by Rankin 2025
 - [x] ~~DIS history backbone~~ — resolved by Pavia 2019 + Keshavjee 2022
+- [x] ~~FHIR RiskAssessment verification~~ — resolved 2026-06-07
 
 ---
 
@@ -338,6 +358,15 @@ performed manually.
   - **D (FHIR/Interoperability):** Ward 2017 NBS workflow; Vorisek 2022 FHIR systematic review; HL7 eCR IG v2.1.2; CDC 2023 FHIR Playbook
 - Pass 2 gaps identified: peer-reviewed VCA methodology companion; CDC STI guidelines 2021 for natural history constants; FHIR RiskAssessment resource verification; additional syphilis surveillance recency (2020–2026); computable phenotyping methods papers for Domain B.
 - Next action: import tracker rows into Zotero; obtain full texts for 9 High-priority papers marked "To abstract"; run Pass 2 targeted gap-fill searches.
+
+### 2026-06-07
+- Pass 2 gap-fill completed via AI-assisted web search (WebSearch + WebFetch).
+- 6 new sources added; tracker now has 30 entries.
+- **Gap 1 (CDC STI Guidelines):** `workowski_2021_sti_guidelines` — MMWR 2021, DOI 10.15585/mmwr.rr7004a1, PMID 34292926. Natural history constants confirmed: incubation 10–90 days, primary lesion 2–6 weeks, secondary onset 2–24 weeks after primary, early latent = within 1 year.
+- **Gap 2 (Temporal reasoning):** `peleg_2003_comparing_cig_models` (JAMIA 2003, PMID 12509357) — canonical CIG model comparison; shows all six formalisms support start-time constraints but diverge on end-time/duration, directly framing the VCA engine's temporal constraint approach. Secondary: `madkour_2016_temporal_data_clinical` (CMPB 2016, PMID 27040831) — Allen's interval algebra review.
+- **Gap 3 (Computable phenotyping):** `banda_2018_electronic_phenotyping` (Annual Review BDS 2018, PMID 31218278) — primary; rule-based phenotyping paradigm, >95% accuracy for structured-criteria conditions. Secondary: `richesson_2013_ehr_phenotyping_collaboratory` (JAMIA 2013) — definitional anchor for "computable phenotype."
+- **Gap 4 (FHIR RiskAssessment):** `hl7_2019_fhir_r4_riskassessment` — resource verified in R4; prediction.qualitativeRisk + prediction.rationale + basis cover the VCA output structure; minor gap on ordinal tier scores (needs extension or mapping).
+- Remaining open gaps: CDC 1992 VCA training document (still not located); formal PubMed query execution for reproducible search log.
 
 ### 2026-05-31 (Session 2 — integrated from parallel chat)
 - Integrated 7 new sources from a parallel research session into `PAPER1_ARTICLE_TRACKER.csv`; tracker now has 24 entries.
