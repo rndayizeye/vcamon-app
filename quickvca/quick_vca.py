@@ -170,6 +170,7 @@ def _partner_defaults(n: int) -> dict:
         f"qv_p{n}_el":     None,
         f"qv_p{n}_sex":    [],
         f"qv_p{n}_tx":     None,
+        f"qv_p{n}_last_neg": None,
         # OP's side of this specific pair (exposure and sex type differ per contact)
         f"qv_p{n}_op_ef":  None,
         f"qv_p{n}_op_el":  None,
@@ -190,6 +191,8 @@ _DEFAULTS: dict = {
     "qv_b_sex": [],
     "qv_a_tx": None,
     "qv_b_tx": None,
+    "qv_a_last_neg": None,
+    "qv_b_last_neg": None,
     "qv_investigation_mode": "Single Pair",
     "qv_ver": 0,
     "qv_feedback": [],
@@ -469,7 +472,14 @@ def _person_inputs(side: str, heading: str, show_exposure_sex: bool = True) -> d
     tx = st.date_input(
         "Treatment date", value=st.session_state[f"qv_{side}_tx"], key=f"tx_{side}_{ver}", format="MM/DD/YYYY"
     )
-    return {"name": name, "df": df, "ef": ef, "el": el, "sex": sex, "tx": tx}
+    last_neg_test = st.date_input(
+        "Last negative test",
+        value=st.session_state.get(f"qv_{side}_last_neg"),
+        key=f"last_neg_{side}_{ver}",
+        format="MM/DD/YYYY",
+        help="Optional — constrains the earliest possible inoculation date.",
+    )
+    return {"name": name, "df": df, "ef": ef, "el": el, "sex": sex, "tx": tx, "last_neg_test": last_neg_test}
 
 
 if _inv_mode == "Single Pair":
@@ -570,6 +580,8 @@ if run_btn:
                 partner_treatment_date=b["tx"],
                 op_body_parts=_body_parts(a_vals),
                 partner_body_parts=_body_parts(b_vals),
+                op_last_neg_test=a["last_neg_test"] or None,
+                partner_last_neg_test=b["last_neg_test"] or None,
             )
         except ValueError as exc:
             st.error(f"Cannot run analysis: {exc}")
@@ -623,6 +635,8 @@ if run_btn:
                     partner_treatment_date=_cp["tx"],
                     op_body_parts=_body_parts(_a_vals),
                     partner_body_parts=_body_parts(_cp_vals),
+                    op_last_neg_test=a["last_neg_test"] or None,
+                    partner_last_neg_test=_cp["last_neg_test"] or None,
                 )
                 multi_results.append({
                     "n": _ci,
