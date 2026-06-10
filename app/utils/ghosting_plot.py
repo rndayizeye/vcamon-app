@@ -26,11 +26,11 @@ from datetime import date, timedelta
 import plotly.graph_objects as go
 
 from app.utils.clinical import (
-    PRIMARY,
     Exposure,
     GhostedLesion,
     GhostingResult,
     Symptom,
+    resolve_zero_duration_symptom,
 )
 
 # Shared colour palette — matches 08_vca_chart.py and React VcaChartPage
@@ -179,21 +179,7 @@ def build_scenario_figure(
         else f"Spread scenario — if {p1_name} infected {p2_name}"
     )
 
-    # For duration_days=0 primaries the entered date is the observation date
-    # (last day), not the onset. Back-calculate to match the "expected" tier
-    # that the plot displays (ghosted_source/spread come from the expected tier).
-    if p1_symptom.duration_days == 0 and p1_symptom.type in (
-        "Primary Chancre", "Historical Primary", "Ghosted Primary"
-    ):
-        _eff_dur = PRIMARY["avg"]
-        plot_p1_symptom = Symptom(
-            type=p1_symptom.type,
-            onset=p1_symptom.onset - timedelta(days=_eff_dur),
-            duration_days=_eff_dur,
-            anatomical_site=p1_symptom.anatomical_site,
-        )
-    else:
-        plot_p1_symptom = p1_symptom
+    plot_p1_symptom = resolve_zero_duration_symptom(p1_symptom)
 
     # --- Determine x axis range ---
     if x_range is not None:
