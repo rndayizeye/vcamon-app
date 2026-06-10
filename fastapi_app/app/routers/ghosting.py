@@ -334,6 +334,8 @@ def analyze_ghosting(
             partner_treatment_date=payload.partner_treatment_date,
             op_body_parts=payload.op_body_parts,
             partner_body_parts=payload.partner_body_parts,
+            op_last_neg_test=payload.op_last_negative_test,
+            partner_last_neg_test=payload.partner_last_negative_test,
         )
     except ValueError as exc:
         raise HTTPException(
@@ -446,6 +448,8 @@ def analyze_case_partner_ghosting(
             partner_treatment_date=partner_treatment_date,
             op_body_parts=op_body_parts,
             partner_body_parts=partner_body_parts,
+            op_last_neg_test=payload.op_last_negative_test,
+            partner_last_neg_test=payload.partner_last_negative_test,
         )
         case1_role, _, _, _ = select_case1(op_symptoms, partner_symptoms)
     except ValueError as exc:

@@ -1073,6 +1073,8 @@ def run_ghosting_analysis(
     partner_treatment_date: Optional[date],
     op_body_parts: Optional[list[str]] = None,
     partner_body_parts: Optional[list[str]] = None,
+    op_last_neg_test: Optional[date] = None,
+    partner_last_neg_test: Optional[date] = None,
 ) -> GhostingResult:
     """
     Full ghosting analysis pipeline following VCA methodology, executing
@@ -1121,6 +1123,7 @@ def run_ghosting_analysis(
     case2_exposure = partner_exposure if case1_role == "OP" else op_exposure
     case1_body_parts = (op_body_parts or []) if case1_role == "OP" else (partner_body_parts or [])
     case2_body_parts = (partner_body_parts or []) if case1_role == "OP" else (op_body_parts or [])
+    case1_last_neg_test = op_last_neg_test if case1_role == "OP" else partner_last_neg_test
 
     log.append(
         f"Step 1: Anchor patient — {case1_name} ({case1_role}) has the highest-ranked "
@@ -1142,6 +1145,15 @@ def run_ghosting_analysis(
 
         # Date calculations
         d1 = calc_date1(effective_symptom, stage_keys=stage_keys)
+        if case1_last_neg_test:
+            floor = case1_last_neg_test - timedelta(days=INCUBATION["max"])
+            if d1 < floor:
+                log.append(
+                    f"  [FLOOR] Date1 ({d1}) precedes the infectious floor derived from "
+                    f"{case1_name}'s last negative test ({case1_last_neg_test} − 90 d = {floor}). "
+                    f"Flooring Date1 to {floor}."
+                )
+                d1 = floor
         d2 = calc_date2(effective_symptom, stage_keys=stage_keys)
 
         # Lesion generation
