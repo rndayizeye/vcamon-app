@@ -1,12 +1,14 @@
 # Quick VCA — Getting Started
 
-**Live app:** https://quickghost.streamlit.app
+> **Live app: [quickghost.streamlit.app](https://quickghost.streamlit.app)**
 
 Quick VCA is a sandbox for testing the NCSDDC ghosting methodology against real-world timing scenarios. It runs the same clinical engine used in VCA Monitor, but requires no login and stores nothing — you enter two people's data and get an immediate result.
 
 ---
 
 ## Before you begin
+
+**Both people entered are assumed to be syphilis-positive.** The engine constructs lesion windows and infectious periods from clinical constants — it does not validate whether transmission was biologically possible in the first place. If one person has never been diagnosed, the app will still run; the result simply will not be meaningful.
 
 **This tool is NOT HIPAA compliant.** You must acknowledge this on first load. Use fabricated or fully anonymized scenarios only — no names, real DOBs, or any PHI.
 
