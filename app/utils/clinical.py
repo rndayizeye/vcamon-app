@@ -395,7 +395,7 @@ def select_case1(
 ) -> tuple[str, Symptom, str, list[Symptom]]:
     """
     Compare OP and partner symptoms using the ghosting hierarchy.
-    If ranks are equal, earlier onset becomes Case1.
+    If ranks are equal, the OP anchors as Case1 (the investigation is OP-centered).
     Returns (case1_role, case1_symptom, case2_role, case2_symptoms).
     """
 
@@ -1073,8 +1073,10 @@ def run_ghosting_analysis(
     partner_last_neg_test: Optional[date] = None,
 ) -> GhostingResult:
     """
-    Full ghosting analysis pipeline following VCA methodology, executing
-    across three ranges: Aggressive, Expected, and Conservative.
+    Full ghosting analysis pipeline following VCA methodology, executing across
+    five natural-history tiers: optimistic (min), expected (avg), conservative
+    (max), fast-infection (min incubation, max disease), and slow-infection
+    (max incubation, min disease).
     """
     log: list[str] = ["=== VCA Range-Based Ghosting Analysis ===", ""]
 

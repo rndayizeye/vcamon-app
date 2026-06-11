@@ -158,7 +158,7 @@ export const CRITERIA_META: Record<string, { label: string; description: string 
   exposure: {
     label: 'Exposure overlap',
     description:
-      "The alleged source's infectious period must overlap the reported contact window. No overlap means transmission was physically impossible on this timeline.",
+      "The alleged source's infectious period must overlap the reported contact window, and — for a clean pass — the estimated inoculation date must fall within that window. Overlap without the inoculation date inside the window is a warn (borderline timing); no overlap at all means transmission was physically impossible on this timeline.",
   },
   exposure_modality: {
     label: 'Anatomical compatibility',
