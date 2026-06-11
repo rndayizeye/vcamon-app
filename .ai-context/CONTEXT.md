@@ -6,13 +6,13 @@ _Read this before touching any code. Updated rarely — edit only when stack or 
 ## What this project is
 
 A Streamlit contact tracing and case management web app for syphilis disease
-intervention work. It implements the NCSDDC Visual Case Analysis (VCA) ghosting
-methodology — a 7-step pipeline that calculates whether one person infected another
-by constructing "ghosted" lesion windows from syphilis natural history constants.
+intervention work. It implements the CDC Visual Case Analysis (VCA) ghosting methodology — a 7-step
+pipeline that calculates whether one person infected another by constructing "ghosted"
+lesion windows from syphilis natural history constants.
 
 Rebuilt from two sources:
 - `vcamon-launch-v1.xlsm` — legacy Excel workbook (field names, workflow structure)
-- Fussell (2022) NCSDDC VCA Training — clinical methodology
+- Fussell (2022) NCSD VCA Training — clinical reference (methodology codified by CDC 1992)
 
 Live beta: https://visualcaseanalysis.streamlit.app
 Repo: rndayizeye/vcamon-app

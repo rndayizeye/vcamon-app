@@ -2,7 +2,7 @@
 
 > **Live app: [quickghost.streamlit.app](https://quickghost.streamlit.app)**
 
-Quick VCA is a sandbox for testing the NCSDDC ghosting methodology against real-world timing scenarios. It runs the same clinical engine used in VCA Monitor, but requires no login and stores nothing — you enter two people's data and get an immediate result.
+Quick VCA is a sandbox for testing the CDC VCA ghosting methodology against real-world timing scenarios. It runs the same clinical engine used in VCA Monitor, but requires no login and stores nothing — you enter two people's data and get an immediate result.
 
 ---
 
@@ -57,7 +57,7 @@ If the person had a documented negative treponemal or RPR test before symptoms, 
 
 ## Analysis modes
 
-**Traditional VCA** runs the four criteria once, using average natural-history constants — this is the standard NCSDDC methodology you recognize from training.
+**Traditional VCA** runs the four criteria once, using average natural-history constants — this is the standard CDC VCA methodology you recognize from training.
 
 **Comprehensive** re-runs all four criteria five times, each time using a different set of constants (minimum, average, maximum, fast-infection/slow-disease, slow-infection/fast-disease). It reports a tier score (0–5) and a confidence label. Use this when you want to see how sensitive the conclusion is to timing assumptions, or when a case is borderline under average constants alone.
 
@@ -77,7 +77,7 @@ Understanding what the app is actually computing helps you evaluate whether its 
 
 **The four criteria.** Both scenarios are evaluated against:
 
-1. **Exposure overlap** — the relevant infectious window must intersect the reported contact dates. A miss of ≤10 days warns rather than fails (half the average incubation, per the NCSDDC margin).
+1. **Exposure overlap** — the relevant infectious window must intersect the reported contact dates. A miss of ≤10 days warns rather than fails (half the average incubation, per the standard VCA margin).
 2. **Anatomical compatibility** — each person's primary chancre site must match a body part they reported using. Evaluated for both parties independently.
 3. **Latency to secondary** — if the comparison patient has secondary symptoms, enough time (0–70 days) must separate the ghosted chancre's end from secondary onset.
 4. **Natural progression order** — the comparison patient's symptoms must follow the expected sequence. If secondary symptoms appear before the ghosted primary window resolves, the scenario violates known disease biology.
@@ -108,7 +108,7 @@ Known limitation: when both people have a confirmed primary chancre, double-chec
 
 ## Presets
 
-The sidebar includes built-in scenarios for testing. Each preset states the expected outcome so you can spot if the engine gives an unexpected answer. The **Carmela/Johannes** preset is drawn from NCSDDC training slide 17. Use presets to orient yourself before entering your own scenarios.
+The sidebar includes built-in scenarios for testing. Each preset states the expected outcome so you can spot if the engine gives an unexpected answer. The **Carmela/Johannes** preset is drawn from NCSD training slide 17. Use presets to orient yourself before entering your own scenarios.
 
 ---
 

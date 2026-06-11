@@ -107,7 +107,7 @@ with st.expander("Glossary — VCA terms", expanded=False):
 | Term | Meaning |
 |------|---------|
 | **OP / Original Patient** | The index case — the first diagnosed patient in the cluster from which the investigation starts |
-| **VCA** | Visual Case Analysis — NCSDDD methodology for establishing probable transmission links |
+| **VCA** | Visual Case Analysis — CDC DIS field methodology for establishing probable transmission links |
 | **Ghosting / Ghosted lesion** | A calculated lesion window inferred from clinical constants when the lesion was not directly observed |
 | **MAP** | Major Analytical Points — 46-item systematic checklist for case documentation |
 | **Interview period** | Look-back window: 125 days (primary) or 237 days (secondary) before symptom onset |

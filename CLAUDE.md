@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this project is
 
-A syphilis contact-tracing and case management app implementing the NCSDDC Visual Case Analysis (VCA) ghosting methodology — a 7-step pipeline that determines whether one person infected another by constructing "ghosted" lesion windows from clinical constants.
+A syphilis contact-tracing and case management app implementing the CDC Visual Case Analysis (VCA) ghosting methodology — a 7-step pipeline that determines whether one person infected another by constructing "ghosted" lesion windows from clinical constants. Clinical reference: Fussell/NCSD 2022 training.
 
 **V2 migration is underway:** the Streamlit v1 app (`app/`) is being replaced by a FastAPI backend (`fastapi_app/`) + React frontend (`frontend/`). Both backends share the same SQLAlchemy models sourced from `app/db/models.py`.
 

@@ -7,7 +7,7 @@ const GLOSSARY_TERMS = [
   {
     term: "VCA",
     definition:
-      "Visual Case Analysis — the NCSDDD methodology for establishing probable transmission links from clinical timing data.",
+      "Visual Case Analysis — a CDC DIS field methodology (codified 1992; NCSD 2022 training) for establishing probable transmission links from clinical timing data.",
   },
   {
     term: "Ghosting / Ghosted lesion",

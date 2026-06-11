@@ -40,14 +40,14 @@ To redeploy from scratch:
 
 ## What it does
 
-- **Presets** (sidebar) load known-answer scenarios, including the NCSDDC
+- **Presets** (sidebar) load known-answer scenarios, including the NCSD
   training's Carmela/Johannes example, an ambiguous asymptomatic-partner case,
   and an unrelated case. Each preset states the expected outcome so you can spot
   when a code change shifts a known answer.
 - **Single Pair** mode — evaluate two people head-to-head.
 - **Multi-Partner** mode — enter an index patient once and up to 5 contacts;
   results are ranked by plausibility as source.
-- **Analysis modes** — *Traditional VCA* (average constants, NCSDDC methodology)
+- **Analysis modes** — *Traditional VCA* (average constants, CDC VCA methodology)
   and *Comprehensive* (5 natural-history tiers with confidence score).
 - **Feedback** — testers rate each verdict (Reasonable / Unsure / Wrong) with an
   optional note. Feedback is written to `quickvca/feedback_log.jsonl` on the

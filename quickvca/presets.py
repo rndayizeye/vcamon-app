@@ -33,7 +33,7 @@ PRESETS: dict[str, dict | None] = {
             "Johannes is the SOURCE, Carmela is a SPREAD. Carmela has an existing "
             "primary chancre (the anchor); Johannes presents with secondary "
             "symptoms, so he was infected first and gave it to Carmela. Matches the "
-            "NCSDDC training worked example."
+            "NCSD training worked example."
         ),
         "a": {
             "name": "Carmela",
@@ -148,7 +148,7 @@ PRESETS: dict[str, dict | None] = {
             "Four contacts are evaluated; Contact 5 is blank and skipped.\n\n"
             "Comprehensive mode ranking (verdict direction first, then confidence):\n"
             "  1. Johannes — SOURCE, Likely (4/5). Secondary predates Carmela's primary by "
-            "     4 days; long shared window; timing is decisive per the NCSDDC worked example.\n"
+            "     4 days; long shared window; timing is decisive per the NCSD worked example.\n"
             "  2. Marcus — SOURCE, Possible (3/5). Spread passes 3/5 tiers; inoculation "
             "     date (Date2=Mar 22) falls within the shared exposure window for the 3 "
             "     faster tiers; conservative and slow-infection tiers fail natural order.\n"

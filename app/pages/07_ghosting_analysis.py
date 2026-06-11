@@ -201,7 +201,7 @@ with st.sidebar:
 st.title("Ghosting Analysis")
 st.caption(
     f"Case #{case.id} — {case.patient_name}  |  "
-    "NCSDDC Visual Case Analysis methodology (2022)"
+    "CDC Visual Case Analysis (VCA) methodology — NCSD training reference, 2022"
 )
 
 with st.expander(

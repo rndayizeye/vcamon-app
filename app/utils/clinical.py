@@ -43,7 +43,7 @@ from app.db.models import SymptomClassification, SymptomDateKind, SymptomDuratio
 
 # ---------------------------------------------------------------------------
 # Syphilis natural history constants (days)
-# Source: VCA Training slide 10, Marion County Public Health / NCSDDC 2022
+# Source: VCA Training slide 10, Marion County Public Health / NCSD 2022
 # ---------------------------------------------------------------------------
 
 INCUBATION = {"min": 10, "avg": 21, "max": 90}

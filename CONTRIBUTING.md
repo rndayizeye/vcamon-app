@@ -21,7 +21,7 @@ logic, and implementation decisions — was created by the project author.
 ## Layer 1 — Clinical methodology
 
 **Source:** Fussell, E. (2022). *Visual Case Analysis.*
-National Coalition of STD Directors (NCSDDC) / Marion County Public Health Department.
+National Coalition of STD Directors (NCSD) / Marion County Public Health Department.
 https://www.ncsddc.org/wp-content/uploads/2022/07/VCA-Training-7.2022.pdf
 
 **What was contributed:** The VCA ghosting methodology — the seven-step

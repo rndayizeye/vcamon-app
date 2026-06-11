@@ -305,7 +305,7 @@ For included/high-value papers, ask:
 | 2026-05-31 | Google Scholar / PubMed | A1-DIS-Systematic-Review | syphilis DIS disease intervention specialist systematic review partner services effectiveness 2024 | English; humans | 30 included | Peterman et al. 2024, Am J Prev Med, PMC11663095 |
 | 2026-05-31 | PubMed | A2-DIS-On-Site-Outcomes | partner notification outcomes disease intervention specialist STD clinic PLOS One 2018 | English; humans | 1 primary | Hurt et al. 2018, PLOS One, DOI 10.1371/journal.pone.0194041 |
 | 2026-05-31 | PubMed / CDC Stacks | A3-Partner-Notification-Effectiveness | effectiveness syphilis partner notification 7 jurisdictions adjusting treatment dates 2022 | English; US data | 1 primary | Peterman et al. 2022, STD journal, PMID 34310526 |
-| 2026-05-31 | NCSDDC Website | A4-VCA-Training | visual case analysis syphilis source spread ghosting methodology NCSDDC 2022 | Grey literature | 1 primary | NCSDDC/Fussell 2022 training document — archive copy recommended |
+| 2026-05-31 | NCSD Website | A4-VCA-Training | visual case analysis syphilis source spread ghosting methodology NCSD 2022 | Grey literature | 1 primary | NCSD/Fussell 2022 training document — archive copy recommended |
 | 2026-05-31 | Google Scholar | A5-Changing-Role-DIS | changing role disease intervention specialist modern public health programs 2019 | English | 1 primary | Cope et al. 2019, Public Health Reports |
 | 2026-05-31 | PubMed / Semantic Scholar | B1-PHI-Yasnoff-2000 | public health informatics definition Yasnoff O'Carroll 2000 | English | 1 primary | Yasnoff et al. 2000, J Public Health Mgmt Practice, PMID 18019962 |
 | 2026-05-31 | CDC / MMWR | B2-CDC-MMWR-PHI-Surveillance | role public health informatics enhancing surveillance MMWR 2012 | Grey literature | 1 primary | Thacker et al. 2012, MMWR Suppl 61(03):20–24 |
@@ -326,7 +326,7 @@ For included/high-value papers, ask:
 
 | Search Date | Database | Query Name | Exact Query | Filters | Hits | Notes |
 |---|---|---|---|---|---:|---|
-| 2026-05-31 | NCSDDC / Grey lit | A4b-VCA-Origin-1992 | NACCHO VCA visual case analysis syphilis source spread ghosting CDC 1992 DIS training | None | 1 partial | CDC 1992 training cited via Oregon PH Division VCA form — full document not yet located |
+| 2026-05-31 | NCSD / Grey lit | A4b-VCA-Origin-1992 | NACCHO VCA visual case analysis syphilis source spread ghosting CDC 1992 DIS training | None | 1 partial | CDC 1992 training cited via Oregon PH Division VCA form — full document not yet located |
 | 2026-05-31 | PubMed | A1b-Unnamed-Partners | unnamed partners syphilis partner services 7 jurisdictions Cope 2022 | English | 1 | Cope et al. 2022, STD, PMC9310554 |
 | 2026-05-31 | PubMed | A1c-DIS-History | disease intervention specialist history partner services STD HIV review | English | 1 | Pavia et al. 2019, STD (approx), PMC6304721 |
 | 2026-05-31 | PubMed | A1d-CT-History | history contact tracing syphilis COVID public health United States 2022 | English | 1 | Keshavjee et al. 2022, Am J Public Health, PMC9342804 |
@@ -342,7 +342,7 @@ For included/high-value papers, ask:
 - ✅ Domain C recency gap — resolved by Rankin 2025
 - ✅ DIS history backbone — resolved by Pavia 2019 + Keshavjee 2022
 - ✅ VCA intellectual precursor — resolved by Rothenberg 2003 Havlak lot system
-- 🔴 **CDC 1992 VCA training document** — cited but not yet accessed; must locate via CDC archives or NCSDDC/NACCHO contact
+- 🔴 **CDC 1992 VCA training document** — cited but not yet accessed; must locate via CDC archives or NCSD/NACCHO contact
 - 🔴 **CDC STI Treatment Guidelines 2021** — needed as peer-reviewed natural history constants anchor
 - 🔴 **Temporal reasoning methods** — no mid-period (2005–2020) clinical guidelines temporal constraint paper yet (Arden Syntax / GLARE / Asbru literature)
 - 🔴 **Rule-based computable case identification** — CARPEDIEM-style paper for Domain B methods depth

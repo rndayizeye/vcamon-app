@@ -20,7 +20,7 @@ across sessions.
 
 ## 2. Draft thesis
 
-We translated the NCSDDC Visual Case Analysis ghosting methodology from a manual,
+We translated the CDC Visual Case Analysis (VCA) ghosting methodology from a manual,
 expert-driven plotting process into a reusable, explainable computational engine
 that can support both routine syphilis case management and future surveillance-scale
 source-spread analysis.
@@ -330,7 +330,7 @@ _Confirmed: seven-step pipeline (matches 7 key entry points in code); four trans
   - [x] Temporal reasoning methods — `peleg_2003_comparing_cig_models` (JAMIA; canonical CIG model comparison) + `madkour_2016_temporal_data_clinical` (CMPB review; Allen's interval algebra)
   - [x] Rule-based computable phenotyping — `banda_2018_electronic_phenotyping` (Annual Review BDS; primary) + `richesson_2013_ehr_phenotyping_collaboratory` (JAMIA; definitional anchor)
   - [x] FHIR RiskAssessment resource — `hl7_2019_fhir_r4_riskassessment`; resource confirmed in R4; strong fit for VCA outputs; gap: probability[x] needs ordinal mapping or custom extension for tier scores
-- [ ] **CRITICAL ACTION: locate CDC 1992 VCA DIS training document** — contact CDC archives or NCSDDC/NACCHO directly
+- [ ] **CRITICAL ACTION: locate CDC 1992 VCA DIS training document** — contact CDC archives or NCSD/NACCHO directly
 - [ ] Full-text abstraction: complete "To abstract" High-priority papers in tracker (pavia_2019, keshavjee_2022, cope_2022, cdc_1992, rankin_2025, workowski_2021, peleg_2003, banda_2018)
 - [ ] Run formal PubMed queries B1/B2/C1/C2/D1/D2 (exact strings in § 5 of PAPER1_LITERATURE_SEARCH.md) with filter logs before submission
 - [x] ~~Recent syphilis surveillance 2020–2026~~ — resolved by Rankin 2025
@@ -352,7 +352,7 @@ _Confirmed: seven-step pipeline (matches 7 key entry points in code); four trans
 - 17 sources identified, confirmed, and entered into `PAPER1_ARTICLE_TRACKER.csv`.
 - Search log recorded in `PAPER1_LITERATURE_SEARCH.md` § 11.
 - Key anchors secured per domain:
-  - **A (Syphilis/DIS/VCA):** Peterman 2024 systematic review; Hurt 2018 on-site DIS outcomes; Peterman 2022 PN effectiveness; NCSDDC 2022 VCA training; Cope 2019 DIS changing roles
+  - **A (Syphilis/DIS/VCA):** Peterman 2024 systematic review; Hurt 2018 on-site DIS outcomes; Peterman 2022 PN effectiveness; NCSD 2022 VCA training; Cope 2019 DIS changing roles
   - **B (PHI/Decision Support):** Yasnoff 2000 PHI definition; CDC MMWR 2012 PHI surveillance; Amann 2022 explainability in CDSS; StatPearls syphilis natural history (engine constants grounding)
   - **C (Surveillance/Transmission):** Doherty 2012 sexual networks NC; Fox 2024 STI mapping Forsyth County; Klovdahl 2017 network SF; CSTE outbreak detection guidance
   - **D (FHIR/Interoperability):** Ward 2017 NBS workflow; Vorisek 2022 FHIR systematic review; HL7 eCR IG v2.1.2; CDC 2023 FHIR Playbook

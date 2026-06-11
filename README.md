@@ -183,7 +183,7 @@ pytest tests/test_clinical.py -v
 ```
 
 Tests use an in-memory SQLite database — no running app or Docker required.
-The clinical engine tests use the exact case scenario from the NCSDDC VCA
+The clinical engine tests use the exact case scenario from the NCSD VCA
 training (slide 17) as their integration test.
 
 ### Linting
@@ -479,7 +479,7 @@ for code scaffolding, architecture guidance, and documentation.
 Clinical methodology is based on:
 
 > Fussell, E. (2022). *Visual Case Analysis.*
-> NCSDDC / Marion County Public Health Department.
+> NCSD / Marion County Public Health Department.
 > https://www.ncsddc.org/wp-content/uploads/2022/07/VCA-Training-7.2022.pdf
 
 ---

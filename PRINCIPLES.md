@@ -28,7 +28,7 @@ The database is the source of truth, not the UI.
 ### 4. Clinical Verifiability (Test-Driven Logic)
 Any change to the ghosting pipeline or period-intersection logic must be verifiable.
 - **Requirement:** Every logic change must be accompanied by a test in `tests/test_clinical.py`.
-- **Scenario-Based:** Tests must use real-world clinical scenarios (e.g., the NCSDDC training slides) to ensure epidemiological correctness.
+- **Scenario-Based:** Tests must use real-world clinical scenarios (e.g., the NCSD training slides) to ensure epidemiological correctness.
 - **Reason:** A "working" app is useless if the clinical verdict is wrong.
 
 ---

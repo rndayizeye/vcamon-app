@@ -10,7 +10,7 @@ You do not review code style or architecture. You validate whether the *logic* f
 
 ## The VCA algorithm you are validating against
 
-**7-step pipeline (Fussell 2022 NCSDDC):**
+**7-step pipeline (Fussell 2022 / NCSD):**
 1. `select_case1` — rank candidates; earlier symptom onset wins; primary preferred over secondary
 2. `calc_date1` — inoculation date: `onset − avg_incubation` (primary) or back through full chain (secondary)
 3. `calc_ghosted_source` — `Date1 ± 10 days` → ghosted source lesion window

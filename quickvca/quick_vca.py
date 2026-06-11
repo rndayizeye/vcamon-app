@@ -403,7 +403,7 @@ with st.expander("📖 Glossary — VCA terms", expanded=False):
 | Term | Meaning |
 |------|---------|
 | **OP** | Original Patient — the index case from which the investigation starts |
-| **VCA** | Visual Case Analysis — NCSDDD methodology for establishing probable transmission links from clinical timing data |
+| **VCA** | Visual Case Analysis — CDC DIS field methodology for establishing probable transmission links from clinical timing data |
 | **Ghosting / Ghosted lesion** | A calculated lesion window inferred from clinical constants when the lesion was not directly observed |
 | **MAP** | Major Analytical Points — a 46-item systematic checklist for documenting key case information |
 | **LX** | Lesion — a syphilitic sore (primary chancre) or secondary rash |
@@ -543,7 +543,7 @@ st.radio(
     horizontal=True,
     key="qv_mode",
     help=(
-        "**Traditional VCA** follows the NCSDDC methodology: the 4 criteria are "
+        "**Traditional VCA** follows the CDC VCA methodology: the 4 criteria are "
         "evaluated once using average natural-history constants only.\n\n"
         "**Comprehensive** re-runs all 4 criteria under five constant sets "
         "(aggressive / expected / conservative / fast-infection / slow-infection) "
@@ -719,7 +719,7 @@ def _build_pdf(result, inp: dict, mode: str, p1_symptom, p2_syms, p2_exp, x_rang
     _status_text = {"pass": "PASS", "fail": "FAIL", "warn": "WARN", "na": "N/A"}
 
     if mode == "Traditional VCA":
-        mode_detail = "Average natural-history constants only (NCSDDC methodology)"
+        mode_detail = "Average natural-history constants only (CDC VCA methodology)"
         _, _, verdict_text, direction_summary = _trad_verdict_strings(
             sc, sp, result.case1_name, result.case2_name
         )
@@ -1037,7 +1037,7 @@ def _show_pair_result(result, inp: dict, show_feedback: bool = True, op_name: st
         )
         st.caption(
             "Traditional VCA evaluates the 4 criteria once, using average natural-history "
-            "constants only — the standard NCSDDC methodology."
+            "constants only — the standard CDC VCA methodology."
         )
 
     else:
@@ -1122,7 +1122,7 @@ def _show_pair_result(result, inp: dict, show_feedback: bool = True, op_name: st
                 use_container_width=True,
                 hide_index=True,
             )
-            st.caption("Source: NCSDDC VCA Training (2022), slide 10. Cross-scenarios cover independent stage variation.")
+            st.caption("Source: NCSD VCA Training (2022), slide 10. Cross-scenarios cover independent stage variation.")
 
     # Important Dates
     if p1_symptom:
