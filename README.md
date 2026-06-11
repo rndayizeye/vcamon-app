@@ -319,7 +319,8 @@ ranks them by clinical precision, from most to least reliable:
 **Step 1 — Select Case1.** The person with the highest-ranking symptom in the
 hierarchy becomes Case1. Their symptom timeline anchors all subsequent date
 calculations. The other person becomes Case2. If both have symptoms of equal
-rank, the person with the earlier onset date becomes Case1.
+rank, the OP (original/index patient) anchors as Case1 — the investigation is
+OP-centered.
 
 **Step 2 — Calculate Date1.** Working backwards from Case1's symptom onset using
 average durations, Date1 is the estimated date Case1 was exposed to infectious
@@ -346,26 +347,28 @@ ghosted spread onset = Date2 + 21 days ghosted spread end = Date2 + 42 days
 
 | Criterion | What is checked | Pass condition |
 |---|---|---|
-| **Exposure overlap** | Infectious period must overlap with exposure window | Any intersection between Case2's infectious period and Case1's exposure window (SOURCE scenario), or Case1's infectious period and Case2's exposure window (SPREAD scenario) |
+| **Exposure overlap** | Infectious period must overlap the exposure window, and the estimated inoculation date should fall inside it | Inoculation date (Date1 for SOURCE, Date2 for SPREAD) lands *within* the reported exposure window. Overlap without the inoculation date inside the window is a warn, not a clean pass |
 | **Anatomical compatibility** | Symptom location is consistent with the type of sex reported | Rectal/anal chancre matches anal sex reported, etc. |
-| **Latency to secondary** | At least five weeks between ghosted lesion end and any secondary symptom onset | Gap ≥ 35 days |
+| **Latency to secondary** | Implied latency between ghosted lesion end and earliest secondary onset falls within the natural-history band | `0 ≤ gap ≤ 70 days`. A negative gap (secondary at/before the lesion) fails; a gap > 70 days warns |
 | **Natural order** | Ghosted lesion precedes secondary symptoms and treatment date | Lesion onset before secondary onset and treatment |
 
 **Exposure criterion (critical period intersection):**
 
-The exposure check verifies that transmission was *possible* by checking if the
-source's infectious period overlapped with the exposed person's contact window:
+The exposure check verifies that transmission was *plausible* by comparing the
+source's infectious period — and, more precisely, the estimated inoculation date —
+against the exposed person's contact window:
 
 - **SOURCE scenario:** Case2's infectious period (ghosted source lesion dates) must
-  intersect with Case1's exposure window. Any overlap = transmission possible.
-  
-- **SPREAD scenario:** Case1's infectious period (symptom onset + duration) must
-  intersect with Case2's exposure window.
+  intersect Case1's exposure window, with Date1 (Case1's inoculation date) inside it.
 
-**Pass:** Periods overlap (any number of days)  
-**Warn:** Periods miss by ≤10 days (warn margin)  
-**Fail:** Periods miss by >10 days  
-**N/A:** Exposure dates not recorded
+- **SPREAD scenario:** Case1's infectious period (symptom onset + duration) must
+  intersect Case2's exposure window, with Date2 (Case2's inoculation date) inside it.
+
+**Pass:** The inoculation date falls *within* the reported exposure window  
+**Warn:** The infectious period overlaps the window but the inoculation date falls
+outside it (borderline timing), **or** the periods miss by ≤10 days (warn margin),
+**or** exposure dates were not recorded  
+**Fail:** No overlap and the periods miss by >10 days
 
 Each criterion returns `pass`, `fail`, `warn` (missing data prevents checking),
 or `n/a` (criterion not applicable for this case). A scenario passes if no

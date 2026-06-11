@@ -415,11 +415,12 @@ with st.expander("📖 Glossary — VCA terms", expanded=False):
 """)
 
 st.info(
-    "**Read the result as a plausibility check, not a probability.** The tool runs the "
-    "method across minimum / average / maximum natural-history constants and reports "
-    "how many of those tiers hold up. ⚠ Warnings don't fail a scenario but weaken the "
-    "story — always read them. Known limitation: when **both** people have a confirmed "
-    "primary chancre, the direction can be unreliable; lean on dates and exposures.",
+    "**Read the result as a plausibility check, not a probability.** *Comprehensive* mode "
+    "re-runs the method across **five** natural-history tiers — spanning the fastest to the "
+    "slowest plausible syphilis progression — and reports how many hold up; *Traditional* "
+    "mode runs the criteria once at average constants. ⚠ Warnings don't fail a scenario but "
+    "weaken the story — always read them. Known limitation: when **both** people have a "
+    "confirmed primary chancre, the direction can be unreliable; lean on dates and exposures.",
     icon="ℹ️",
 )
 
@@ -546,7 +547,7 @@ st.radio(
         "**Traditional VCA** follows the CDC VCA methodology: the 4 criteria are "
         "evaluated once using average natural-history constants only.\n\n"
         "**Comprehensive** re-runs all 4 criteria under five constant sets "
-        "(aggressive / expected / conservative / fast-infection / slow-infection) "
+        "(optimistic / expected / conservative / fast-infection / slow-infection) "
         "and scores how many tiers pass."
     ),
 )
@@ -725,7 +726,7 @@ def _build_pdf(result, inp: dict, mode: str, p1_symptom, p2_syms, p2_exp, x_rang
         )
     else:
         mode_detail = (
-            "5 tiers: aggressive (min) / expected (avg) / conservative (max) / "
+            "5 tiers: optimistic (min) / expected (avg) / conservative (max) / "
             "fast-infection / slow-infection constants"
         )
         verdict_text = result.verdict
@@ -894,8 +895,10 @@ _CRITERIA_META: dict[str, dict[str, str]] = {
         "label": "Exposure overlap",
         "description": (
             "The alleged source's **infectious period** (from max inoculation date to treatment) "
-            "must overlap the **reported contact window** between the two people. "
-            "No overlap means transmission was physically impossible on this timeline."
+            "must overlap the **reported contact window**, and — for a clean pass — the estimated "
+            "**inoculation date** must fall *within* that window. Overlap without the inoculation "
+            "date inside the window is a warn (borderline timing); no overlap at all means "
+            "transmission was physically impossible on this timeline."
         ),
     },
     "exposure_modality": {

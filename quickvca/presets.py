@@ -73,7 +73,7 @@ PRESETS: dict[str, dict | None] = {
             "duration (duration=0), so the entered date is treated as the observation "
             "date and the onset is back-calculated. Both source and spread scenarios "
             "get 3 clean passes (inoculation date within the Jan–Feb window for the "
-            "aggressive, expected, and fast-infection tiers). Manual review required."
+            "optimistic, expected, and fast-infection tiers). Manual review required."
         ),
         "a": {
             "name": "Alex",
